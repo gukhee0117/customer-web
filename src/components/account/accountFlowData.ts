@@ -1,5 +1,6 @@
 import { RETURNS_DATA as RD } from '../../data/returns'
 import { F } from '../../lib/calc'
+import type { FundFlowAllocation, FundFlowMonthly, FundFlowRelief, FundFlowSummary } from '../../api/fundFlow'
 import { currentAdj } from './accountTaxData'
 import type { Tone } from './accountData'
 
@@ -29,11 +30,42 @@ export interface FlowStep {
   noteTone: Tone
 }
 
-export function flowSteps(): { steps: FlowStep[]; cash: string; formula: string } {
-  const FL = RD.FLOW
-  const DT = RD.DATES
+// 서버 값(summary·monthly·allocation)이 있으면 그 값으로, 없으면(로그인 전·오류) 시연 데이터로 그린다
+// 서버 모드의 '국내 보유'는 평가금액이 아니라 매입금액(보유수량 × 평균 매입가) 기준
+export interface FlowLive {
+  summary?: FundFlowSummary | null
+  monthly?: FundFlowMonthly | null
+  allocation?: FundFlowAllocation | null
+}
+
+const sumMonths = (m: FundFlowMonthly | null | undefined, k: 'domesticSellAmount' | 'withdrawalAmount') =>
+  (m?.months ?? []).reduce((acc, x) => acc + (x[k] ?? 0), 0)
+
+export function flowSteps(live?: FlowLive): { steps: FlowStep[]; cash: string; formula: string; headline: string | null } {
   const won = F.won
   const plain = (name: string, v: number, note: string): FlowStep => ({ name, amt: '₩' + won(v), note, noteTone: 'flat' })
+  const s = live?.summary
+  if (s) {
+    const inflow = s.krwInflowAmount ?? 0
+    const buy = s.domesticBuyAmount ?? 0
+    const sold = sumMonths(live?.monthly, 'domesticSellAmount')
+    const out = sumMonths(live?.monthly, 'withdrawalAmount')
+    return {
+      steps: [
+        plain('해외주식 매도', s.soldForeignAmount ?? 0, '누적'),
+        plain('원화 확정', inflow, '확정일부터 1년 유지'),
+        plain('국내 매수', buy, '누적 원가'),
+        plain('국내 보유 중', live?.allocation?.holdingsCost ?? 0, '매입금액 기준'),
+        plain('인출', out, '누적')
+      ],
+      cash: won(s.cashBalance ?? 0),
+      // 매수 수수료는 국내 매수(원가)에 들어 있지 않아 따로 뺀다 — 국내 매도는 수수료·세금을 뺀 금액
+      formula: '원화 확정 ' + won(inflow) + ' − 국내 매수 ' + won(buy) + ' − 수수료 ' + won(s.domesticBuyFeeAmount ?? 0) + ' + 국내 매도 ' + won(sold) + ' − 인출 ' + won(out),
+      headline: s.message
+    }
+  }
+  const FL = RD.FLOW
+  const DT = RD.DATES
   return {
     steps: [
       plain('해외주식 매도', FL.inflow, F.short(DT.filled) + ' 체결'),
@@ -43,7 +75,8 @@ export function flowSteps(): { steps: FlowStep[]; cash: string; formula: string 
       plain('인출', FL.withdrawn, '인출 가능일 ' + F.dot(RD.WITHDRAW.availableDate))
     ],
     cash: won(FL.cash),
-    formula: '원화 확정 ' + won(FL.inflow) + ' − 국내 매수 ' + won(FL.buyCost) + ' + 국내 매도 ' + won(FL.sold) + ' − 인출 ' + won(FL.withdrawn)
+    formula: '원화 확정 ' + won(FL.inflow) + ' − 국내 매수 ' + won(FL.buyCost) + ' + 국내 매도 ' + won(FL.sold) + ' − 인출 ' + won(FL.withdrawn),
+    headline: null
   }
 }
 
@@ -60,6 +93,7 @@ export interface MonthBar {
   color: string
   h: string // 막대 높이(퍼센트 또는 값이 0일 때 2px)
   v: string
+  title: string
 }
 
 export interface MonthView {
@@ -71,19 +105,33 @@ export interface MonthView {
   bars: MonthBar[]
 }
 
-export function monthlyFlow(): MonthView[] {
-  const monthly = RD.FLOW.monthly
-  const mx = Math.max(1, ...monthly.map((m) => Math.max(m.inflow, m.buy)))
+export function monthlyFlow(api?: FundFlowMonthly | null): MonthView[] {
+  // 서버 값이 있으면 월별 4종을 그대로, 없으면 시연 데이터(국내 매도·인출은 시연 데이터에 없어 0)
+  const monthly = api
+    ? api.months.map((m) => ({
+        month: m.flowMonth.slice(0, 7),
+        inflow: m.krwInflowAmount ?? 0,
+        buy: m.domesticBuyAmount ?? 0,
+        sell: m.domesticSellAmount ?? 0,
+        out: m.withdrawalAmount ?? 0
+      }))
+    : RD.FLOW.monthly.map((m) => ({ month: m.month, inflow: m.inflow, buy: m.buy, sell: 0, out: 0 }))
+  const mx = Math.max(1, ...monthly.map((m) => Math.max(m.inflow, m.buy, m.sell, m.out)))
   return monthly.map((m) => {
-    // TODO: 백엔드 연결 시 국내 매도·인출 월별 값 받아오기(지금은 매도·인출 내역이 없어 0)
-    const v = { inflow: m.inflow, buy: m.buy, sell: 0, out: 0 }
+    const v = { inflow: m.inflow, buy: m.buy, sell: m.sell, out: m.out }
     return {
       label: m.month.replace('-', '.'),
       inflow: F.won(v.inflow),
       buy: F.won(v.buy),
-      sell: '0',
-      out: '0',
-      bars: MONTH_SERIES.map((s) => ({ color: s.color, h: v[s.key] ? ((v[s.key] / mx) * 88).toFixed(2) + '%' : '2px', v: v[s.key] ? F.man(v[s.key]) : '0' }))
+      sell: F.won(v.sell),
+      out: F.won(v.out),
+      // 숫자가 겹치지 않게 그 달에서 가장 큰 막대에만 값을 적고, 나머지는 마우스를 올리면(title) 보인다. 정확한 값은 아래 표에 있다
+      bars: MONTH_SERIES.map((s) => ({
+        color: s.color,
+        h: v[s.key] ? ((v[s.key] / mx) * 88).toFixed(2) + '%' : '2px',
+        v: v[s.key] && v[s.key] === Math.max(v.inflow, v.buy, v.sell, v.out) ? F.man(v[s.key]) : '',
+        title: s.label + ' ' + F.won(v[s.key]) + '원'
+      }))
     }
   })
 }
@@ -97,13 +145,38 @@ export interface AllocItem {
 }
 
 export interface AllocView {
+  basis: string
   donut: string
   total: string
   items: AllocItem[]
   sectors: { n: number; label: string; amt: string; pct: string }[]
 }
 
-export function allocValues(): AllocView {
+const BUCKET_COLORS = ['var(--color-navy)', 'var(--color-gold)', 'var(--color-line-strong)']
+
+// allocation이 있으면 서버의 매입금액 기준 값을, 없으면 시연 데이터(평가금액 기준)를 쓴다
+export function allocValues(live?: FundFlowAllocation | null): AllocView {
+  if (live) {
+    const total = live.totalValue ?? 0
+    let acc = 0
+    const donut =
+      'conic-gradient(' +
+      live.buckets
+        .map((b, i) => {
+          const a0 = acc
+          acc += (b.share ?? 0) * 100
+          return BUCKET_COLORS[i % BUCKET_COLORS.length] + ' ' + a0.toFixed(2) + '% ' + acc.toFixed(2) + '%'
+        })
+        .join(', ') +
+      ')'
+    return {
+      basis: '매입금액 기준',
+      donut: total > 0 ? donut : 'var(--color-line-strong)',
+      total: F.man(total),
+      items: live.buckets.map((b, i) => ({ label: b.label, color: BUCKET_COLORS[i % BUCKET_COLORS.length], amt: F.won(b.value), pct: Math.round((b.share ?? 0) * 100) + '%' })),
+      sectors: live.sectors.map((x, i) => ({ n: i + 1, label: x.label, amt: F.man(x.value), pct: Math.round((x.share ?? 0) * 100) + '%' }))
+    }
+  }
   const FL = RD.FLOW
   const isEtf = (c: string) => !!RD.KR_ETF[c]
   const rows = RD.KR_HOLDINGS.map((h) => ({ code: h.code, v: (RD.PX[h.code] || [0, 0])[0] * h.qty }))
@@ -137,6 +210,7 @@ export function allocValues(): AllocView {
     .slice(0, 3)
 
   return {
+    basis: '평가금액 기준',
     donut,
     total: F.man(allocT),
     items: AL.map(([label, v, color]) => ({ label, color, amt: F.won(v), pct: Math.round((v / allocT) * 100) + '%' })),
@@ -145,12 +219,36 @@ export function allocValues(): AllocView {
 }
 
 // ---- 감면과 국내 운용 ----
-export function cutVsInvest(): { cut: string; evalAmt: string; ratio: string } {
+// 서버 값(예상 감면액·국내 매수 누적)이 있으면 '감면 1원당 국내 매수'를, 없으면 시연 데이터로 '국내 운용'을 계산한다
+export function cutVsInvest(live?: { summary?: FundFlowSummary | null; relief?: FundFlowRelief | null }): {
+  cut: string
+  investLabel: string
+  invest: string
+  ratioLabel: string
+  ratio: string
+  note: string
+} {
+  const relief = live?.relief
+  if (relief && live?.summary) {
+    const cut = relief.reliefAmount ?? 0
+    const buy = live.summary.domesticBuyAmount ?? 0
+    return {
+      cut: F.won(cut),
+      investLabel: '국내 매수 누적',
+      invest: F.won(buy),
+      ratioLabel: '감면 1원당 국내 매수 약',
+      ratio: cut > 0 ? (buy / cut).toFixed(1) : '-',
+      note: relief.statusLabel + ' · ' + relief.notice
+    }
+  }
   const benX = RD.BENEFIT_STATE === 'IMPOSSIBLE'
-  const t0 = F.tax(0, RD.C.BUSINESS_DATE, currentAdj())
+  const cut = F.tax(0, RD.C.BUSINESS_DATE, currentAdj()).cut
   return {
-    cut: F.won(benX ? 0 : t0.cut),
-    evalAmt: F.won(RD.FLOW.evalAmt),
-    ratio: benX || !t0.cut ? '-' : String(Math.round(RD.FLOW.evalAmt / t0.cut))
+    cut: F.won(benX ? 0 : cut),
+    investLabel: '국내 운용',
+    invest: F.won(RD.FLOW.evalAmt),
+    ratioLabel: '감면 1원당 국내 운용 약',
+    ratio: benX || !cut ? '-' : String(Math.round(RD.FLOW.evalAmt / cut)),
+    note: '참고용이에요'
   }
 }

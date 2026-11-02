@@ -33,6 +33,7 @@ import { RETURNS_DATA as RD } from '../data/returns'
 import type { DemoSettings } from '../data/returns'
 import { useAppShell } from '../layouts/appShell'
 import { F } from '../lib/calc'
+import { useFundFlow } from '../components/account/useFundFlow'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
 
 // 내 계좌 — 1~8번째 부분: 뼈대·페이지 탭·계좌 요약·계좌 상태 + 매도 한도·세액·원금 유지·증빙서류 + 잔고 + 거래·신청 내역 + 자금 흐름 탭 박스 4개 + 입고·인출·계좌 개설 신청 창 + 매도 신청 창 + 상담 창·상단 종 알림·시연 설정
@@ -51,6 +52,8 @@ export function AccountPage() {
   }, [])
 
   const [calcOpen, setCalcOpen] = useState(false)
+  // 자금 흐름 탭에 들어왔을 때만 서버 값을 받아옴(실패하면 시연 데이터로 보임)
+  const fundFlow = useFundFlow(RD.ACCOUNT_STATE === 'opened' && hash === '#flow')
 
   // 끼루 AI 상담 창 — 내용은 AppLayout의 챗봇 버튼에 넘기고, 이 페이지를 떠나면 비움
   const [bot, setBot] = useState<BotMessage[]>(() => [botGreeting()])
@@ -242,12 +245,12 @@ export function AccountPage() {
       {opened && page === 'flow' && (
         <div className={styles.flow}>
           <div className={styles.asOf}>{F.asOf(RD.C.BUSINESS_DATE)} · 매일 새벽 집계</div>
-          <FlowStepsBox />
+          <FlowStepsBox live={fundFlow} />
           <div className={styles.flowGrid}>
-            <FlowMonthlyBox />
+            <FlowMonthlyBox monthly={fundFlow.monthly} />
             <div className={styles.flowSide}>
-              <FlowAllocBox />
-              <FlowCutBox />
+              <FlowAllocBox allocation={fundFlow.allocation} />
+              <FlowCutBox summary={fundFlow.summary} relief={fundFlow.relief} />
             </div>
           </div>
         </div>

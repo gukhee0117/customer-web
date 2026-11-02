@@ -1,15 +1,17 @@
 import { Fragment } from 'react'
 import '../../styles/tokens.css'
+import type { FundFlowAllocation, FundFlowMonthly, FundFlowRelief, FundFlowSummary } from '../../api/fundFlow'
 import { Box } from '../common/Box'
 import { cx } from '../common/cx'
 import { MONTH_SERIES, allocValues, cutVsInvest, flowSteps, monthlyFlow } from './accountFlowData'
+import type { FlowLive } from './accountFlowData'
 import styles from './AccountFlowBoxes.module.css'
 
 const toneClass = (t: 'up' | 'down' | 'flat') => (t === 'up' ? styles.up : t === 'down' ? styles.down : styles.flat)
 
 // 돌아온 돈의 흐름(data-box="flow") — 다섯 단계와 화살표, 주문 가능 예수금 계산식
-export function FlowStepsBox({ className }: { className?: string }) {
-  const { steps, cash, formula } = flowSteps()
+export function FlowStepsBox({ className, live }: { className?: string; live?: FlowLive }) {
+  const { steps, cash, formula, headline } = flowSteps(live)
   return (
     <Box data-box="flow" className={className} title="돌아온 돈의 흐름">
       <div className={styles.scroll}>
@@ -26,6 +28,11 @@ export function FlowStepsBox({ className }: { className?: string }) {
           ))}
         </div>
       </div>
+      {headline && (
+        <div className={styles.formula}>
+          <b className={styles.bold}>{headline}</b>
+        </div>
+      )}
       <div className={styles.formula}>
         주문 가능 예수금 <b className={styles.bold}>₩{cash}</b> <span className={styles.formulaTxt}>= {formula}</span>
       </div>
@@ -34,9 +41,11 @@ export function FlowStepsBox({ className }: { className?: string }) {
 }
 
 // 월별 흐름(data-box="monthly") — 위 막대 그래프, 아래 월별 표
-export function FlowMonthlyBox({ className }: { className?: string }) {
-  const months = monthlyFlow()
+export function FlowMonthlyBox({ className, monthly }: { className?: string; monthly?: FundFlowMonthly | null }) {
+  const months = monthlyFlow(monthly)
   const cols = cx(styles.row, styles.tableCols)
+  // 월 수만큼 칸을 나눈다(시연 데이터는 2개월, 서버 값은 3월~현재월)
+  const colTemplate = { gridTemplateColumns: 'repeat(' + months.length + ', minmax(0, 1fr))' }
   return (
     <Box
       data-box="monthly"
@@ -54,18 +63,18 @@ export function FlowMonthlyBox({ className }: { className?: string }) {
       }
     >
       <div className={styles.chart}>
-        <div className={styles.plot}>
+        <div className={styles.plot} style={colTemplate}>
           {months.map((m) => (
             <div key={m.label} className={styles.group}>
               {m.bars.map((b, i) => (
-                <div key={i} className={styles.bar} style={{ height: b.h, background: b.color }}>
-                  <span className={styles.barVal}>{b.v}</span>
+                <div key={i} className={styles.bar} style={{ height: b.h, background: b.color }} title={b.title}>
+                  {b.v && <span className={styles.barVal}>{b.v}</span>}
                 </div>
               ))}
             </div>
           ))}
         </div>
-        <div className={styles.axis}>
+        <div className={styles.axis} style={colTemplate}>
           {months.map((m) => (
             <span key={m.label}>{m.label}</span>
           ))}
@@ -92,10 +101,10 @@ export function FlowMonthlyBox({ className }: { className?: string }) {
 }
 
 // 어디에 운용하고 있나(data-box="alloc") — 도넛, 항목별 금액·비율, 업종 상위 3
-export function FlowAllocBox({ className }: { className?: string }) {
-  const a = allocValues()
+export function FlowAllocBox({ className, allocation }: { className?: string; allocation?: FundFlowAllocation | null }) {
+  const a = allocValues(allocation)
   return (
-    <Box data-box="alloc" className={className} title="어디에 운용하고 있나" actions={<span className={styles.basis}>평가금액 기준</span>}>
+    <Box data-box="alloc" className={className} title="어디에 운용하고 있나" actions={<span className={styles.basis}>{a.basis}</span>}>
       <div className={styles.allocTop}>
         <div className={styles.donut} style={{ background: a.donut }}>
           <div className={styles.donutHole}>
@@ -131,8 +140,8 @@ export function FlowAllocBox({ className }: { className?: string }) {
 }
 
 // 감면과 국내 운용(data-box="cut-vs-invest") — 예상 감면액, 국내 운용, 감면 1원당 국내 운용
-export function FlowCutBox({ className }: { className?: string }) {
-  const c = cutVsInvest()
+export function FlowCutBox({ className, summary, relief }: { className?: string; summary?: FundFlowSummary | null; relief?: FundFlowRelief | null }) {
+  const c = cutVsInvest({ summary, relief })
   return (
     <Box data-box="cut-vs-invest" className={className} title="감면과 국내 운용">
       <div className={styles.cutBody}>
@@ -142,14 +151,14 @@ export function FlowCutBox({ className }: { className?: string }) {
             <b className={cx(styles.cutAmt, styles.gold)}>₩{c.cut}</b>
           </div>
           <div className={styles.cutRight}>
-            <div className={styles.cutLabel}>국내 운용</div>
-            <b className={styles.cutAmt}>₩{c.evalAmt}</b>
+            <div className={styles.cutLabel}>{c.investLabel}</div>
+            <b className={styles.cutAmt}>₩{c.invest}</b>
           </div>
         </div>
         <div className={styles.ratio}>
-          감면 1원당 국내 운용 약 <b className={cx(styles.bold, styles.navy)}>{c.ratio}원</b>
+          {c.ratioLabel} <b className={cx(styles.bold, styles.navy)}>{c.ratio}원</b>
         </div>
-        <div className={styles.ref}>참고용이에요</div>
+        <div className={styles.ref}>{c.note}</div>
       </div>
     </Box>
   )
