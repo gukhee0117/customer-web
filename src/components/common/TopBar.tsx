@@ -6,7 +6,8 @@ import { RETURNS_DATA } from '../../data/returns'
 import { F } from '../../lib/calc'
 import { assetUrl } from './assetUrl'
 import { cx } from './cx'
-import { clearLoginSession } from '../login/loginSession'
+import { getSessionName } from '../login/loginSession'
+import { useAuth } from '../../contexts/AuthContext'
 import { Modal } from './Modal'
 import { Toast } from './Toast'
 import { useToast } from './useToast'
@@ -37,7 +38,6 @@ interface TopBarProps {
 
 // ===== 로그인 30분 세션 (sessionStorage 키는 원본 그대로 · 페이지를 옮겨도 이어짐) =====
 // 세션은 실제 경과 시간이므로 업무일이 아니라 Date.now()를 쓴다.
-const SESSION_MS = 30 * 60 * 1000
 const WARN_S = 300
 const KEY_EXP = 'returns-session-exp'
 const KEY_WARNED = 'returns-session-warned'
@@ -102,15 +102,17 @@ const readPush = (): PushNote[] => {
   return out
 }
 
-// 첫 화면의 만료 시각: 저장된 값이 유효하면 이어서, 없거나 지났으면 지금부터 30분. ?session=초 로 시연용 지정 가능
+// 첫 화면의 만료 시각: 저장된 값을 그대로 읽음. ?session=초 로 시연용 지정 가능
+// 세션이 없거나 만료되어도 임의 30분을 새로 만들지 않음 — 만료 처리는 auth.status가 담당
 const initSession = (): number => {
-  const now = Date.now()
-  let exp = Number(ssGet(KEY_EXP)) || 0
-  const m = /[?&]session=(\d+)/.exec(window.location.search)
-  if (m) exp = now + Number(m[1]) * 1000
-  else if (!exp || exp <= now) exp = now + SESSION_MS
-  ssSet(KEY_EXP, String(exp))
-  return exp
+  try {
+    const exp = Number(sessionStorage.getItem(KEY_EXP) || '0')
+    const m = /[?&]session=(\d+)/.exec(window.location.search)
+    if (m) return Date.now() + Number(m[1]) * 1000
+    return exp // 0이면 00:00 표시
+  } catch {
+    return 0
+  }
 }
 
 const mmss = (sec: number): string => {
@@ -133,6 +135,8 @@ const USER_ITEMS: { label: string; hash: string }[] = [
 
 export function TopBar({ active = 'home', bizDot, profLabel, noSearch = false, simpleUserMenu = false, todos = [], todoDate = '', todoAlert = 0 }: TopBarProps) {
   const navigate = useNavigate()
+  const { logout: authLogout, extend: authExtend, auth } = useAuth()
+  const customerName = auth.status === 'authenticated' ? auth.me.name : getSessionName()
   const { message: toast, showToast } = useToast()
 
   const [wide, setWide] = useState(() => window.innerWidth >= 1100)
@@ -152,21 +156,25 @@ export function TopBar({ active = 'home', bizDot, profLabel, noSearch = false, s
   const endSession = useCallback(
     (timeout: boolean) => {
       ended.current = true
-      clearLoginSession()
       if (timeout) ssSet(KEY_LOGOUT_NOTICE, '1')
-      navigate('/')
+      void authLogout().then(() => navigate('/'))
     },
-    [navigate]
+    [authLogout, navigate]
   )
 
   const extend = () => {
-    const next = Date.now() + SESSION_MS
-    ssSet(KEY_EXP, String(next))
-    ssDel(KEY_WARNED)
-    setExp(next)
-    setNow(Date.now())
     setWarnOpen(false)
-    showToast('로그인 시간을 30분 연장했어요')
+    void authExtend()
+      .then(() => {
+        // AuthContext.extend가 setLoginSession을 호출했으므로 새 exp를 읽어 반영
+        const newExp = Number(sessionStorage.getItem(KEY_EXP) || '0')
+        ssSet(KEY_EXP, String(newExp))
+        ssDel(KEY_WARNED)
+        setExp(newExp)
+        setNow(Date.now())
+        showToast('로그인 시간을 30분 연장했어요')
+      })
+      .catch(() => showToast('연장 중 오류가 발생했어요. 다시 시도해 주세요'))
   }
 
   // 1초마다 남은 시간 갱신 · 0이 되면 자동 로그아웃 · 5분 남으면 경고창(만료 시각당 한 번)
@@ -290,7 +298,7 @@ export function TopBar({ active = 'home', bizDot, profLabel, noSearch = false, s
 
   const logout = () => {
     ended.current = true
-    clearLoginSession()
+    void authLogout().then(() => navigate('/'))
   }
 
   const userActive = active === 'myinfo'
@@ -376,7 +384,7 @@ export function TopBar({ active = 'home', bizDot, profLabel, noSearch = false, s
           </div>
           <div className={styles.popWrap} ref={userRef}>
             <button type="button" className={cx(styles.userBtn, userActive && styles.userBtnOn)} onClick={toggleUser} aria-haspopup="menu" aria-expanded={userOpen}>
-              {RETURNS_DATA.CUSTOMER.name} 님
+              {customerName || (auth.status === 'checking' ? '' : RETURNS_DATA.CUSTOMER.name)} 님
               <svg className={cx(styles.chevron, userOpen && styles.chevronOpen)} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m6 9 6 6 6-6" />
               </svg>
@@ -399,9 +407,9 @@ export function TopBar({ active = 'home', bizDot, profLabel, noSearch = false, s
                   )
                 })}
                 <div className={cx(styles.divider, styles.dividerGap)} />
-                <Link role="menuitem" to="/" className={cx(styles.userItem, styles.logoutItem)} onClick={logout}>
+                <button type="button" role="menuitem" className={cx(styles.userItem, styles.logoutItem)} onClick={logout}>
                   로그아웃
-                </Link>
+                </button>
               </div>
             )}
           </div>
