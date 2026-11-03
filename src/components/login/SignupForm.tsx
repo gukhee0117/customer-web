@@ -4,6 +4,7 @@ import '../../styles/tokens.css'
 import { apiErrorMessage } from '../../api/client'
 import { signup } from '../../api/auth'
 import { useAuth } from '../../contexts/authState'
+import { syncAssessState } from '../../api/investor'
 import { RETURNS_DATA } from '../../data/returns'
 import { F } from '../../lib/calc'
 import { cx } from '../common/cx'
@@ -146,6 +147,7 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
         email: info.email.trim()
       })
       applySession(me)
+      await syncAssessState()
       return true
     } catch (err) {
       showToast(apiErrorMessage(err, '가입하지 못했어요. 잠시 뒤 다시 시도해 주세요'))
