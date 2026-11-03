@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom'
 import '../../styles/tokens.css'
 import { RETURNS_DATA } from '../../data/returns'
 import { assetUrl } from '../common/assetUrl'
-import { setLoginSession } from './loginSession'
 import { ORDER, PROFILES } from './signupProfile'
 import type { ProfileKey } from './signupProfile'
 import styles from './SignupQuiz.module.css'
@@ -42,7 +41,7 @@ export function SignupResult({ name, profile }: SignupResultProps) {
           )
         })}
       </div>
-      <Link className={styles.start} to="/home#new" onClick={setLoginSession}>
+      <Link className={styles.start} to="/home#new">
         Returns 시작하기
       </Link>
     </div>
