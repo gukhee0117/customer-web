@@ -8,7 +8,6 @@ interface ApiResponse<T> {
 export interface GeneralAccount {
   generalAccountId: number
   accountNo: string
-  brokerName: string
 }
 
 export interface WithdrawalLeftAmount {
@@ -30,8 +29,7 @@ export interface WithdrawalAvailability {
 }
 
 export interface WithdrawalSubmitRequest {
-  /** 정밀도 보존을 위해 string 전송 */
-  requestedAmount: string
+  requestedAmount: number
   destinationGeneralAccountId: number
   earlyWithdrawalAgreed: boolean
 }
