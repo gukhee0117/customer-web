@@ -34,7 +34,8 @@ export function FlowStepsBox({ className, live }: { className?: string; live?: F
         </div>
       )}
       <div className={styles.formula}>
-        주문 가능 예수금 <b className={styles.bold}>₩{cash}</b> <span className={styles.formulaTxt}>= {formula}</span>
+        {/* 서버 값은 account.amount(계좌 예수금)이라 주문 가능 금액을 보장하지 않는다. 시연 데이터만 원래 문구 유지 */}
+        {live?.summary ? '계좌 예수금' : '주문 가능 예수금'} <b className={styles.bold}>₩{cash}</b> <span className={styles.formulaTxt}>= {formula}</span>
       </div>
     </Box>
   )
