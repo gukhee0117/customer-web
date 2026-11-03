@@ -46,8 +46,8 @@ export function LoginForm({ active, onSignup }: LoginFormProps) {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (loading) return
-    const id = loginId.trim() || 'user000048' // 시연 모드: 빈 입력 → 하주인공
-    const pw = loginPw || '1234'
+    const id = loginId.trim() || 'user1' // 시연 모드: 빈 입력 → 시연 계정
+    const pw = loginPw || '123'
     setLoading(true)
     setLoginErr('')
     try {
@@ -109,7 +109,7 @@ export function LoginForm({ active, onSignup }: LoginFormProps) {
             </span>
           </label>
           {loginErr && <span className={styles.error} role="alert">{loginErr}</span>}
-          <span className={styles.hint}>시연 계정: 입력 없이 로그인하면 하주인공 님으로 들어가요</span>
+          <span className={styles.hint}>시연 계정: 입력 없이 로그인하면 user1 / 123으로 들어가요</span>
         </div>
         <div className={styles.options}>
           <button type="button" className={styles.remember} onClick={() => setRemember((v) => !v)} aria-pressed={remember}>
