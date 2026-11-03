@@ -14,7 +14,7 @@ import styles from './MyInfoAssessDialog.module.css'
 
 interface Props {
   onClose: () => void
-  onSave: (score: number, profile: string) => void
+  onSave: (score: number, profile: string, assessedAt: string) => void
 }
 
 // 투자성향 다시 진단 창: 서버 문항(복수 선택 포함) → 마지막 문항에서 서버에 제출해 결과(총점·성향)를 보여 준다
@@ -61,7 +61,7 @@ export function MyInfoAssessDialog({ onClose, onSave }: Props) {
     try {
       const res = await submitAssessment(survey.answers)
       setResult(res)
-      onSave(res.totalScore, profileKeyOf(res.investorType)) // 제출은 곧 서버 저장 — 결과 화면에서 어떻게 닫아도 화면에 반영돼 있게
+      onSave(res.totalScore, profileKeyOf(res.investorType), res.assessedAt) // 제출은 곧 서버 저장 — 결과 화면에서 어떻게 닫아도 화면에 반영돼 있게
     } catch (e) {
       setSubmitErr(apiErrorMessage(e, '설문을 제출하지 못했어요. 잠시 뒤 다시 시도해 주세요'))
     } finally {

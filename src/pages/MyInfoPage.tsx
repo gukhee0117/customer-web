@@ -1,5 +1,7 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { fetchAssessStatus } from '../api/investor'
+import type { InvestorStatus } from '../api/investor'
 import { getProfile } from '../api/profile'
 import type { Profile } from '../api/profile'
 import { Toast } from '../components/common/Toast'
@@ -24,7 +26,6 @@ import { HIST_KEY, assessState, readHist } from '../components/myinfo/myinfoProf
 import { useAppShell } from '../layouts/appShell'
 import { RETURNS_DATA as RD } from '../data/returns'
 import type { ProfileKey } from '../data/returns'
-import { F } from '../lib/calc'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
 
 const HASH_BOXES = ['assess', 'notify', 'theme']
@@ -45,6 +46,11 @@ export function MyInfoPage() {
   const [prof, setProf] = useState<Profile | null>(null)
   const [profErr, setProfErr] = useState(false)
   const [profTries, setProfTries] = useState(0)
+  const [assessStatus, setAssessStatus] = useState<InvestorStatus | null>(null) // 서버 진단일·만료일
+  const loadAssessStatus = () => fetchAssessStatus().then(setAssessStatus).catch(() => {})
+  useEffect(() => {
+    void loadAssessStatus()
+  }, [])
   const [flash, setFlash] = useState<string | null>(null)
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const firstHash = useRef(true)
@@ -122,9 +128,8 @@ export function MyInfoPage() {
   const openAssess = () => setAsOpen(true)
 
   // 재진단 제출 직후(창은 결과 화면 그대로): 진단 이력 맨 앞에 추가(날짜는 업무일) + 시연 설정의 성향 바꿈 → 홈·추천·상단 바에 바로 반영
-  const saveAssess = (score: number, profile: string) => {
-    const base = hist ?? [{ date: RD.ASSESSMENT.date, score: RD.ASSESSMENT.score, profile: RD.ASSESSMENT.profile }]
-    const next = [{ date: F.today(), score, profile }, ...base]
+  const saveAssess = (score: number, profile: string, assessedAt: string) => {
+    const next = [{ date: assessedAt.slice(0, 10), score, profile }, ...(hist ?? [])]
     try {
       localStorage.setItem(HIST_KEY, JSON.stringify(next))
     } catch {
@@ -132,6 +137,7 @@ export function MyInfoPage() {
     }
     setHist(next)
     RD.setDemo({ profile: profile as ProfileKey, assess: 'ok' })
+    void loadAssessStatus()
     showToast('투자성향을 저장했어요 · 홈·추천에 바로 반영돼요')
   }
 
@@ -140,7 +146,7 @@ export function MyInfoPage() {
       <h1 className={styles.srOnly}>내 정보</h1>
       <div className={styles.page}>
         <div className={styles.col}>
-          <MyInfoProfileBox className={cx(styles.profile, styles.flashable, flash === 'assess' && styles.flashOn)} hist={hist} onOpenAssess={openAssess} />
+          <MyInfoProfileBox className={cx(styles.profile, styles.flashable, flash === 'assess' && styles.flashOn)} hist={hist} name={prof?.name} status={assessStatus} onOpenAssess={openAssess} />
           {assessState() === 'risky' && !riskyHide && (
             <MyInfoRiskyNotice
               className={styles.trade}

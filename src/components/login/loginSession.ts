@@ -23,6 +23,15 @@ export const setLoginSession = (info: SessionInfo) => {
   }
 }
 
+// 진단 이력(localStorage)은 계정마다 달라서, 로그인·가입·로그아웃 때 비운다
+export const clearAssessHist = () => {
+  try {
+    localStorage.removeItem('returns-assess-hist')
+  } catch {
+    /* 저장소 불가 시 무시 */
+  }
+}
+
 export const clearLoginSession = () => {
   ;[KEY_LOGIN, KEY_EXP, KEY_WARNED, KEY_NAME].forEach((k) => {
     try {

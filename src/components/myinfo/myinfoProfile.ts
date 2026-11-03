@@ -1,6 +1,7 @@
 import { RETURNS_DATA as RD, demo } from '../../data/returns'
 import type { ProfileKey } from '../../data/returns'
 import { F } from '../../lib/calc'
+import type { InvestorStatus } from '../../api/investor'
 
 // 내 정보 — 프로필·거래로 본 성향 박스가 쓰는 값. 고객·진단·계좌는 RD(홈과 같은 값), 시연 상태는 demo()에서 읽는다.
 
@@ -31,7 +32,7 @@ export interface ProfileView {
   noteBtn: string
   date: string
   next: string
-  score: number
+  score: number | null // 이번 브라우저에서 제출한 진단이 없으면 null(서버가 점수를 아직 안 준다)
   allowed: string
   warnOn: boolean
   warn: string
@@ -46,11 +47,13 @@ export const assessState = (): string => demo().assess || 'ok'
 
 export const profileKey = (): ProfileKey => RD.CUSTOMER.profile as ProfileKey
 
-export const profileView = (stored: AssessHistItem[] | null): ProfileView => {
+export const profileView = (stored: AssessHistItem[] | null, status: InvestorStatus | null): ProfileView => {
   const key = profileKey(), pf = RD.PROFILES[key], aSt = assessState()
-  const hist = stored ?? [{ date: RD.ASSESSMENT.date, score: RD.ASSESSMENT.score, profile: RD.ASSESSMENT.profile }]
-  const last = hist[0] ?? { date: '', score: 0, profile: key }
-  const validUntil = last.date ? F.addDays(F.addMonths(last.date, 24), -1) : ''
+  const hist = stored ?? []
+  const last = hist[0]
+  // 진단일·유효기간은 서버 값(없으면 이번에 제출한 진단). 점수·이력은 서버가 아직 안 줘서 이번 브라우저에서 제출한 것만 보인다
+  const date = status?.assessedAt ? status.assessedAt.slice(0, 10) : last?.date ?? ''
+  const validUntil = status?.expiresAt ? F.addDays(status.expiresAt.slice(0, 10), -1) : date ? F.addDays(F.addMonths(date, 24), -1) : ''
   const dLeft = validUntil ? F.days(F.today(), validUntil) : 999
   return {
     label: aSt === 'none' ? '미진단' : pf.label,
@@ -60,9 +63,9 @@ export const profileView = (stored: AssessHistItem[] | null): ProfileView => {
     noteOn: aSt === 'expired' || aSt === 'none',
     note: aSt === 'none' ? '아직 투자성향을 진단하지 않았어요. 진단하면 성향에 맞는 범위 안에서 추천을 받을 수 있어요.' : '투자성향 진단 유효기간(24개월)이 지났어요. 다시 진단하기 전까지는 추천과 주식 패키지 후보를 볼 수 없어요.',
     noteBtn: aSt === 'none' ? '진단하기' : '다시 진단하기',
-    date: last.date ? F.dot(last.date) : '',
+    date: date ? F.dot(date) : '',
     next: validUntil ? F.dot(validUntil) : '',
-    score: last.score,
+    score: last?.score ?? null,
     allowed: F.allowedLabel(key),
     warnOn: dLeft <= 90,
     warn: dLeft < 0 ? '유효기간이 지났어요 · 다시 진단해 주세요' : '유효기간 D-' + dLeft,

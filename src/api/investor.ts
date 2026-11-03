@@ -3,10 +3,17 @@ import type { ProfileKey } from '../data/returns'
 import { apiClient } from './client'
 import type { ApiResponse } from './client'
 
-interface InvestorStatus {
+export interface InvestorStatus {
   investorType: string
   assessed: boolean // 설문을 마쳤는가. 미진단(UNASSIGNED)이면 false
+  assessedAt: string | null // 진단 기록이 없는 고객(시드)은 null
+  expiresAt: string | null
   expired: boolean // 진단 유효기간(24개월) 경과
+}
+
+export async function fetchAssessStatus(): Promise<InvestorStatus> {
+  const res = await apiClient.get<ApiResponse<InvestorStatus>>('/api/customer/investor-assessment/me')
+  return res.data.data
 }
 
 // 서버의 내 투자성향 상태를 화면의 진단 상태(시연 설정의 assess)와 성향(profile)에 반영한다.
