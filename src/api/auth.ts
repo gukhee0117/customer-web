@@ -26,6 +26,24 @@ export async function login(loginId: string, password: string): Promise<MeData> 
   return res.data.data
 }
 
+export interface SignupBody {
+  loginId: string
+  password: string
+  rrn: string // 숫자 13자리
+  name: string
+  birthDate: string // YYYY-MM-DD
+  phone: string
+  email: string
+}
+
+// 가입하면 서버가 바로 로그인 세션을 만든다. 성공 뒤에는 CSRF 쿠키가 지워지므로 다시 받아 둔다
+export async function signup(body: SignupBody): Promise<MeData> {
+  await initCsrf()
+  const res = await apiClient.post<ApiResponse<MeData>>('/api/customer/auth/signup', body)
+  await initCsrf()
+  return res.data.data
+}
+
 export async function logout(): Promise<void> {
   await apiClient.post('/api/customer/auth/logout')
   await initCsrf()
