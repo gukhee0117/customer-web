@@ -1,6 +1,7 @@
 import { RETURNS_DATA as RD } from '../data/returns'
 import type { ProfileKey } from '../data/returns'
 import { apiClient } from './client'
+import type { ApiResponse } from './client'
 
 interface InvestorStatus {
   investorType: string
@@ -8,13 +9,14 @@ interface InvestorStatus {
   expired: boolean // 진단 유효기간(24개월) 경과
 }
 
-// 서버의 내 투자성향 상태를 화면의 진단 상태(시연 설정의 assess)에 반영한다.
+// 서버의 내 투자성향 상태를 화면의 진단 상태(시연 설정의 assess)와 성향(profile)에 반영한다.
 // 미진단이면 홈·주식 패키지가 추천 대신 '진단하기' 안내를 보여 준다. 조회에 실패하면 미진단으로 둔다(이전 계정의 진단 완료가 남아 보이지 않게)
 export async function syncAssessState(): Promise<void> {
   try {
-    const res = await apiClient.get<{ data: InvestorStatus }>('/api/customer/investor-assessment/me')
-    const { assessed, expired } = res.data.data
-    RD.setDemo({ assess: !assessed ? 'none' : expired ? 'expired' : 'ok' })
+    const res = await apiClient.get<ApiResponse<InvestorStatus>>('/api/customer/investor-assessment/me')
+    const { investorType, assessed, expired } = res.data.data
+    // 성향도 서버 값으로 — 같은 브라우저에서 계정이 바뀌어도 이전 계정의 성향이 남지 않게
+    RD.setDemo({ assess: !assessed ? 'none' : expired ? 'expired' : 'ok', ...(assessed && { profile: profileKeyOf(investorType) }) })
   } catch {
     RD.setDemo({ assess: 'none' })
   }
@@ -44,13 +46,13 @@ export interface AssessmentResult {
 }
 
 export async function fetchQuestions(): Promise<SurveyQuestion[]> {
-  const res = await apiClient.get<{ data: SurveyQuestion[] }>('/api/customer/investor-assessment/questions')
+  const res = await apiClient.get<ApiResponse<SurveyQuestion[]>>('/api/customer/investor-assessment/questions')
   return res.data.data
 }
 
 // 점수 계산·성향 판정·저장은 서버가 한다. 재진단도 같은 호출이다
 export async function submitAssessment(answers: SurveyAnswers): Promise<AssessmentResult> {
-  const res = await apiClient.post<{ data: AssessmentResult }>('/api/customer/investor-assessment', answers)
+  const res = await apiClient.post<ApiResponse<AssessmentResult>>('/api/customer/investor-assessment', answers)
   return res.data.data
 }
 

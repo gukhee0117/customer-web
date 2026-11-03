@@ -89,7 +89,6 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   const [riaOk, setRiaOk] = useState(false)
   const [riaTried, setRiaTried] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [registered, setRegistered] = useState(false) // 가입이 끝났는가 — 설문에서 '이전'으로 돌아와도 다시 가입하지 않는다
   const [qi, setQi] = useState(0)
   const survey = useInvestorSurvey()
   const [result, setResult] = useState<ProfileKey | null>(null)
@@ -187,9 +186,8 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   const skipQuiz = () => navigate('/home')
   const goNext = async () => {
     if (nextDisabled) return
-    if (step === 2 && !registered) {
+    if (step === 2) {
       if (!(await register())) return
-      setRegistered(true)
       survey.reset()
       void survey.load()
     }
@@ -399,7 +397,8 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
       {step < 4 && (
         <div className={styles.nav}>
           <div className={styles.navRow}>
-            <button type="button" className={styles.prev} onClick={goPrev}>이전</button>
+            {/* 가입은 설문 앞에서 끝나므로 첫 문항에서는 본인 정보로 돌아갈 수 없다 */}
+            {!(step === 3 && qi === 0) && <button type="button" className={styles.prev} onClick={goPrev}>이전</button>}
             <button type="button" className={cx(styles.next, nextDisabled && styles.nextOff)} onClick={goNext} disabled={nextDisabled} aria-disabled={nextDisabled}>
               {step === 3 && lastQuestion ? '결과 보기' : '다음'}
             </button>

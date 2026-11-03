@@ -105,7 +105,7 @@ export function MyInfoPage() {
 
   const openAssess = () => setAsOpen(true)
 
-  // 원본 "이 결과로 저장": 진단 이력 맨 앞에 추가(날짜는 업무일) + 시연 설정의 성향 바꿈 → 홈·추천·상단 바에 바로 반영
+  // 재진단 제출 직후(창은 결과 화면 그대로): 진단 이력 맨 앞에 추가(날짜는 업무일) + 시연 설정의 성향 바꿈 → 홈·추천·상단 바에 바로 반영
   const saveAssess = (score: number, profile: string) => {
     const base = hist ?? [{ date: RD.ASSESSMENT.date, score: RD.ASSESSMENT.score, profile: RD.ASSESSMENT.profile }]
     const next = [{ date: F.today(), score, profile }, ...base]
@@ -115,7 +115,6 @@ export function MyInfoPage() {
       // 저장소를 못 쓰면 이번 화면에서만 반영
     }
     setHist(next)
-    setAsOpen(false)
     RD.setDemo({ profile: profile as ProfileKey, assess: 'ok' })
     showToast('투자성향을 저장했어요 · 홈·추천에 바로 반영돼요')
   }
