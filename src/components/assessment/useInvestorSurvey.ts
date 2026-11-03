@@ -31,15 +31,10 @@ export function useInvestorSurvey() {
       return { ...prev, [q.answerKey]: rest.includes(value) ? rest.filter((v) => v !== value) : [...rest, value] }
     })
 
-  const isPicked = (q: SurveyQuestion, value: string) => {
-    const a = answers[q.answerKey]
-    return Array.isArray(a) ? a.includes(value) : a === value
-  }
-
-  const isAnswered = (q: SurveyQuestion) => {
-    const a = answers[q.answerKey]
-    return Array.isArray(a) ? a.length > 0 : !!a
-  }
+  // 단일 선택은 값 하나, 복수 선택은 목록 — 둘 다 목록으로 본다
+  const picked = (q: SurveyQuestion) => [answers[q.answerKey] ?? []].flat()
+  const isPicked = (q: SurveyQuestion, value: string) => picked(q).includes(value)
+  const isAnswered = (q: SurveyQuestion) => picked(q).length > 0
 
   return { questions, error, answers, load, reset, pick, isPicked, isAnswered }
 }
