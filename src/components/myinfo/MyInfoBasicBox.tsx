@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { RETURNS_DATA as RD } from '../../data/returns'
+import { apiErrorMessage } from '../../api/client'
+import { getProfile, updateProfile } from '../../api/profile'
+import type { Profile } from '../../api/profile'
 import { Box } from '../common/Box'
 import { cx } from '../common/cx'
 import rows from './MyInfoRows.module.css'
@@ -36,48 +38,68 @@ const fmtPhone = (raw: string) => {
   return d.length < 4 ? d : d.length < 8 ? d.slice(0, 3) + '-' + d.slice(3) : d.slice(0, 3) + '-' + d.slice(3, d.length - 4) + '-' + d.slice(-4)
 }
 
-// 기본 정보 — 보기 / 수정(휴대폰 인증번호 · 이메일). 저장한 값은 이 페이지 안에서만 바뀜(원본과 같음)
+// 기본 정보 — 보기 / 수정(휴대폰 인증번호 · 이메일). 값은 서버(GET·PATCH /api/customer/profile)에서 받고 저장한다. 이름·생년월일은 고칠 수 없다
+// 휴대폰 인증번호는 시연이라 화면에서 6자리만 확인한다(서버는 인증 없이 받는다)
 export function MyInfoBasicBox({ className, onToast }: Props) {
-  const cu = RD.CUSTOMER
-  const [phone, setPhone] = useState<string | null>(null)
-  const [email, setEmail] = useState<string | null>(null)
+  const [prof, setProf] = useState<Profile | null>(null) // 서버 값(받기 전·실패하면 null)
+  const [loadErr, setLoadErr] = useState(false)
+  const [tries, setTries] = useState(0)
+  const [saving, setSaving] = useState(false)
   const [ed, setEd] = useState<Edit | null>(null)
   // 남은 시간 표시용 현재 시각 — 실제 시간(Date.now)으로 셈(로그인 30분 타이머와 같은 예외)
   const [now, setNow] = useState(() => Date.now())
   const timer = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
 
   useEffect(() => () => clearInterval(timer.current), [])
+  useEffect(() => {
+    let alive = true
+    getProfile()
+      .then((p) => alive && setProf((prev) => prev ?? p)) // 저장 응답이 먼저 와 있으면 늦게 온 조회로 덮지 않는다
+      .catch(() => alive && setLoadErr(true))
+    return () => {
+      alive = false
+    }
+  }, [tries])
 
-  const curPhone = phone || cu.phone || '010-****-5678'
-  const curEmail = email || cu.email || 'ri***@returns.co.kr'
+  const curName = prof?.name ?? '-'
+  const curBirth = prof ? prof.birthDate.slice(0, 4) + '.**.**' : '-'
+  const curPhone = prof ? maskPhone(prof.phone) : '-'
+  const curEmail = prof?.email ? maskEmail(prof.email) : '' // 없으면 빈 칸
 
   const editing = ed != null
   const e = ed ?? { phone: '', phone0: '', email: '', email0: '', code: '', sentAt: null, verified: false, emailTouched: false }
   const phoneChanged = editing && e.phone !== e.phone0
   const phoneValid = /^01[016789]\d{7,8}$/.test(e.phone.replace(/\D/g, ''))
   const left = e.sentAt ? Math.max(0, CODE_SECONDS - Math.floor((now - e.sentAt) / 1000)) : 0
-  const emValid = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.email.trim())
-  const emErr = editing && e.emailTouched && !emValid
+  const emChanged = e.email.trim() !== '' // 이메일 칸은 빈 칸으로 시작 — 비워 두면 안 바꾼 것
+  const emOk = !emChanged || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.email.trim())
+  const emErr = editing && e.emailTouched && !emOk
   const phoneOk = !phoneChanged || e.verified
-  const saveWhy = !editing ? '' : !phoneOk ? '바뀐 휴대폰 번호를 인증해야 저장할 수 있어요' : !emValid ? '이메일 형식을 확인해 주세요' : ''
-  const saveOk = editing && phoneOk && emValid && (phoneChanged || e.email.trim() !== e.email0)
+  const saveWhy = !editing ? '' : !phoneOk ? '바뀐 휴대폰 번호를 인증해야 저장할 수 있어요' : !emOk ? '이메일 형식을 확인해 주세요' : ''
+  const saveOk = editing && !saving && phoneOk && emOk && (phoneChanged || emChanged)
   const codeOk = e.code.length === 6 && left > 0
   const mmss = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0')
 
   const patch = (p: Partial<Edit>) => setEd((s) => (s ? { ...s, ...p } : s))
 
-  const startEdit = () => setEd({ phone: curPhone, phone0: curPhone, email: curEmail, email0: curEmail, code: '', sentAt: null, verified: false, emailTouched: false })
+  const startEdit = () => setEd({ phone: curPhone, phone0: curPhone, email: '', email0: '', code: '', sentAt: null, verified: false, emailTouched: false })
   const cancel = () => {
     clearInterval(timer.current)
     setEd(null)
   }
-  const save = () => {
+  const save = async () => {
     if (!saveOk) return
-    clearInterval(timer.current)
-    if (phoneChanged) setPhone(maskPhone(e.phone))
-    if (e.email.trim() !== e.email0) setEmail(maskEmail(e.email.trim()))
-    setEd(null)
-    onToast('회원정보를 저장했어요')
+    setSaving(true)
+    try {
+      setProf(await updateProfile({ ...(phoneChanged && { phone: e.phone }), ...(emChanged && { email: e.email.trim() }) }))
+      clearInterval(timer.current) // 실패하면 인증 시간을 계속 센다
+      setEd(null)
+      onToast('회원정보를 저장했어요')
+    } catch (err) {
+      onToast(apiErrorMessage(err, '회원정보를 저장하지 못했어요. 잠시 뒤 다시 시도해 주세요'))
+    } finally {
+      setSaving(false)
+    }
   }
   const sendCode = () => {
     const t = Date.now()
@@ -106,7 +128,7 @@ export function MyInfoBasicBox({ className, onToast }: Props) {
       title="기본 정보"
       actions={
         !editing ? (
-          <button type="button" className={styles.edit} onClick={startEdit}>
+          <button type="button" className={styles.edit} onClick={startEdit} disabled={!prof}>
             수정
           </button>
         ) : (
@@ -116,7 +138,7 @@ export function MyInfoBasicBox({ className, onToast }: Props) {
               취소
             </button>
             <span className={styles.dot}>·</span>
-            <button type="button" className={cx(styles.save, saveOk && styles.saveOn)} disabled={!saveOk} onClick={save}>
+            <button type="button" className={cx(styles.save, saveOk && styles.saveOn)} disabled={!saveOk} onClick={() => void save()}>
               저장
             </button>
           </>
@@ -125,10 +147,10 @@ export function MyInfoBasicBox({ className, onToast }: Props) {
     >
       <div className={rows.grid}>
         <span className={rows.label}>이름</span>
-        <span className={rows.value}>{cu.name}</span>
+        <span className={rows.value}>{curName}</span>
         <span className={rows.aux}>{fixedNote}</span>
         <span className={rows.label}>생년월일</span>
-        <span className={rows.value}>{cu.birth || '1994.**.**'}</span>
+        <span className={rows.value}>{curBirth}</span>
         <span className={rows.aux}>{fixedNote}</span>
         <span className={rows.label}>휴대폰</span>
         <div className={cx(rows.cell, styles.phoneCell)}>
@@ -178,7 +200,7 @@ export function MyInfoBasicBox({ className, onToast }: Props) {
         <span className={rows.label}>이메일</span>
         <div className={cx(rows.cell, styles.emailCell)}>
           {!editing ? (
-            <span>{curEmail}</span>
+            <span>{!prof ? '-' : curEmail || '등록된 이메일이 없어요'}</span>
           ) : (
             <>
               <input
@@ -187,13 +209,21 @@ export function MyInfoBasicBox({ className, onToast }: Props) {
                 onChange={(ev) => patch({ email: ev.target.value, emailTouched: true })}
                 type="email"
                 aria-label="이메일"
-                placeholder="name@example.com"
+                placeholder={curEmail || 'name@example.com'}
               />
               {emErr && <span className={styles.err}>이메일 형식을 확인해 주세요</span>}
             </>
           )}
         </div>
       </div>
+      {loadErr && (
+        <div className={styles.err} role="alert">
+          정보를 불러오지 못했어요{' '}
+          <button type="button" className={styles.send} onClick={() => { setLoadErr(false); setTries((n) => n + 1) }}>
+            다시 불러오기
+          </button>
+        </div>
+      )}
     </Box>
   )
 }
