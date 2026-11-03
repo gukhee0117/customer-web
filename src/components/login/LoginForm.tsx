@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../styles/tokens.css'
+import { useAuth } from '../../contexts/AuthContext'
 import { cx } from '../common/cx'
 import { Toast } from '../common/Toast'
 import { useToast } from '../common/useToast'
-import { setLoginSession } from './loginSession'
 import styles from './LoginForm.module.css'
 
 interface LoginFormProps {
@@ -15,6 +15,7 @@ interface LoginFormProps {
 
 export function LoginForm({ active, onSignup }: LoginFormProps) {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const { message: toast, showToast } = useToast()
   const [loginId, setLoginId] = useState('')
   const [loginPw, setLoginPw] = useState('')
@@ -42,19 +43,34 @@ export function LoginForm({ active, onSignup }: LoginFormProps) {
     setLoginErr('')
   }
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (loading) return
-    // 시연용: 아이디·비밀번호를 모두 비우면 대표 고객(김리아)으로 로그인. 입력이 있을 때만 오류 예시
-    const demo = !loginId.trim() && !loginPw
-    if (!demo && (!loginId.trim() || loginPw.length < 4)) {
-      setLoginErr('아이디 또는 비밀번호를 확인해 주세요')
-      return
-    }
+    const id = loginId.trim() || 'user000001' // 시연 모드: 빈 입력 → 시연 계정
+    const pw = loginPw || '123'
     setLoading(true)
     setLoginErr('')
-    setLoginSession()
-    timer.current = setTimeout(() => navigate('/home'), 900)
+    try {
+      await login(id, pw)
+      navigate('/home')
+    } catch (err: unknown) {
+      setLoading(false)
+      const code =
+        err &&
+        typeof err === 'object' &&
+        'response' in err
+          ? (err as { response?: { data?: { code?: string } } }).response?.data?.code
+          : undefined
+      if (code === 'CUSTOMER_LOGIN_FAILED') {
+        setLoginErr('아이디 또는 비밀번호를 확인해 주세요')
+      } else {
+        setLoginErr('로그인 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요')
+      }
+    }
+  }
+
+  const handleSubmit = (e: FormEvent) => {
+    void onSubmit(e)
   }
 
   const inputClass = cx(styles.input, loginErr && styles.inputError)
@@ -65,7 +81,7 @@ export function LoginForm({ active, onSignup }: LoginFormProps) {
         <h2 className={styles.title}>다시 만나서 반가워요</h2>
         <p className={styles.lead}>로그인하고 내 RIA 계좌를 이어서 관리하세요</p>
       </div>
-      <form className={styles.form} onSubmit={onSubmit}>
+      <form className={styles.form} onSubmit={handleSubmit}>
         <label className={styles.field}>
           <span className={styles.label}>아이디</span>
           <input className={inputClass} type="text" value={loginId} onChange={onId} placeholder="아이디를 입력해 주세요" autoComplete={active ? 'username' : 'off'} disabled={!active} />
@@ -93,7 +109,7 @@ export function LoginForm({ active, onSignup }: LoginFormProps) {
             </span>
           </label>
           {loginErr && <span className={styles.error} role="alert">{loginErr}</span>}
-          <span className={styles.hint}>시연 계정: 입력 없이 로그인하면 김리아 님으로 들어가요</span>
+          <span className={styles.hint}>시연 계정: 입력 없이 로그인하면 user000001 / 123으로 들어가요</span>
         </div>
         <div className={styles.options}>
           <button type="button" className={styles.remember} onClick={() => setRemember((v) => !v)} aria-pressed={remember}>

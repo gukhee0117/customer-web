@@ -4,7 +4,7 @@ import { RETURNS_DATA as RD } from '../../data/returns'
 import { F } from '../../lib/calc'
 import { Box } from '../common/Box'
 import { cx } from '../common/cx'
-import { clearLoginSession } from '../login/loginSession'
+import { useAuth } from '../../contexts/AuthContext'
 import { MyInfoConfirm } from './MyInfoDialogs'
 import styles from './MyInfoSecurityBox.module.css'
 
@@ -17,12 +17,12 @@ interface Props {
 // 보안 — 비밀번호 변경 창 열기, 2단계 인증(준비 중), 자동 로그아웃 안내, 로그아웃(확인 창 → 세션 지우고 랜딩으로)
 export function MyInfoSecurityBox({ className, onToast, onOpenPw }: Props) {
   const navigate = useNavigate()
+  const { logout: authLogout } = useAuth()
   const [ask, setAsk] = useState(false)
   const lastChanged = RD.ACCOUNT.opened ? F.dot(RD.ACCOUNT.opened) : ''
 
   const logout = () => {
-    clearLoginSession()
-    navigate('/')
+    void authLogout().then(() => navigate('/'))
   }
 
   return (

@@ -1,23 +1,42 @@
-const SESSION_MS = 30 * 60 * 1000 // 로그인 세션 30분(실제 경과 시간)
+const SESSION_MS = 30 * 60 * 1000
 
-// 로그인 성공 표시: TopBar의 30분 세션이 이 키들을 읽음(로그인 폼의 setSession과 같은 키·값)
-export const setLoginSession = () => {
+const KEY_LOGIN = 'returns-login'
+const KEY_EXP = 'returns-session-exp'
+const KEY_WARNED = 'returns-session-warned'
+const KEY_NAME = 'returns-customer-name'
+
+export interface SessionInfo {
+  name: string
+  expiresAt: string // 서버 ISO 8601
+}
+
+export const setLoginSession = (info: SessionInfo) => {
   try {
-    sessionStorage.setItem('returns-login', '1')
-    sessionStorage.setItem('returns-session-exp', String(Date.now() + SESSION_MS))
-    sessionStorage.removeItem('returns-session-warned')
+    const expMs = new Date(info.expiresAt).getTime()
+    const safeExpMs = Number.isFinite(expMs) ? expMs : Date.now() + SESSION_MS
+    sessionStorage.setItem(KEY_LOGIN, '1')
+    sessionStorage.setItem(KEY_EXP, String(safeExpMs))
+    sessionStorage.setItem(KEY_NAME, info.name)
+    sessionStorage.removeItem(KEY_WARNED)
   } catch {
-    // 저장소를 못 쓰면 세션 표시 없이 이동
+    /* 저장소 불가 시 무시 */
   }
 }
 
-// 로그아웃: 세션 표시 세 키를 지운다(상단 바 로그아웃·30분 만료·내 정보 로그아웃이 같이 씀). setLoginSession이 쓴 키와 같은 목록
 export const clearLoginSession = () => {
-  ;['returns-login', 'returns-session-exp', 'returns-session-warned'].forEach((k) => {
+  ;[KEY_LOGIN, KEY_EXP, KEY_WARNED, KEY_NAME].forEach((k) => {
     try {
       sessionStorage.removeItem(k)
     } catch {
-      // 저장소를 못 써도 이동은 계속
+      /* 무시 */
     }
   })
+}
+
+export const getSessionName = (): string => {
+  try {
+    return sessionStorage.getItem(KEY_NAME) ?? ''
+  } catch {
+    return ''
+  }
 }
