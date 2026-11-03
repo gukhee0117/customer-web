@@ -116,7 +116,7 @@ export function MyInfoPage() {
     }
     setHist(next)
     setAsOpen(false)
-    RD.setDemo({ profile: profile as ProfileKey })
+    RD.setDemo({ profile: profile as ProfileKey, assess: 'ok' })
     showToast('투자성향을 저장했어요 · 홈·추천에 바로 반영돼요')
   }
 

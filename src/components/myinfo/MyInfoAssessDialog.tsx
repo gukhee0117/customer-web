@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
+import { apiErrorMessage } from '../../api/client'
+import { profileKeyOf, submitAssessment } from '../../api/investor'
+import type { AssessmentResult } from '../../api/investor'
 import { RETURNS_DATA as RD } from '../../data/returns'
 import { F } from '../../lib/calc'
 import { assetUrl } from '../common/assetUrl'
+import { useInvestorSurvey } from '../assessment/useInvestorSurvey'
 import { cx } from '../common/cx'
-import { ASSESS_BANDS, ASSESS_DESC, ASSESS_QUESTIONS as Q } from './myinfoAssess'
+import { ASSESS_BANDS, ASSESS_DESC } from './myinfoAssess'
 import styles from './MyInfoAssessDialog.module.css'
 
 interface Props {
@@ -13,12 +17,23 @@ interface Props {
   onSave: (score: number, profile: string) => void
 }
 
-// 투자성향 다시 진단 창: 5문항(보기 순서 = 0~4점) → 결과(합계 × 5 = 100점 만점)
-// 창을 열 때마다 처음부터. 중간에 닫아도 확인 없이 닫힘(어두운 막·Esc·X). 저장은 결과 단계의 "이 결과로 저장"
-// TODO: 백엔드 연결 시 진단 결과를 서버에 저장 (지금은 localStorage 진단 이력 + 시연 설정)
+// 투자성향 다시 진단 창: 서버 문항(복수 선택 포함) → 마지막 문항에서 서버에 제출해 결과(총점·성향)를 보여 준다
+// 창을 열 때마다 처음부터. 중간에 닫아도 확인 없이 닫힘(어두운 막·Esc·X). 제출 결과는 서버에 저장되며 결과 단계의 "확인"은 화면 반영만 한다
+// TODO: 진단 이력(진단 날짜·점수 목록)은 아직 localStorage — 서버에는 현재 성향 조회만 있다
 export function MyInfoAssessDialog({ onClose, onSave }: Props) {
+  const survey = useInvestorSurvey()
+  const Q = survey.questions ?? []
   const [step, setStep] = useState(0)
-  const [ans, setAns] = useState<(number | undefined)[]>([])
+  const [result, setResult] = useState<AssessmentResult | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitErr, setSubmitErr] = useState('')
+
+  // 창을 열 때마다 문항을 새로 받는다
+  const { load, reset } = survey
+  useEffect(() => {
+    reset()
+    void load()
+  }, [load, reset])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -32,21 +47,32 @@ export function MyInfoAssessDialog({ onClose, onSave }: Props) {
     if (e.target === e.currentTarget) onClose()
   }
 
-  const isRes = step >= Q.length
-  const sum = ans.reduce<number>((a, v) => a + (v ?? 0), 0)
-  const score = sum * 5
-  const rk = F.profileOf(score)
+  const loaded = !!survey.questions
+  const isRes = result !== null
+  const score = result?.totalScore ?? 0
+  const rk = result ? profileKeyOf(result.investorType) : 'neutral'
   const rp = RD.PROFILES[rk]
-  const picked = isRes ? undefined : ans[step]
+  const q = loaded && !isRes ? Q[step] : undefined
+  const answered = q ? survey.isAnswered(q) : false
 
-  const pick = (i: number) => setAns((a) => { const n = a.slice(); n[step] = i; return n })
+  const submit = async () => {
+    setSubmitting(true)
+    setSubmitErr('')
+    try {
+      setResult(await submitAssessment(survey.answers))
+    } catch (e) {
+      setSubmitErr(apiErrorMessage(e, '설문을 제출하지 못했어요. 잠시 뒤 다시 시도해 주세요'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return createPortal(
     <div className={styles.backdrop} onClick={onBackdrop}>
       <div className={styles.panel} role="dialog" aria-modal="true" aria-label="투자성향 다시 진단">
         <div className={styles.head}>
           <h2>투자성향 다시 진단</h2>
-          <span className={styles.step}>{isRes ? '결과' : step + 1 + ' / ' + Q.length}</span>
+          <span className={styles.step}>{isRes ? '결과' : loaded ? step + 1 + ' / ' + Q.length : ''}</span>
           <button type="button" className={styles.close} onClick={onClose} aria-label="닫기">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6 6 18" />
@@ -55,28 +81,39 @@ export function MyInfoAssessDialog({ onClose, onSave }: Props) {
           </button>
         </div>
         <div className={styles.body}>
-          {!isRes ? (
+          {!loaded && !isRes && (
             <div className={styles.q}>
-              <div className={styles.topic}>{Q[step][0]}</div>
-              <div className={styles.question}>{Q[step][1]}</div>
-              <div className={styles.opts} role="radiogroup" aria-label={Q[step][0]}>
-                {Q[step][2].map((label, i) => (
-                  <button key={i} type="button" role="radio" aria-checked={picked === i} className={cx(styles.opt, picked === i && styles.optOn)} onClick={() => pick(i)}>
-                    <span className={styles.ring} />
-                    {label}
-                    <span className={styles.pt}>{i}점</span>
-                  </button>
-                ))}
-              </div>
+              <div className={styles.question}>{survey.error || '설문을 불러오는 중이에요'}</div>
+              {survey.error && <button type="button" className={styles.back} onClick={() => void survey.load()}>다시 불러오기</button>}
             </div>
-          ) : (
+          )}
+          {q && (
+            <div className={styles.q}>
+              <div className={styles.topic}>{q.category}</div>
+              <div className={styles.question}>{q.text}</div>
+              <div className={styles.opts} role={q.multiple ? 'group' : 'radiogroup'} aria-label={q.category}>
+                {q.choices.map((c) => {
+                  const on = survey.isPicked(q, c.value)
+                  return (
+                    <button key={c.value} type="button" role={q.multiple ? 'checkbox' : 'radio'} aria-checked={on} className={cx(styles.opt, on && styles.optOn)} onClick={() => survey.pick(q, c.value)}>
+                      <span className={styles.ring} />
+                      {c.label}
+                    </button>
+                  )
+                })}
+              </div>
+              {q.multiple && <div className={styles.basis}>해당하는 것을 모두 골라 주세요</div>}
+              {submitErr && <div className={styles.basis} role="alert">{submitErr}</div>}
+            </div>
+          )}
+          {isRes && (
             <>
               <div className={styles.res}>
                 <img src={assetUrl(rp.img ?? '')} alt={rp.label + ' 끼루'} />
                 <div className={styles.resInfo}>
                   <b className={styles.resLabel}>{rp.label}</b>
                   <div className={styles.line}>
-                    점수 <b>{score}점</b> <span className={styles.of}>/ 100점 · 문항 합계 {sum}점 × 5</span>
+                    점수 <b>{score}점</b>
                   </div>
                   <div className={styles.line}>
                     추천받을 수 있는 상품 <b>{F.allowedLabel(rk)}</b>
@@ -92,7 +129,7 @@ export function MyInfoAssessDialog({ onClose, onSave }: Props) {
                   </div>
                 ))}
               </div>
-              <div className={styles.basis}>구간 기준: 키움증권 고객투자성향 분류 기준(팀 합의)</div>
+              <div className={styles.basis}>총점 구간 기준: 서버 투자성향 분류(팀 합의)</div>
             </>
           )}
         </div>
@@ -103,7 +140,8 @@ export function MyInfoAssessDialog({ onClose, onSave }: Props) {
             onClick={() => {
               if (isRes) {
                 setStep(0)
-                setAns([])
+                setResult(null)
+                survey.reset()
               } else if (step === 0) onClose()
               else setStep(step - 1)
             }}
@@ -112,14 +150,17 @@ export function MyInfoAssessDialog({ onClose, onSave }: Props) {
           </button>
           <button
             type="button"
-            className={cx(styles.next, !isRes && picked == null && styles.nextOff)}
-            disabled={!isRes && picked == null}
+            className={cx(styles.next, !isRes && (!answered || submitting) && styles.nextOff)}
+            disabled={!isRes && (!answered || submitting)}
             onClick={() => {
               if (isRes) onSave(score, rk)
-              else if (picked != null) setStep(step + 1)
+              else if (answered) {
+                if (step === Q.length - 1) void submit()
+                else setStep(step + 1)
+              }
             }}
           >
-            {isRes ? '이 결과로 저장' : step === Q.length - 1 ? '결과 보기' : '다음'}
+            {isRes ? '확인' : step === Q.length - 1 ? '결과 보기' : '다음'}
           </button>
         </div>
       </div>
