@@ -22,3 +22,9 @@ apiClient.interceptors.request.use((config) => {
   }
   return config
 })
+
+// 서버 오류 응답({message, code})의 문구. 없으면 기본 문구
+export function apiErrorMessage(e: unknown, fallback: string): string {
+  const message = (e as { response?: { data?: { message?: unknown } } })?.response?.data?.message
+  return typeof message === 'string' ? message : fallback
+}

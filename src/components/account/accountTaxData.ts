@@ -1,3 +1,4 @@
+import type { DocType } from '../../api/documents'
 import { RETURNS_DATA as RD } from '../../data/returns'
 import { F } from '../../lib/calc'
 
@@ -6,10 +7,6 @@ import { F } from '../../lib/calc'
 // 남은 한도까지 팔 때 감면액의 예상 범위 배수 — 원본 account 화면 안의 예시 값
 // TODO: 백엔드 연결 시 주가·환율 시뮬레이션 결과(1,000번)로 교체
 const RANGE_CUT: [number, number] = [0.962, 1.035]
-
-// 매도 체결 종목 수 — 증빙서류 설명 문구용(원본 account 화면 안의 예시 값)
-// TODO: 백엔드 연결 시 매도 내역 건수로 교체
-const SOLD_COUNT = 5
 
 // 시연 설정의 '조정비율(다른 계좌 순매수)' 1.00 / 0.90 — 원본은 이 화면 안에서만 바꾸고(혜택 상태를 바꾸면 해제), 없으면 혜택 상태에서 정해진 값
 let adjOverride: number | null = null
@@ -147,24 +144,36 @@ export type IssueRecord = [date: string, name: string]
 
 export const HOLD_TIP = '1년 전에 원금을 인출하면 이 계좌의 세제 혜택이 모두 취소돼요'
 
-export function initialIssued(): IssueRecord[] {
-  const conf1 = F.short(F.bizAdd(RD.DATES.confirmed, 1))
-  return [
-    [F.short(F.ago(1)), 'RIA 매도내역서'],
-    [conf1, 'RIA 매도내역서'],
-    [conf1, 'RIA 외 거래내역서']
-  ]
+// 서버 발급 기록 → 화면 줄(최근 것이 앞). 서버 날짜는 'YYYY-MM-DDTHH:mm:ss'
+export function issuedRecords(list: { docType: DocType; issuedAt: string }[]): IssueRecord[] {
+  return [...list]
+    .sort((a, b) => b.issuedAt.localeCompare(a.issuedAt))
+    .flatMap((d) => {
+      const name = docItems().find((x) => x.docType === d.docType)?.name
+      return name ? [[F.short(d.issuedAt.slice(0, 10)), name] as IssueRecord] : []
+    })
 }
 
 export interface DocItem {
   name: string
   desc: string
   ready: boolean
+  docType: DocType // 서버 서류 종류
 }
 
 export function docItems(): DocItem[] {
   return [
-    { name: 'RIA 매도내역서', desc: F.short(RD.SOLD.filled) + ' 매도 ' + SOLD_COUNT + '종목의 체결·원화 확정 내역', ready: true },
-    { name: 'RIA 외 거래내역서', desc: '다른 계좌 해외주식 순매수 확인용', ready: true }
+    {
+      name: 'RIA 과세특례 증빙서',
+      desc: '양도소득세 확정신고 첨부용 · 구간별 매도·공제액·세액',
+      ready: true,
+      docType: 'TAX_RELIEF_CERT'
+    },
+    { name: 'RIA 외 계좌 순매수 내역서', desc: '다른 계좌 해외주식 순매수 확인용', ready: true, docType: 'NET_PURCHASE_STATEMENT' }
   ]
+}
+
+// 서류 이름 → 서버 서류 종류(발급 기록 줄은 이름만 갖고 있음)
+export function docTypeOf(name: string): DocType | undefined {
+  return docItems().find((d) => d.name === name)?.docType
 }

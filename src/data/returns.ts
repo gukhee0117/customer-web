@@ -100,9 +100,6 @@ export interface GradeRange {
 }
 
 export interface ProfileScoreRule {
-  questions: number
-  perQuestion: number
-  scale: number
   bands: [number, ProfileKey][]
   floor: ProfileKey
 }
@@ -455,8 +452,8 @@ export const C: Constants = {
 export const ALLOWED_GRADE: Record<string, GradeRange> = { aggressive: { min: 1, max: 6 }, active: { min: 2, max: 6 }, neutral: { min: 4, max: 6 }, stableSeek: { min: 5, max: 6 }, stable: { min: 6, max: 6 } }
 export const GRADE_NAMES: Record<number, string> = { 1: '매우 높은 위험', 2: '높은 위험', 3: '다소 높은 위험', 4: '보통 위험', 5: '낮은 위험', 6: '매우 낮은 위험' }
 const GRADE_SOURCE = '키움증권 고객투자성향 및 금융투자상품 분류 기준'
-// 진단 점수: 5문항 × 0~4점 = 0~20점 → ×5 = 100점 만점. 초과 기준
-export const PROFILE_SCORE: ProfileScoreRule = { questions: 5, perQuestion: 4, scale: 5, bands: [[80, 'aggressive'], [60, 'active'], [40, 'neutral'], [20, 'stableSeek']], floor: 'stable' }
+// 진단 점수: 서버 9문항 합계(50점 만점). 구간은 서버 투자성향 분류와 같다 — 41점 이상 공격투자형 / 31~40 적극 / 21~30 중립 / 11~20 안정추구 / 10점 이하 안정. 초과 기준
+export const PROFILE_SCORE: ProfileScoreRule = { bands: [[40, 'aggressive'], [30, 'active'], [20, 'neutral'], [10, 'stableSeek']], floor: 'stable' }
 
 // ===== 국내 ETF(가명, 예시) =====
 export const ETF: Record<string, EtfInfo> = {
@@ -988,11 +985,11 @@ const D: ReturnsData = {
     COMMUNITY: { nickname: '리아', profilePublic: false },
     get CUSTOMER() {
       const pf = demo().profile
-      return { name: '김리아', profile: ALLOWED_GRADE[pf] ? pf : 'active', score: 70, domesticAssets: D.ASSETS.domestic, birth: '1994.**.**', phone: '010-****-5678', email: 'ri***@returns.co.kr' }
+      return { name: '김리아', profile: ALLOWED_GRADE[pf] ? pf : 'active', score: 36, domesticAssets: D.ASSETS.domestic, birth: '1994.**.**', phone: '010-****-5678', email: 'ri***@returns.co.kr' }
     },
     get ASSESSMENT() {
       const t = dates()
-      return { date: t.assessed, validUntil: t.assessValid, score: 70, profile: F.profileOf(70), validMonths: 24 }
+      return { date: t.assessed, validUntil: t.assessValid, score: 36, profile: F.profileOf(36), validMonths: 24 }
     },
     // 계좌 상태 시연: opened(기본) / none / reviewing / rejected
     get ACCOUNT_STATE() { return demo().account },

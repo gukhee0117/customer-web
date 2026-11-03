@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../styles/tokens.css'
-import { useAuth } from '../../contexts/AuthContext'
+import { syncAssessState } from '../../api/investor'
+import { useAuth } from '../../contexts/authState'
 import { cx } from '../common/cx'
 import { Toast } from '../common/Toast'
 import { useToast } from '../common/useToast'
@@ -47,11 +48,12 @@ export function LoginForm({ active, onSignup }: LoginFormProps) {
     e.preventDefault()
     if (loading) return
     const id = loginId.trim() || 'user000001' // 시연 모드: 빈 입력 → 시연 계정
-    const pw = loginPw || '123'
+    const pw = loginPw || '1234'
     setLoading(true)
     setLoginErr('')
     try {
       await login(id, pw)
+      await syncAssessState()
       navigate('/home')
     } catch (err: unknown) {
       setLoading(false)
@@ -109,7 +111,7 @@ export function LoginForm({ active, onSignup }: LoginFormProps) {
             </span>
           </label>
           {loginErr && <span className={styles.error} role="alert">{loginErr}</span>}
-          <span className={styles.hint}>시연 계정: 입력 없이 로그인하면 user000001 / 123으로 들어가요</span>
+          <span className={styles.hint}>시연 계정: 입력 없이 로그인하면 user000001 / 1234로 들어가요</span>
         </div>
         <div className={styles.options}>
           <button type="button" className={styles.remember} onClick={() => setRemember((v) => !v)} aria-pressed={remember}>

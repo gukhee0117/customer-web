@@ -45,7 +45,7 @@ export function MyInfoProfileBox({ className, hist, onOpenAssess }: Props) {
                 {pf.soon && <span className={styles.badge}>재진단 D-23</span>}
               </div>
               <div className={styles.line}>
-                점수 <b>{pf.score}점</b> <span className={styles.of}>/ 100점</span>
+                점수 <b>{pf.score}점</b> <span className={styles.of}>/ 50점</span>
               </div>
               <div className={styles.line}>
                 추천받을 수 있는 상품 <b>{pf.allowed}</b>
