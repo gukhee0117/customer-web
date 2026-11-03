@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 _design/
+
+# superpowers 계획 문서
+docs/superpowers/
