@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ChangeEvent, InputHTMLAttributes } from 'react'
+import { useNavigate } from 'react-router-dom'
 import '../../styles/tokens.css'
 import { apiErrorMessage } from '../../api/client'
 import { signup } from '../../api/auth'
@@ -74,6 +75,7 @@ const Field = ({ active, label, span, value, onChange, type, placeholder, autoCo
 
 // 회원가입 1~3단계(약관 동의 · 본인 정보 · RIA 계좌 연결). 4단계(투자성향 진단)는 자리만
 export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
+  const navigate = useNavigate()
   const { applySession } = useAuth()
   const { message: toast, showToast } = useToast()
   const [step, setStep] = useState(0)
@@ -157,6 +159,8 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
       setSubmitting(false)
     }
   }
+  // 설문을 건너뛰면 투자성향은 미진단으로 남고, 홈에서 진단하라는 안내가 보인다(가입은 이미 끝나 로그인된 상태)
+  const skipQuiz = () => navigate('/home')
   const goNext = async () => {
     if (nextDisabled) return
     if (step === 2 && !(await register())) return
@@ -363,6 +367,7 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
             </button>
           </div>
           {why && <span className={styles.reason}>{why}</span>}
+          {step === 3 && <button type="button" className={styles.skip} onClick={skipQuiz}>건너뛰기</button>}
         </div>
       )}
       <div className={styles.login}>
