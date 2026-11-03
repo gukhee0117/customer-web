@@ -4,7 +4,7 @@ import { RETURNS_DATA as RD } from '../../data/returns'
 import { F } from '../../lib/calc'
 import { Box } from '../common/Box'
 import { cx } from '../common/cx'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth } from '../../contexts/authState'
 import { MyInfoConfirm } from './MyInfoDialogs'
 import styles from './MyInfoSecurityBox.module.css'
 

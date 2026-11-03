@@ -1,22 +1,10 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import * as apiAuth from '../api/auth'
 import type { MeData } from '../api/auth'
 import { clearLoginSession, setLoginSession } from '../components/login/loginSession'
-
-type AuthState =
-  | { status: 'checking' }
-  | { status: 'authenticated'; me: MeData }
-  | { status: 'unauthenticated' }
-
-interface AuthContextValue {
-  auth: AuthState
-  login: (loginId: string, password: string) => Promise<void>
-  logout: () => Promise<void>
-  extend: () => Promise<void>
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null)
+import { AuthContext } from './authState'
+import type { AuthState } from './authState'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>({ status: 'checking' })
@@ -59,15 +47,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuth({ status: 'authenticated', me })
   }, [])
 
+  // 가입 API는 성공하면 서버가 바로 로그인 세션을 만든다. 로그인 폼을 거치지 않으므로 그 결과를 여기에 반영한다
+  const applySession = useCallback((me: MeData) => {
+    setLoginSession({ name: me.name, expiresAt: me.expiresAt })
+    setAuth({ status: 'authenticated', me })
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ auth, login, logout, extend }}>
+    <AuthContext.Provider value={{ auth, login, logout, extend, applySession }}>
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
 }
