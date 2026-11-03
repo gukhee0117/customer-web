@@ -1,52 +1,120 @@
+import axios from 'axios'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { Link } from 'react-router-dom'
 import '../../styles/tokens.css'
 import { RETURNS_DATA as RD } from '../../data/returns'
+import { getCustomerAssetBriefing, getCustomerTaxBriefing, getCustomerExpectedTaxBriefing } from '../../api/briefing'
+import type { CustomerAssetBriefing, CustomerTaxBriefing, CustomerExpectedTaxBriefing } from '../../api/briefing'
 import { Box } from '../common/Box'
 import { KkiruAvatar } from '../common/KkiruAvatar'
 import { cx } from '../common/cx'
-import { ASSET_FOOT_NOTE, RANGE_TIP } from './homeBriefData'
-import { assetBrief, taxBrief } from './homeBriefLogic'
 import styles from './HomeBriefBox.module.css'
 
 type Tab = 'tax' | 'asset'
+type RequestState<T> =
+  | { status: 'loading' }
+  | { status: 'success'; data: T }
+  | { status: 'not-ready' }
+  | { status: 'not-found' }
+  | { status: 'error' }
 
-// 끼루 브리핑 박스: 절세 탭(세금 그래프·보유 기간) / 자산 탭. 계좌가 없으면 안내만(계좌 상태 전환은 시연 설정에서)
+const wonFormatter = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 0 })
+const formatWon = (value: number | null | undefined) =>
+  value == null ? '확인 불가' : wonFormatter.format(Math.round(value))
+const formatDateTime = (value: string | null | undefined) =>
+  value ? value.replace('T', ' ').slice(0, 16) : '—'
+const formatDate = (value: string | null | undefined) =>
+  value ? value.slice(5, 10).replace('-', '/') : '—'
+
+async function load<T>(request: () => Promise<T>): Promise<RequestState<T>> {
+  try {
+    return { status: 'success', data: await request() }
+  } catch (error) {
+    if (axios.isAxiosError<{ code?: string }>(error) && error.response?.status === 404) {
+      if (error.response.data?.code === 'TAX_SNAPSHOT_NOT_FOUND') {
+        return { status: 'not-ready' }
+      }
+      if (error.response.data?.code === 'ACCOUNT_NOT_FOUND') {
+        return { status: 'not-found' }
+      }
+    }
+    return { status: 'error' }
+  }
+}
+
+// 끼루 브리핑은 고객별 백엔드 계산 결과를 표시한다.
 export function HomeBriefBox({ className }: { className?: string }) {
-  const opened = RD.ACCOUNT_STATE === 'opened'
   const [tab, setTab] = useState<Tab>('tax')
-  const [guide, setGuide] = useState(true) // 그래프 기준: 남은 한도까지 팔면
-  const [tip, setTip] = useState(false)
-  const [taxH, setTaxH] = useState(0) // 절세 탭 높이 — 자산 탭이 같은 높이를 유지하도록 기억
+  const [guide, setGuide] = useState(false)
+  const [result, setResult] = useState<{
+    retryKey: number
+    tax: RequestState<CustomerTaxBriefing>
+    expected: RequestState<CustomerExpectedTaxBriefing>
+    asset: RequestState<CustomerAssetBriefing>
+  } | null>(null)
+  const [taxH, setTaxH] = useState(0)
+  const [retryKey, setRetryKey] = useState(0)
   const bodyRef = useRef<HTMLDivElement>(null)
+  const taxState: RequestState<CustomerTaxBriefing> =
+    result?.retryKey === retryKey ? result.tax : { status: 'loading' }
+  const assetState: RequestState<CustomerAssetBriefing> =
+    result?.retryKey === retryKey ? result.asset : { status: 'loading' }
+  const expectedState: RequestState<CustomerExpectedTaxBriefing> =
+    result?.retryKey === retryKey ? result.expected : { status: 'loading' }
+  const noAccount = assetState.status === 'not-found'
+  const cur: Tab = noAccount ? 'tax' : tab
 
-  const cur: Tab = opened ? tab : 'tax'
+  useEffect(() => {
+    let active = true
+    const initial = {
+      retryKey,
+      tax: { status: 'loading' } as RequestState<CustomerTaxBriefing>,
+      expected: { status: 'loading' } as RequestState<CustomerExpectedTaxBriefing>,
+      asset: { status: 'loading' } as RequestState<CustomerAssetBriefing>,
+    }
+    void load(getCustomerTaxBriefing).then((tax) => {
+      if (!active) return
+      setResult((previous) => ({ ...(previous?.retryKey === retryKey ? previous : initial), tax }))
+    })
+    void load(getCustomerExpectedTaxBriefing).then((expected) => {
+      if (!active) return
+      setResult((previous) => ({ ...(previous?.retryKey === retryKey ? previous : initial), expected }))
+    })
+    void load(getCustomerAssetBriefing).then((asset) => {
+      if (!active) return
+      setResult((previous) => ({ ...(previous?.retryKey === retryKey ? previous : initial), asset }))
+    })
 
-  // 절세 탭 높이가 바뀔 때마다 기억(가로 폭·글꼴 로딩으로도 달라짐)
+    return () => {
+      active = false
+    }
+  }, [retryKey])
+
   useEffect(() => {
     const el = bodyRef.current
     if (cur !== 'tax' || !el) return
     const measure = () => {
-      const h = el.offsetHeight
-      if (h) setTaxH(h)
+      const height = el.offsetHeight
+      if (height) setTaxH(height)
     }
     measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [cur])
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [cur, taxState.status])
 
-  const tabs: [Tab, string][] = opened ? [['tax', '절세'], ['asset', '자산']] : [['tax', '절세']]
+  const retry = () => setRetryKey((value) => value + 1)
+  const tabs: [Tab, string][] = noAccount ? [] : [['tax', '절세'], ['asset', '자산']]
   const head = (
     <div className={styles.tabs}>
-      {tabs.map(([k, label], i) => (
-        <span key={k} className={styles.tabItem}>
-          {i > 0 && <span className={styles.sep}>·</span>}
+      {tabs.map(([key, label], index) => (
+        <span key={key} className={styles.tabItem}>
+          {index > 0 && <span className={styles.sep}>·</span>}
           <button
             type="button"
-            aria-pressed={cur === k}
-            className={cx(styles.tab, cur === k && styles.tabOn)}
-            onClick={() => { setTab(k); setTip(false) }}
+            aria-pressed={cur === key}
+            className={cx(styles.tab, cur === key && styles.tabOn)}
+            onClick={() => setTab(key)}
           >
             {label}
           </button>
@@ -57,16 +125,26 @@ export function HomeBriefBox({ className }: { className?: string }) {
 
   return (
     <Box shadow className={className} title="끼루 브리핑" head={head}>
-      {opened && cur === 'tax' && <TaxTab bodyRef={bodyRef} guide={guide} setGuide={setGuide} tip={tip} setTip={setTip} />}
-      {opened && cur === 'asset' && <AssetTab minHeight={taxH} />}
-      {!opened && (
+      {noAccount && (
         <div className={styles.noAcct}>
-          <div className={styles.noAcctTitle}>계좌를 열면 얼마나 아낄 수 있는지 보여드려요</div>
-          <div className={styles.noAcctSub}>{'보유 해외주식 ' + RD.C.HOLDINGS.length + '종목 · 2025.12.23 기준'}</div>
+          <div className={styles.noAcctTitle}>계좌를 열면 절세·자산 정보를 확인할 수 있어요</div>
           <div className={styles.noAcctGo}>
             <Link to="/account#open">계좌 개설하기 ›</Link>
           </div>
         </div>
+      )}
+      {!noAccount && cur === 'tax' && (
+        <TaxTab
+          bodyRef={bodyRef}
+          state={taxState}
+          expectedState={expectedState}
+          guide={guide}
+          setGuide={setGuide}
+          onRetry={retry}
+        />
+      )}
+      {!noAccount && cur === 'asset' && (
+        <AssetTab state={assetState} minHeight={taxH} onRetry={retry} />
       )}
     </Box>
   )
@@ -74,142 +152,252 @@ export function HomeBriefBox({ className }: { className?: string }) {
 
 interface TaxTabProps {
   bodyRef: RefObject<HTMLDivElement | null>
+  state: RequestState<CustomerTaxBriefing>
+  expectedState: RequestState<CustomerExpectedTaxBriefing>
   guide: boolean
-  setGuide: (v: boolean) => void
-  tip: boolean
-  setTip: (v: boolean) => void
+  setGuide: (value: boolean) => void
+  onRetry: () => void
 }
 
-function TaxTab({ bodyRef, guide, setGuide, tip, setTip }: TaxTabProps) {
-  const t = taxBrief(guide)
+function TaxTab({ bodyRef, state, expectedState, guide, setGuide, onRetry }: TaxTabProps) {
+  if (state.status !== 'success') {
+    if (state.status === 'not-ready') {
+      return (
+        <div className={styles.noAcct} role="status">
+          <div className={styles.noAcctTitle}>아직 집계된 절세 정보가 없어요.</div>
+          <div className={styles.factSub}>집계가 완료되면 세금과 감면액을 확인할 수 있어요.</div>
+          <button type="button" className={styles.segBtn} onClick={onRetry}>다시 불러오기</button>
+        </div>
+      )
+    }
+    return <RequestMessage status={state.status} onRetry={onRetry} />
+  }
+
+  const briefing = state.data
+  const expected = expectedState.status === 'success' ? expectedState.data : null
+  const noHoldings = expected?.holdingCount === 0
+  const useExpected = guide && expected !== null
+  const scenario = useExpected ? expected! : briefing.current
+  const maxTax = Math.max(scenario.generalTax, scenario.riaTax, 1)
+  const generalHeight = `${(scenario.generalTax / maxTax) * 70}%`
+  const riaHeight = `${(scenario.riaTax / maxTax) * 70}%`
+  const expectedMessage = expectedState.status === 'loading' ? '계산 중…' : '확인 불가'
+
   return (
     <div ref={bodyRef} className={styles.taxBody}>
       <div className={styles.topRow}>
         <div>
           <div className={styles.cutLabel}>RIA로 줄어드는 세금</div>
-          <div className={styles.cutBig}>₩{t.cut}</div>
+          <div className={styles.cutBig}>
+            {guide && noHoldings ? '대상 없음' : guide && !expected ? expectedMessage : `₩${formatWon(scenario.reliefAmount)}`}
+          </div>
         </div>
-        <span className={styles.asOf}>{t.asOf}</span>
+        <span className={styles.asOf}>
+          {guide && noHoldings ? '가정 매도 대상 없음' : guide && !expected ? '가정 매도 예상 세액' : useExpected ? `가정 매도 결제일 ${formatDate(expected!.expectedFinalAt)}` : `집계 기준 ${formatDateTime(briefing.calculatedAt)}`}
+        </span>
       </div>
 
-      {guide && (
-        <div className={styles.rangeRow}>
-          <span className={styles.rangeTxt}>{t.rangeTxt}</span>
-          <button type="button" className={styles.tipBtn} aria-label="범위 계산 안내" aria-expanded={tip} onClick={() => setTip(!tip)}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-          </button>
-          {tip && <div role="tooltip" className={styles.tip}>{RANGE_TIP}</div>}
+      <div className={styles.cutNote}>
+        {guide
+          ? '아직 팔지 않은 보유분만 가정 매도한 예상치예요. 이미 판 내역은 포함하지 않아요.'
+          : '확정된 매도 내역을 마지막 집계 시점 기준으로 계산했어요.'}
+      </div>
+      <div className={styles.cutNote}>
+        매도·조기인출 등 최근 변경은 다음 일일 집계 후 반영돼요.
+      </div>
+
+      <div role="group" aria-label="세액 계산 기준" className={styles.seg}>
+        <button
+          type="button"
+          className={cx(styles.segBtn, !guide && styles.segOn)}
+          aria-pressed={!guide}
+          onClick={() => setGuide(false)}
+        >
+          현재까지
+        </button>
+        <button
+          type="button"
+          className={cx(styles.segBtn, styles.segBtnSecond, guide && styles.segOn)}
+          aria-pressed={guide}
+          onClick={() => setGuide(true)}
+        >
+          보유 종목을 가정 매도하면
+        </button>
+      </div>
+
+      {!guide && expectedState.status === 'loading' && (
+        <div className={styles.factSub} role="status">보유 종목의 가정 매도 예상 세액을 계산하고 있어요.</div>
+      )}
+      {!guide && expectedState.status !== 'loading' && expectedState.status !== 'success' && (
+        <div className={styles.warn} role="status">
+          예상 세액을 불러오지 못했어요. 현재까지의 결과는 확인할 수 있어요.
+          <button type="button" className={styles.segBtn} onClick={onRetry}>다시 시도</button>
         </div>
       )}
-      <div className={styles.cutNote}>{t.cutNote}</div>
-
-      <div role="group" aria-label="그래프 기준" className={styles.seg}>
-        <button type="button" className={cx(styles.segBtn, !guide && styles.segOn)} onClick={() => setGuide(false)}>지금까지</button>
-        <button type="button" className={cx(styles.segBtn, styles.segBtnSecond, guide && styles.segOn)} onClick={() => setGuide(true)}>남은 한도까지 팔면</button>
-      </div>
 
       <div className={styles.chart}>
+        {guide && noHoldings ? (
+          <div className={styles.noAcct} role="status" aria-live="polite">
+            <div className={styles.noAcctTitle}>가정 매도할 보유 종목이 없어요.</div>
+            <div className={styles.factSub}>현재까지의 세금과 감면액은 ‘현재까지’에서 확인해 주세요.</div>
+          </div>
+        ) : guide && !expected ? (
+          <div className={styles.noAcct} role="status" aria-live="polite" aria-busy={expectedState.status === 'loading'}>
+            <div className={styles.noAcctTitle}>
+              {expectedState.status === 'loading' ? '가정 매도 예상 세액을 계산 중이에요.' : '예상 세액을 불러오지 못했어요.'}
+            </div>
+            <div className={styles.factSub}>
+              {expectedState.status === 'loading' ? '계산이 끝나면 여기에 그래프가 표시돼요.' : '다시 시도하거나 현재까지의 결과를 확인해 주세요.'}
+            </div>
+            {expectedState.status !== 'loading' && (
+              <button type="button" className={styles.segBtn} onClick={onRetry}>다시 시도</button>
+            )}
+          </div>
+        ) : (
+          <>
         <div className={styles.plot}>
-          <div className={styles.barGeneral} style={{ height: t.gH }} />
-          <div className={styles.generalLabel} style={{ bottom: t.gH }}>
-            <div className={styles.barCaption}>원래 냈을 세금</div>
-            {t.general}
+          <div className={styles.barGeneral} style={{ height: generalHeight }} />
+          <div className={styles.generalLabel} style={{ bottom: generalHeight }}>
+            <div className={styles.barCaption}>일반 과세 세액</div>
+            ₩{formatWon(scenario.generalTax)}
           </div>
-          <div className={styles.barRia} style={{ height: t.nH }}>
-            <span className={styles.barCaption}>RIA로 낼 세금</span>
-            {t.ria}
+          <div className={styles.barRia} style={{ height: riaHeight }} />
+          <div className={styles.riaLabel} style={{ bottom: riaHeight }}>
+            <div className={styles.barCaption}>RIA 세액</div>
+            ₩{formatWon(scenario.riaTax)}
           </div>
-          <div className={styles.barConfirm} style={{ bottom: t.nH, height: t.cH }}>
-            <span>확정</span>
-            <span>{t.conf}</span>
-          </div>
-          <div className={styles.barExpect} style={{ bottom: t.eB, height: t.eH }}>
-            <span className={styles.expectTxt} style={{ opacity: t.eShow ? 1 : 0 }}>{'예상 ' + t.exp}</span>
-          </div>
-          <div className={styles.guideLine} style={{ bottom: t.gH }} />
-          <div className={styles.bracket} style={{ bottom: t.nH, height: t.brH }} />
-          <div className={styles.cutLabelChart} style={{ bottom: t.lblB }}>
-            <div className={styles.cutLabelSmall}>줄어드는 세금</div>
-            {'−' + t.cut}
+          <div className={styles.cutLabelChart} style={{ bottom: '4%' }}>
+            <div className={styles.cutLabelSmall}>감면액</div>
+            ₩{formatWon(scenario.reliefAmount)}
           </div>
         </div>
         <div className={styles.axis}>
-          <span className={styles.axisGeneral}>일반 계좌였다면</span>
-          <span className={styles.axisRia}>RIA 계좌</span>
+          <span className={styles.axisGeneral}>일반 과세</span>
+          <span className={styles.axisRia}>RIA 적용</span>
         </div>
+          </>
+        )}
       </div>
 
       <div className={styles.facts}>
         <div className={styles.factL}>
-          <div className={styles.factKey}>국내 복귀 금액</div>
-          <div className={styles.factVal}>₩{t.soldAmt}</div>
+          <div className={styles.factKey}>확정 매도분 감면액</div>
+          <div className={styles.factVal}>₩{formatWon(briefing.current.reliefAmount)}</div>
+          <div className={styles.factSub}>집계 기준 {formatDateTime(briefing.calculatedAt)}</div>
         </div>
         <div className={styles.factR}>
-          <div className={styles.factKey}>이번 구간 공제율</div>
+          <div className={styles.factKey}>보유분 가정 매도 감면액</div>
           <div className={styles.factVal}>
-            {t.bandPct + ' '}
-            <span className={styles.factSub}>{t.bandEnd + ' 마감 D-' + t.dl}</span>
+            {noHoldings ? '대상 없음' : expected === null ? expectedMessage : `₩${formatWon(expected.reliefAmount)}`}
           </div>
+          {expected && !noHoldings && (
+            <div className={styles.factSub}>
+              가정 매도 결제일 {formatDate(expected.expectedFinalAt)}
+            </div>
+          )}
         </div>
       </div>
-
-      <div className={styles.hold}>
-        <div className={styles.holdDates}>
-          <span>{'확정일 ' + t.soldDot}</span>
-          <span>{'인출 가능일 ' + t.wdDot}</span>
-        </div>
-        <div className={styles.track}>
-          <div className={styles.trackBg} />
-          <div className={styles.trackFill} style={{ width: t.holdPct }} />
-          <div className={styles.thumb} style={{ left: t.holdPct }} />
-        </div>
-        <div className={styles.holdLine}>
-          <b>{'보유 ' + t.held + '일'}</b>{' '}
-          <span className={styles.holdSub}>{'/ ' + t.holdTotal + '일 · 인출 가능'}</span>{' '}
-          <b className={styles.holdD}>{'D-' + t.wdD}</b>
-        </div>
-        <div className={styles.warn}>1년 전에 원금을 인출하면 이 계좌의 세제 혜택이 모두 취소돼요.</div>
-        {t.demoTrade && (
-          <Link to="/account#sells" className={styles.progress}>
-            <b className={styles.progressTag}>진행 중</b>
-            <span className={styles.progressTxt}>{t.progressTxt}</span>
-            <span className={styles.progressArrow}>›</span>
-          </Link>
-        )}
+      <div className={styles.assetFoot}>
+        보유분 예상액은 추가 감면액이 아니에요. 두 금액은 각각 다른 매도 내역을 계산한 값이에요.
       </div>
     </div>
   )
 }
 
-function AssetTab({ minHeight }: { minHeight: number }) {
-  const a = assetBrief()
-  const pnlClass = a.pnlTone > 0 ? styles.up : a.pnlTone < 0 ? styles.down : styles.flat
+interface AssetTabProps {
+  state: RequestState<CustomerAssetBriefing>
+  minHeight: number
+  onRetry: () => void
+}
+
+function AssetTab({ state, minHeight, onRetry }: AssetTabProps) {
+  if (state.status !== 'success') {
+    return <RequestMessage status={state.status} onRetry={onRetry} />
+  }
+
+  const asset = state.data
+  const profit = asset.valuationProfit
+  const pnlClass = profit == null ? styles.flat : profit > 0 ? styles.up : profit < 0 ? styles.down : styles.flat
+  const recentPurchases = [...asset.monthlyPurchases].slice(-3).reverse()
+  const valuationUnavailable = asset.domesticValuationAmount == null
+
   return (
     <div className={styles.assetBody} style={{ minHeight }}>
       <div className={styles.assetTop}>
         <div>
-          <div className={styles.cutLabel}>국내 운용 자산</div>
-          <div className={styles.assetBig}>₩{a.domestic}</div>
+          <div className={styles.cutLabel}>국내 운용 자산 평가액</div>
+          <div className={styles.assetBig}>
+            {valuationUnavailable ? '시세 연결 후 확인' : `₩${formatWon(asset.domesticValuationAmount)}`}
+          </div>
         </div>
-        <span className={cx(styles.pnl, pnlClass)}>{'평가손익 ' + a.pnl}</span>
+        <span className={cx(styles.pnl, pnlClass)}>
+          {profit == null
+            ? '평가손익 확인 불가'
+            : `평가손익 ${profit > 0 ? '+' : profit < 0 ? '−' : ''}₩${formatWon(Math.abs(profit))}${asset.valuationReturnRate == null ? '' : ` (${asset.valuationReturnRate > 0 ? '+' : ''}${asset.valuationReturnRate.toFixed(2)}%)`}`}
+        </span>
       </div>
+
       <div className={styles.summaryRow}>
         <KkiruAvatar profile={RD.CUSTOMER.profile} size={24} />
-        <span className={styles.summary}>{a.summary}</span>
+        <span className={styles.summary}>
+          {asset.investmentRatio == null
+            ? '누적 확정 환전액이 없어 보유자산 비율을 계산할 수 없어요.'
+            : `보유자산 매입금액은 누적 확정 환전액의 ${asset.investmentRatio.toFixed(2)}%예요.`}
+        </span>
       </div>
+
       <div className={styles.flows}>
-        {a.facts.map((f) => (
-          <div key={f.link} className={styles.flow}>
-            <span className={styles.flowTxt}>{f.text}</span>
-            <Link to={f.to} className={styles.flowLink}>{f.link}</Link>
-          </div>
-        ))}
+        <div className={styles.flow}>
+          <span className={styles.flowTxt}>계좌 예수금 {`₩${formatWon(asset.cashAmount)}`}</span>
+          <Link to="/invest" className={styles.flowLink}>투자 보기 ›</Link>
+        </div>
+        <div className={styles.flow}>
+          <span className={styles.flowTxt}>
+            보유자산 매입금액 ₩{formatWon(asset.investmentCostAmount)} · 누적 확정 환전액 ₩{formatWon(asset.cumulativeInflowAmount)}
+          </span>
+        </div>
+        <div className={styles.flow}>
+          <span className={styles.flowTxt}>
+            월별 매수: {recentPurchases.length
+              ? recentPurchases.map((purchase) => `${purchase.month} ₩${formatWon(purchase.buyAmount)}`).join(' · ')
+              : '내역 없음'}
+          </span>
+          <Link to="/account#flow" className={styles.flowLink}>자금 흐름 ›</Link>
+        </div>
       </div>
-      <div className={styles.assetFoot}>{a.foot + '까지 반영 · ' + ASSET_FOOT_NOTE}</div>
+
+      <div className={styles.assetFoot}>
+        {valuationUnavailable
+          ? '현재가를 확인할 수 없어 평가액과 손익을 표시하지 않았어요.'
+          : `업무 기준 ${formatDateTime(asset.calculatedAt)} · 시세 기준 ${formatDateTime(asset.valuationPriceTo)}`}
+      </div>
+    </div>
+  )
+}
+
+function RequestMessage({
+  status,
+  onRetry,
+}: {
+  status: Exclude<RequestState<unknown>['status'], 'success'>
+  onRetry: () => void
+}) {
+  return (
+    <div className={styles.noAcct} role="status" aria-live="polite">
+      <div className={styles.noAcctTitle}>
+        {status === 'loading'
+          ? '브리핑을 불러오고 있어요.'
+          : status === 'not-ready'
+            ? '브리핑 계산 자료가 아직 준비되지 않았어요.'
+          : status === 'not-found'
+            ? '브리핑 계좌 정보를 찾을 수 없어요.'
+            : '브리핑을 불러오지 못했어요.'}
+      </div>
+      {status !== 'loading' && (
+        <button type="button" className={styles.segBtn} onClick={onRetry}>
+          다시 시도
+        </button>
+      )}
     </div>
   )
 }

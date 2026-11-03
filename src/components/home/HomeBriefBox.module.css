@@ -161,7 +161,7 @@
 
 /* 그래프 */
 .chart {
-  height: 160px;
+  height: 150px;
   flex: none;
   margin-top: var(--space-12);
   display: flex;
@@ -180,22 +180,33 @@
 
 .barGeneral {
   left: 5%;
-  width: 35%;
+  width: 22%;
   bottom: 0;
   background: var(--color-chart-general);
   border-radius: var(--radius-2) var(--radius-2) 0 0;
   transition: height 0.3s ease;
 }
 
-.generalLabel {
-  left: 5%;
-  width: 35%;
+.generalLabel,
+.riaLabel {
+  width: 30%;
   padding-bottom: var(--space-3);
   text-align: center;
   font-size: var(--font-size-13);
   font-weight: var(--font-weight-bold);
   transition: bottom 0.3s ease;
   line-height: 1.3;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.generalLabel {
+  left: 1%;
+}
+
+.riaLabel {
+  right: 1%;
+  color: var(--color-navy);
 }
 
 .barCaption {
@@ -206,11 +217,12 @@
 
 .barRia {
   right: 5%;
-  width: 35%;
+  width: 22%;
   bottom: 0;
   background: var(--color-navy);
   transition: height 0.3s ease;
-  padding-top: var(--space-4);
+  padding-top: 0;
+  border-radius: var(--radius-2) var(--radius-2) 0 0;
   color: var(--color-on-navy);
   font-size: var(--font-size-12);
   font-weight: var(--font-weight-bold);
@@ -280,11 +292,11 @@
 }
 
 .cutLabelChart {
-  left: 40%;
-  width: 20%;
+  left: 33%;
+  width: 34%;
   text-align: center;
-  white-space: nowrap;
-  font-size: var(--font-size-16);
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-14);
   font-weight: var(--font-weight-extrabold);
   color: var(--color-gold-dark);
   transition: bottom 0.3s ease;
@@ -305,18 +317,18 @@
 
 .axis span {
   position: absolute;
-  width: 35%;
+  width: 30%;
   top: var(--space-4);
   text-align: center;
 }
 
 .axisGeneral {
-  left: 5%;
+  left: 1%;
   color: var(--color-sub);
 }
 
 .axisRia {
-  right: 5%;
+  right: 1%;
   color: var(--color-navy);
   font-weight: var(--font-weight-bold);
 }
