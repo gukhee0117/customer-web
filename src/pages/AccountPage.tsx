@@ -305,7 +305,7 @@ export function AccountPage() {
           onSubmitIn={(results: SubmittedInboundResult[]) => {
             const rows: AddedIn[] = results
               .filter((r) => r.status === 'ok')
-              .map((r) => ({ t: r.ticker, req: r.approvedQty ?? 0, base: 0, now: 0 }))
+              .map((r) => ({ t: r.ticker, req: r.requestedQty ?? r.approvedQty ?? 0, base: r.approvedQty ?? 0, now: r.approvedQty ?? 0 }))
             if (rows.length > 0) setAddedIn((prev) => [...rows, ...prev])
             addAlert('입고 신청 · ' + moreTitle(results.map((r) => ({ t: r.ticker }))), 'deposits')
           }}
