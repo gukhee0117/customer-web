@@ -6,7 +6,7 @@ import { F } from '../../lib/calc'
 import { cx } from '../common/cx'
 import { StockLabel } from '../common/StockLabel'
 import { ModalFrame } from './ModalFrame'
-import { IN_NEXT, LIMIT_MAX, LIMIT_MIN, SUBMIT_NOTE, applyConfig, clampLimit, openValues, outNext, parseInt0 } from './accountApplyData'
+import { IN_NEXT, IN_SUBMIT_NOTE, LIMIT_MAX, LIMIT_MIN, SUBMIT_NOTE, applyConfig, clampLimit, openValues, outNext, parseInt0 } from './accountApplyData'
 import type { ApplyKind } from './accountApplyData'
 import type { HistTab } from './accountHistData'
 import styles from './ApplyModal.module.css'
@@ -51,6 +51,7 @@ interface ApplyModalProps {
 }
 
 interface DoneInfo {
+  title?: string
   sum: string
   next: string[]
 }
@@ -210,7 +211,7 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
         if (cancelled) return
         setAvailability(avail)
         setDestAccounts(accounts)
-        if (accounts.length === 1) setDestId(accounts[0].generalAccountId)
+        if (accounts.length > 0) setDestId(accounts[0].generalAccountId)
       })
       .catch(() => {
         if (!cancelled) setFetchError('조회 중 오류가 발생했어요. 다시 시도해 주세요.')
@@ -232,31 +233,41 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
   const last = cfg.steps.length - 1
 
   // ---- 입고 계산 ----
+
+  interface InApiRow {
+    foreignProductId: number
+    ticker: string
+    candidates: InboundCandidate[]
+    activeCand: InboundCandidate
+    sel: boolean
+    qv: string
+    qFloat: number
+    overAvail: boolean
+  }
+
   // 로드된 종목 중 후보가 있는 것만 행으로 표시
-  const inApiRows = products
-    .map((p) => {
-      const cr = candidateMap[p.foreignProductId]
-      if (!cr || cr.status !== 'ok' || cr.candidates.length === 0) return null
-      const key = String(p.foreignProductId)
-      const sel = Object.prototype.hasOwnProperty.call(inQ, key)
-      const qv = sel ? (inQ[key] ?? '') : ''
-      const qFloat = parseFloat(qv) || 0
-      const activeCand =
-        cr.candidates.length === 1
-          ? cr.candidates[0]
-          : (cr.candidates.find((c) => c.sourceGeneralAccountId === srcPick[key]) ?? cr.candidates[0])
-      return {
-        foreignProductId: p.foreignProductId,
-        ticker: p.ticker,
-        candidates: cr.candidates,
-        activeCand,
-        sel,
-        qv,
-        qFloat,
-        overAvail: sel && qFloat > 0 && qFloat > activeCand.estimatedAvailableQty,
-      }
-    })
-    .filter(Boolean) as NonNullable<ReturnType<typeof products.map>[number]>[]
+  const inApiRows: InApiRow[] = products.flatMap((p) => {
+    const cr = candidateMap[p.foreignProductId]
+    if (!cr || cr.status !== 'ok' || cr.candidates.length === 0) return []
+    const key = String(p.foreignProductId)
+    const sel = Object.prototype.hasOwnProperty.call(inQ, key)
+    const qv = sel ? (inQ[key] ?? '') : ''
+    const qFloat = parseFloat(qv) || 0
+    const activeCand =
+      cr.candidates.length === 1
+        ? cr.candidates[0]
+        : (cr.candidates.find((c) => c.sourceGeneralAccountId === srcPick[key]) ?? cr.candidates[0])
+    return [{
+      foreignProductId: p.foreignProductId,
+      ticker: p.ticker,
+      candidates: cr.candidates,
+      activeCand,
+      sel,
+      qv,
+      qFloat,
+      overAvail: sel && qFloat > 0 && qFloat > activeCand.estimatedAvailableQty,
+    }]
+  })
 
   const inErrorProducts = products.filter((p) => candidateMap[p.foreignProductId]?.status === 'error')
   const inEmptyProducts = products.filter((p) => {
@@ -292,7 +303,7 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
   const oOk =
     !!avail && oAmt > 0 && !oTooMuch && (!oRisky || outAgree) && !noDest && destId != null
   const selectedDest = destAccounts.find((a) => a.generalAccountId === destId)
-  const destLabel = selectedDest ? selectedDest.brokerName + ' ' + selectedDest.accountNo : '—'
+  const destLabel = selectedDest ? selectedDest.accountNo : '—'
 
   // 계좌 개설
   const ov = openValues()
@@ -330,7 +341,9 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
       if (submitLock.current) return
       submitLock.current = true
       setSubmitting(true)
+      setSubmitError(null)
       const results: SubmittedInboundResult[] = []
+      let auth401 = false
       try {
         for (const item of pickedSubmitItems) {
           try {
@@ -347,7 +360,7 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
               partialReason: res.partialReason,
             })
           } catch (e) {
-            if (isHttpStatus(e, 401)) break
+            if (isHttpStatus(e, 401)) { auth401 = true; break }
             results.push(
               isAmbiguous(e)
                 ? { ticker: item.ticker, status: 'unknown' }
@@ -359,9 +372,13 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
         submitLock.current = false
         setSubmitting(false)
       }
-      setInDoneResults(results)
-      onSubmitIn(results)
-      setStep(2)
+      if (auth401 && results.length === 0) {
+        setSubmitError('로그인이 만료됐어요. 다시 로그인해 주세요.')
+      } else {
+        setInDoneResults(results)
+        onSubmitIn(results)
+        setStep(2)
+      }
     } else {
       // kind === 'out'
       if (!avail || destId == null) return
@@ -369,7 +386,7 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
       setSubmitError(null)
       try {
         await submitWithdrawal({
-          requestedAmount: outAmt,
+          requestedAmount: oAmt,
           destinationGeneralAccountId: destId,
           earlyWithdrawalAgreed: outAgree,
         })
@@ -378,7 +395,7 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
         setStep(2)
       } catch (e) {
         if (isAmbiguous(e)) {
-          setDone({ sum: '처리 완료 여부를 확인해 주세요', next: ['인출 내역에서 직접 확인해 주세요'] })
+          setDone({ title: '처리 여부를 확인해 주세요', sum: '인출 내역에서 직접 확인해 주세요', next: [] })
           setStep(2)
         } else {
           setSubmitError(apiErrorMessage(e, '신청 중 오류가 발생했어요'))
@@ -552,10 +569,16 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
             </div>
           )
         })}
-        <p className={styles.submitNote}>{SUBMIT_NOTE}</p>
+        {submitError && <div className={styles.fetchErr}>{submitError}</div>}
+        <p className={styles.submitNote}>{IN_SUBMIT_NOTE}</p>
       </div>
     )
   } else if (kind === 'in' && step === 2 && inDoneResults) {
+    const inDoneTitle = inDoneResults.every((r) => r.status === 'ok')
+      ? '입고 신청 완료'
+      : inDoneResults.every((r) => r.status === 'failed')
+        ? '신청이 처리되지 않았어요'
+        : '처리 여부를 확인해 주세요'
     body = (
       <>
         <div className={styles.done}>
@@ -564,7 +587,7 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
               <path d="M20 6 9 17l-5-5" />
             </svg>
           </span>
-          <h3 className={styles.doneTitle}>입고 신청 완료</h3>
+          <h3 className={styles.doneTitle}>{inDoneTitle}</h3>
         </div>
         <div>
           {inDoneResults.map((r, i) => (
@@ -661,7 +684,7 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
                 >
                   {destAccounts.map((a) => (
                     <option key={a.generalAccountId} value={a.generalAccountId}>
-                      {a.brokerName} {a.accountNo}
+                      {a.accountNo}
                     </option>
                   ))}
                 </select>
@@ -822,7 +845,7 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
   } else if (isOpen && step === 3) {
     body = <DoneView title="계좌 개설 신청이 접수됐어요" sum={'한도 ₩' + F.won(opLim) + ' · ' + ov.linked} next={ov.next} />
   } else if (done) {
-    body = <DoneView title="인출 처리 완료" sum={done.sum} next={done.next} />
+    body = <DoneView title={done.title ?? '인출 처리 완료'} sum={done.sum} next={done.next} />
   }
 
   return (
