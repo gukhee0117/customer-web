@@ -473,7 +473,6 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
                           onChange={(e) => {
                             const v = Number(e.target.value)
                             setSrcPick((s) => ({ ...s, [key]: v }))
-                            setOutAgree(false)
                           }}
                           aria-label={r.ticker + ' 출처 계좌'}
                         >
