@@ -22,7 +22,7 @@ Returns(리턴증권, 교육용 가상 증권사) RIA 고객 웹. Claude Design 
 6. 커밋은 사람이 직접 한다. Claude Code는 커밋하지 않는다.
 
 ## 데이터·날짜
-- "오늘"은 `src/lib/clock.ts`의 `getBusinessToday()`만 쓴다(지금은 `src/data/businessDate.ts`의 2026-11-18 고정 → 서버 system_clock API로 교체 예정). 예외: 로그인 30분 타이머·인증번호 타이머·화면 시계(시:분)는 실제 시각.
+- "오늘"은 `src/lib/clock.ts`의 `getBusinessToday()`만 쓴다(서버 업무일 `GET /api/customer/business-date`를 받아 쓰고, 서버가 꺼져 있을 때만 `src/data/businessDate.ts`의 2026-11-18 목업). 예외: 로그인 30분 타이머·인증번호 타이머·화면 시계(시:분)는 실제 시각.
 - 공용 데이터 `src/data/returns.ts`(RD), 계산 `src/lib/calc.ts`(F). 같은 값은 새로 만들지 말고 여기서 가져와 페이지 간 숫자를 맞춘다(예: 패키지 총액은 홈·내 계좌·주식 패키지가 같아야 함).
 - 원본이 직접 넣은 예시 값은 각 페이지 데이터 파일에 있고, 백엔드로 바꿀 곳은 `TODO` 주석으로 표시돼 있다. 백엔드 연결은 이 TODO를 찾아 API 호출로 바꾸는 작업이다.
 - 저장소 키: sessionStorage `returns-login`·`returns-session-exp`·`returns-session-warned`(로그인 세션, 지우기는 `clearLoginSession()`), `returns-logout-notice`(랜딩 토스트), `returns-notify`(알림 설정), `returns-landing-scroll`(랜딩 복원) / localStorage `returns-demo`(시연 설정, 홈·내 계좌·주식 패키지·내 정보 공유), `returns-assess-hist`(진단 이력).

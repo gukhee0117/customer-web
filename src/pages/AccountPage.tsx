@@ -10,9 +10,9 @@ import { AccountHoldBox } from '../components/account/AccountHoldBox'
 import { AccountLimitBox } from '../components/account/AccountLimitBox'
 import { AccountTaxBox } from '../components/account/AccountTaxBox'
 import { TaxCalcModal } from '../components/account/TaxCalcModal'
-import { initialIssued, setAdjOverride, docTypeOf } from '../components/account/accountTaxData'
+import { issuedRecords, setAdjOverride, docTypeOf } from '../components/account/accountTaxData'
 import { apiErrorMessage } from '../api/client'
-import { downloadDocument, issueDocument } from '../api/documents'
+import { downloadDocument, issueDocument, listDocuments } from '../api/documents'
 import { ALERT_DESC, ALERT_LINK, ALERT_TAG, BOT_CHIPS, botGreeting, botTurn } from '../components/account/accountBotData'
 import type { ApplyAlert } from '../components/account/accountBotData'
 import type { IssueRecord } from '../components/account/accountTaxData'
@@ -118,7 +118,12 @@ export function AccountPage() {
   const [sellOpen, setSellOpen] = useState(false)
   const [addedSell, setAddedSell] = useState<AddedSell[]>([])
   const [addedSettle, setAddedSettle] = useState<AddedSettle[]>([])
-  const [issued, setIssued] = useState<IssueRecord[]>(initialIssued)
+  const [issued, setIssued] = useState<IssueRecord[]>([])
+  // 발급 기록은 서버 기록(서버는 같은 종류를 한 번만 발급해 같은 서류가 두 줄이 되지 않는다)
+  const loadIssued = () => listDocuments().then((list) => setIssued(issuedRecords(list))).catch(() => {})
+  useEffect(() => {
+    void loadIssued()
+  }, [])
 
   // 거래·신청 내역 탭 — 주소 끝(#deposits 등)이 탭 이름이면 그 탭을 연다(원본 onHash). 자금 흐름 화면에 다녀와도 유지
   const [histTab, setHistTab] = useState<HistTab>(() => (isHistTab(hash.slice(1)) ? (hash.slice(1) as HistTab) : 'deposits'))
@@ -221,10 +226,12 @@ export function AccountPage() {
     showToast('계좌 개설 신청을 취소했어요')
   }
 
-  // PDF 받기 — 서버에서 발급(이미 있으면 그 발급본)해 내려받고, 발급 기록 맨 앞에 오늘 날짜로 추가
+  // PDF 받기 — 서버에서 발급(이미 있으면 그 발급본)해 내려받고, 발급 기록은 서버 목록을 다시 받는다
+  const pdfBusy = useRef(false) // 연타로 발급 요청이 겹치지 않게
   const fetchPdf = async (name: string) => {
     const docType = docTypeOf(name)
-    if (!docType) return false
+    if (!docType || pdfBusy.current) return false
+    pdfBusy.current = true
     try {
       const issue = await issueDocument(docType)
       await downloadDocument(issue.documentIssueId, name + '.pdf')
@@ -232,12 +239,14 @@ export function AccountPage() {
     } catch (e) {
       showToast(apiErrorMessage(e, name + ' PDF를 받지 못했어요. 잠시 뒤 다시 시도해 주세요'))
       return false
+    } finally {
+      pdfBusy.current = false
     }
   }
   const issue = async (name: string) => {
     if (!(await fetchPdf(name))) return
-    setIssued((prev) => [[F.short(RD.C.BUSINESS_DATE), name], ...prev])
-    showToast(name + ' PDF를 받았어요 · 발급 기록에 추가했어요')
+    void loadIssued()
+    showToast(name + ' PDF를 받았어요')
   }
   const reissue = async (name: string) => {
     if (await fetchPdf(name)) showToast(name + ' PDF를 다시 받았어요')

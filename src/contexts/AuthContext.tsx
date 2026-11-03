@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import * as apiAuth from '../api/auth'
+import { syncAssessState } from '../api/investor'
 import type { MeData } from '../api/auth'
 import { clearLoginSession, setLoginSession } from '../components/login/loginSession'
 import { AuthContext } from './authState'
@@ -16,6 +17,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((me) => {
         setLoginSession({ name: me.name, expiresAt: me.expiresAt })
         setAuth({ status: 'authenticated', me })
+        void syncAssessState() // 새로고침으로 세션이 복원돼도 진단 상태는 서버 값으로
       })
       .catch(() => {
         clearLoginSession()

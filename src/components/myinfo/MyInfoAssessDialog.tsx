@@ -18,7 +18,7 @@ interface Props {
 }
 
 // 투자성향 다시 진단 창: 서버 문항(복수 선택 포함) → 마지막 문항에서 서버에 제출해 결과(총점·성향)를 보여 준다
-// 창을 열 때마다 처음부터. 중간에 닫아도 확인 없이 닫힘(어두운 막·Esc·X). 제출 결과는 서버에 저장되며 결과 단계의 "확인"은 화면 반영만 한다
+// 창을 열 때마다 처음부터. 중간에 닫아도 확인 없이 닫힘(어두운 막·Esc·X). 제출 결과는 서버에 저장되며, 결과 단계에서 닫거나 "확인"을 누르면 화면에 반영한다
 // TODO: 진단 이력(진단 날짜·점수 목록)은 아직 localStorage — 서버에는 현재 성향 조회만 있다
 export function MyInfoAssessDialog({ onClose, onSave }: Props) {
   const survey = useInvestorSurvey()
@@ -35,16 +35,19 @@ export function MyInfoAssessDialog({ onClose, onSave }: Props) {
     void load()
   }, [load, reset])
 
+  // 제출은 곧 서버 저장이라, 결과가 뜬 뒤 X·Esc·바깥 클릭으로 닫아도 화면에 반영한다
+  const close = () => (result ? onSave(result.totalScore, profileKeyOf(result.investorType)) : onClose())
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') close()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  })
 
   const onBackdrop = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose()
+    if (e.target === e.currentTarget) close()
   }
 
   const loaded = !!survey.questions
@@ -73,7 +76,7 @@ export function MyInfoAssessDialog({ onClose, onSave }: Props) {
         <div className={styles.head}>
           <h2>투자성향 다시 진단</h2>
           <span className={styles.step}>{isRes ? '결과' : loaded ? step + 1 + ' / ' + Q.length : ''}</span>
-          <button type="button" className={styles.close} onClick={onClose} aria-label="닫기">
+          <button type="button" className={styles.close} onClick={close} aria-label="닫기">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6 6 18" />
               <path d="m6 6 12 12" />

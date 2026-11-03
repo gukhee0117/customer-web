@@ -31,11 +31,21 @@ export async function listDocuments(): Promise<DocumentIssue[]> {
 
 // PDF를 받아 브라우저 저장으로 넘긴다. 파일명은 서버 Content-Disposition이 CORS에 노출되지 않아 직접 정한다
 export async function downloadDocument(documentIssueId: number, fileName: string): Promise<void> {
-  const res = await apiClient.get<Blob>(`/api/customer/documents/${documentIssueId}/download`, { responseType: 'blob' })
+  let res
+  try {
+    res = await apiClient.get<Blob>(`/api/customer/documents/${documentIssueId}/download`, { responseType: 'blob' })
+  } catch (e) {
+    // blob으로 받은 오류 응답({message, code})을 JSON으로 풀어 apiErrorMessage가 읽게 한다
+    const r = (e as { response?: { data?: unknown } }).response
+    if (r?.data instanceof Blob) r.data = await r.data.text().then(JSON.parse).catch(() => undefined)
+    throw e
+  }
   const url = URL.createObjectURL(res.data)
   const a = document.createElement('a')
   a.href = url
   a.download = fileName
+  document.body.appendChild(a)
   a.click()
-  URL.revokeObjectURL(url)
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000) // 바로 해제하면 일부 브라우저에서 저장이 취소된다
 }

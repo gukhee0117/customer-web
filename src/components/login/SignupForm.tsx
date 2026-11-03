@@ -89,6 +89,7 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   const [riaOk, setRiaOk] = useState(false)
   const [riaTried, setRiaTried] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [registered, setRegistered] = useState(false) // 가입이 끝났는가 — 설문에서 '이전'으로 돌아와도 다시 가입하지 않는다
   const [qi, setQi] = useState(0)
   const survey = useInvestorSurvey()
   const [result, setResult] = useState<ProfileKey | null>(null)
@@ -111,11 +112,12 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
       if (!info.name.trim()) return '이름을 입력해 주세요'
       if (digits(info.birth).length !== 8) return '생년월일 8자리를 입력해 주세요'
       if (digits(info.rrn).length !== 13) return '주민등록번호 13자리를 입력해 주세요'
+      if (digits(info.rrn).slice(0, 6) !== digits(info.birth).slice(2)) return '주민등록번호 앞 6자리와 생년월일이 달라요'
       if (!phoneOk(info.phone)) return '휴대폰 번호를 입력해 주세요'
       if (!codeSent) return '휴대폰 인증번호를 받아 주세요'
       if (!codeOk) return '인증번호 6자리를 입력해 주세요'
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.email)) return '이메일 주소를 확인해 주세요'
-      if (info.uid.trim().length < 4) return '아이디는 4자 이상이에요'
+      if (!/^[A-Za-z0-9]{4,20}$/.test(info.uid.trim())) return '아이디는 영문·숫자 4~20자예요'
       if (!checks.every(Boolean)) return '비밀번호 조건을 모두 채워 주세요'
       if (info.pw2 !== info.pw) return '비밀번호가 서로 달라요'
       return ''
@@ -185,8 +187,9 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   const skipQuiz = () => navigate('/home')
   const goNext = async () => {
     if (nextDisabled) return
-    if (step === 2) {
+    if (step === 2 && !registered) {
       if (!(await register())) return
+      setRegistered(true)
       survey.reset()
       void survey.load()
     }
