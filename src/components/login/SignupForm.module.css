@@ -459,6 +459,15 @@
   color: var(--color-sub);
 }
 
+.skip {
+  all: unset;
+  cursor: pointer;
+  align-self: center;
+  font-size: var(--font-size-12);
+  color: var(--color-sub);
+  text-decoration: underline;
+}
+
 .loginLink {
   all: unset;
   cursor: pointer;

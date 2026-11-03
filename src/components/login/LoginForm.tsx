@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../styles/tokens.css'
+import { syncAssessState } from '../../api/investor'
 import { useAuth } from '../../contexts/authState'
 import { cx } from '../common/cx'
 import { Toast } from '../common/Toast'
@@ -52,6 +53,7 @@ export function LoginForm({ active, onSignup }: LoginFormProps) {
     setLoginErr('')
     try {
       await login(id, pw)
+      await syncAssessState()
       navigate('/home')
     } catch (err: unknown) {
       setLoading(false)
