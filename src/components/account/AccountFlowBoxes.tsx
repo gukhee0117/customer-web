@@ -47,22 +47,26 @@ export function FlowMonthlyBox({ className, monthly }: { className?: string; mon
   const cols = cx(styles.row, styles.tableCols)
   // 월 수만큼 칸을 나눈다(시연 데이터는 2개월, 서버 값은 3월~현재월)
   const colTemplate = { gridTemplateColumns: 'repeat(' + months.length + ', minmax(0, 1fr))' }
+  const legend = (
+    <div className={styles.legend}>
+      {MONTH_SERIES.map((g) => (
+        <span key={g.key} className={styles.legendItem}>
+          <span className={styles.swatch} style={{ background: g.color }} />
+          {g.label}
+        </span>
+      ))}
+    </div>
+  )
+  // 서버가 월별을 빈 배열로 준 경우(실제 데이터) — 시연 데이터로 바꾸지 않고 빈 상태를 그린다
+  if (months.length === 0) {
+    return (
+      <Box data-box="monthly" className={className} title="월별 흐름" actions={legend}>
+        <p className={styles.empty}>아직 집계된 월별 자금 흐름이 없어요. 거래가 쌓이면 여기에 보여드려요.</p>
+      </Box>
+    )
+  }
   return (
-    <Box
-      data-box="monthly"
-      className={className}
-      title="월별 흐름"
-      actions={
-        <div className={styles.legend}>
-          {MONTH_SERIES.map((g) => (
-            <span key={g.key} className={styles.legendItem}>
-              <span className={styles.swatch} style={{ background: g.color }} />
-              {g.label}
-            </span>
-          ))}
-        </div>
-      }
-    >
+    <Box data-box="monthly" className={className} title="월별 흐름" actions={legend}>
       <div className={styles.chart}>
         <div className={styles.plot} style={colTemplate}>
           {months.map((m) => (

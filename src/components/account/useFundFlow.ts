@@ -43,18 +43,14 @@ export function useFundFlow(enabled: boolean): FundFlowState {
           setState({ source: 'error', ...NO_DATA })
           return
         }
-        // 401만 있으면 로그인 전, 계좌 없음(hasAccount=false)도 시연 데이터
-        if (!summary.ok || !monthly.ok || !relief.ok || !allocation.ok || !summary.value.hasAccount) {
+        // 401만 있으면 로그인 전, 계좌 없음(hasAccount=false)도 시연 데이터.
+        // 박스마다 실제 값과 시연 데이터가 섞이지 않게, 하나라도 계좌가 없다고 하면 전체를 시연으로 통일한다
+        if (!summary.ok || !monthly.ok || !relief.ok || !allocation.ok || !summary.value.hasAccount || !relief.value.hasAccount || !allocation.value.hasAccount) {
           setState({ source: 'demo', ...NO_DATA })
           return
         }
-        setState({
-          source: 'live',
-          summary: summary.value,
-          monthly: monthly.value.months.length > 0 ? monthly.value : null,
-          relief: relief.value.hasAccount ? relief.value : null,
-          allocation: allocation.value.hasAccount ? allocation.value : null
-        })
+        // 월별이 빈 배열이어도 실제 응답이므로 그대로 둔다(월별 박스가 빈 상태를 그린다)
+        setState({ source: 'live', summary: summary.value, monthly: monthly.value, relief: relief.value, allocation: allocation.value })
       }
     )
     return () => {
