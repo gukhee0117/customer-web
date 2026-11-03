@@ -21,6 +21,7 @@ import { AccountSummaryBox } from '../components/account/AccountSummaryBox'
 import { FOOT_FLOW, FOOT_STATUS, PAGE_TABS } from '../components/account/accountData'
 import type { PageKey } from '../components/account/accountData'
 import type { AddedIn, AddedOut, ApplyKind } from '../components/account/accountApplyData'
+import type { SubmittedInboundResult } from '../components/account/ApplyModal'
 import { moreTitle } from '../components/account/accountSellData'
 import type { AddedSell, AddedSettle } from '../components/account/accountSellData'
 import { isHistTab } from '../components/account/accountHistData'
@@ -301,9 +302,12 @@ export function AccountPage() {
           kind={applyKind}
           onClose={() => setApplyKind(null)}
           onGoHist={goHist}
-          onSubmitIn={(rows) => {
-            setAddedIn((prev) => [...rows, ...prev])
-            addAlert('입고 신청 · ' + moreTitle(rows), 'deposits')
+          onSubmitIn={(results: SubmittedInboundResult[]) => {
+            const rows: AddedIn[] = results
+              .filter((r) => r.status === 'ok')
+              .map((r) => ({ t: r.ticker, req: r.approvedQty ?? 0, base: 0, now: 0 }))
+            if (rows.length > 0) setAddedIn((prev) => [...rows, ...prev])
+            addAlert('입고 신청 · ' + moreTitle(results.map((r) => ({ t: r.ticker }))), 'deposits')
           }}
           onSubmitOut={(amt) => {
             setAddedOut((prev) => [{ amt }, ...prev])
