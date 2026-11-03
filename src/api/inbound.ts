@@ -23,10 +23,16 @@ export interface InboundCandidate {
   estimatedAvailableQty: number
 }
 
+export interface InboundCandidatesResult {
+  foreignProductId: number
+  ticker: string
+  name: string
+  candidates: InboundCandidate[]
+}
+
 export interface InboundSubmitRequest {
   foreignProductId: number
   sourceGeneralAccountId: number
-  /** 소수 4자리 검증된 수량 — 정밀도 보존을 위해 string 전송 */
   requestedQty: string
 }
 
@@ -49,11 +55,11 @@ export async function getForeignProducts(): Promise<ForeignProduct[]> {
 export async function getInboundCandidates(
   foreignProductId: number,
 ): Promise<InboundCandidate[]> {
-  const res = await apiClient.get<ApiResponse<InboundCandidate[]>>(
+  const res = await apiClient.get<ApiResponse<InboundCandidatesResult>>(
     '/api/customer/inbounds/candidates',
     { params: { foreignProductId } },
   )
-  return res.data.data
+  return res.data.data.candidates
 }
 
 export async function submitInbound(
