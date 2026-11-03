@@ -1,3 +1,4 @@
+import type { DocType } from '../../api/documents'
 import { RETURNS_DATA as RD } from '../../data/returns'
 import { F } from '../../lib/calc'
 
@@ -160,11 +161,22 @@ export interface DocItem {
   name: string
   desc: string
   ready: boolean
+  docType: DocType // 서버 서류 종류
 }
 
 export function docItems(): DocItem[] {
   return [
-    { name: 'RIA 매도내역서', desc: F.short(RD.SOLD.filled) + ' 매도 ' + SOLD_COUNT + '종목의 체결·원화 확정 내역', ready: true },
-    { name: 'RIA 외 거래내역서', desc: '다른 계좌 해외주식 순매수 확인용', ready: true }
+    {
+      name: 'RIA 매도내역서',
+      desc: F.short(RD.SOLD.filled) + ' 매도 ' + SOLD_COUNT + '종목의 체결·원화 확정 내역',
+      ready: true,
+      docType: 'TAX_RELIEF_CERT'
+    },
+    { name: 'RIA 외 거래내역서', desc: '다른 계좌 해외주식 순매수 확인용', ready: true, docType: 'NET_PURCHASE_STATEMENT' }
   ]
+}
+
+// 서류 이름 → 서버 서류 종류(발급 기록 줄은 이름만 갖고 있음)
+export function docTypeOf(name: string): DocType | undefined {
+  return docItems().find((d) => d.name === name)?.docType
 }
