@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getProfile } from '../../api/profile'
 import { RETURNS_DATA as RD } from '../../data/returns'
 import { Box } from '../common/Box'
 import { MyInfoPubDialog } from './MyInfoDialogs'
@@ -11,23 +10,14 @@ import styles from './MyInfoCommunityBox.module.css'
 interface Props {
   className?: string
   onToast: (msg: string) => void
+  nickname: string // 서버 닉네임(페이지가 프로필을 받아 내려 줌). 받기 전 '-', 없으면 안내 문구
 }
 
 // 커뮤니티 — 닉네임 보기(바꿀 수 없음) + 투자성향 공개 켜고 끄기
 // 원본은 이 화면 안에서만 값을 들고 있고(처음 값은 RD.COMMUNITY) 커뮤니티 화면과 공유하지 않음 — 그대로 따름.
 // 닉네임은 서버 값(GET /api/customer/profile). 성향 공개는 아직 화면 안에서만 유지한다
 // TODO: 백엔드 연결 시 서버의 성향 공개 저장·조회로 대체
-export function MyInfoCommunityBox({ className, onToast }: Props) {
-  const [nick, setNick] = useState('-') // 받기 전 '-', 닉네임이 없으면 안내 문구
-  useEffect(() => {
-    let alive = true
-    getProfile()
-      .then((p) => alive && setNick(p.nickname ?? '아직 없어요'))
-      .catch(() => {})
-    return () => {
-      alive = false
-    }
-  }, [])
+export function MyInfoCommunityBox({ className, onToast, nickname }: Props) {
   const [pubOn, setPubOn] = useState(!!RD.COMMUNITY.profilePublic)
   const [pd, setPd] = useState<{ agree: boolean } | null>(null)
 
@@ -43,7 +33,7 @@ export function MyInfoCommunityBox({ className, onToast }: Props) {
       <div className={styles.body}>
         <div className={styles.nickRow}>
           <span className={styles.label}>닉네임</span>
-          <span className={styles.nick}>{nick}</span>
+          <span className={styles.nick}>{nickname}</span>
         </div>
         <div className={styles.pubRow}>
           <span className={row.label}>

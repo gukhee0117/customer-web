@@ -1,5 +1,7 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { getProfile } from '../api/profile'
+import type { Profile } from '../api/profile'
 import { Toast } from '../components/common/Toast'
 import { cx } from '../components/common/cx'
 import { useToast } from '../components/common/useToast'
@@ -39,11 +41,25 @@ export function MyInfoPage() {
   const [hist, setHist] = useState(readHist)
   const [asOpen, setAsOpen] = useState(false)
   const [pwOpen, setPwOpen] = useState(false)
+  // 서버 프로필(기본 정보·커뮤니티 박스가 같이 씀). 못 받으면 null + 다시 불러오기
+  const [prof, setProf] = useState<Profile | null>(null)
+  const [profErr, setProfErr] = useState(false)
+  const [profTries, setProfTries] = useState(0)
   const [flash, setFlash] = useState<string | null>(null)
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const firstHash = useRef(true)
   const fontWatch = useRef<(() => void) | undefined>(undefined)
   const profLabel = RD.PROFILES[RD.CUSTOMER.profile]?.label
+
+  useEffect(() => {
+    let alive = true
+    getProfile()
+      .then((p) => alive && setProf((prev) => prev ?? p)) // 저장 응답이 먼저 와 있으면 늦게 온 조회로 덮지 않는다
+      .catch(() => alive && setProfErr(true))
+    return () => {
+      alive = false
+    }
+  }, [profTries])
 
   // 시연 설정(성향 상태 등)이 바뀌면 다시 그림
   useEffect(() => {
@@ -136,9 +152,9 @@ export function MyInfoPage() {
             />
           )}
           {assessState() !== 'none' && <MyInfoTradeBox className={styles.trade} onOpenAssess={openAssess} />}
-          <MyInfoBasicBox className={styles.basic} onToast={showToast} />
+          <MyInfoBasicBox className={styles.basic} onToast={showToast} prof={prof} loadErr={profErr} onProfile={setProf} onRetry={() => { setProfErr(false); setProfTries((n) => n + 1) }} />
           <MyInfoAccountBox className={styles.account} onToast={showToast} />
-          <MyInfoCommunityBox className={styles.community} onToast={showToast} />
+          <MyInfoCommunityBox className={styles.community} onToast={showToast} nickname={prof ? prof.nickname ?? '아직 없어요' : '-'} />
         </div>
         <div className={styles.col}>
           <MyInfoNotifyBox id="notify" className={cx(styles.notify, styles.flashable, flash === 'notify' && styles.flashOn)} onToast={showToast} />
