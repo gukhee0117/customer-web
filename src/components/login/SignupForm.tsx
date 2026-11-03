@@ -5,15 +5,16 @@ import '../../styles/tokens.css'
 import { apiErrorMessage } from '../../api/client'
 import { signup } from '../../api/auth'
 import { useAuth } from '../../contexts/authState'
-import { syncAssessState } from '../../api/investor'
+import { profileKeyOf, submitAssessment, syncAssessState } from '../../api/investor'
 import { RETURNS_DATA } from '../../data/returns'
 import { F } from '../../lib/calc'
+import { useInvestorSurvey } from '../assessment/useInvestorSurvey'
 import { cx } from '../common/cx'
 import { Toast } from '../common/Toast'
 import { useToast } from '../common/useToast'
 import { SignupQuiz } from './SignupQuiz'
 import { SignupResult } from './SignupResult'
-import { QUESTIONS, profileKey } from './signupProfile'
+import type { ProfileKey } from './signupProfile'
 import styles from './SignupForm.module.css'
 
 interface SignupFormProps {
@@ -89,7 +90,8 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   const [riaTried, setRiaTried] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [qi, setQi] = useState(0)
-  const [answers, setAnswers] = useState<(number | null)[]>(QUESTIONS.map(() => null))
+  const survey = useInvestorSurvey()
+  const [result, setResult] = useState<ProfileKey | null>(null)
 
   const soon = () => showToast('준비 중인 화면이에요')
   const setField = (k: InfoKey) => (e: ChangeEvent<HTMLInputElement>) => {
@@ -123,12 +125,15 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
       if (ria === 'have' && !riaOk) return '계좌번호를 확인해 주세요'
       return ''
     }
-    if (step === 3) return answers[qi] === null ? '보기를 하나 골라 주세요' : ''
+    if (step === 3) {
+      if (!survey.questions) return survey.error || '설문을 불러오는 중이에요'
+      return survey.isAnswered(survey.questions[qi]) ? '' : survey.questions[qi].multiple ? '보기를 하나 이상 골라 주세요' : '보기를 하나 골라 주세요'
+    }
     return ''
   }
   const why = reason()
   const nextDisabled = !!why || submitting
-  const lastQuestion = qi === QUESTIONS.length - 1
+  const lastQuestion = !!survey.questions && qi === survey.questions.length - 1
 
   const goPrev = () => {
     if (step === 0) onLogin()
@@ -159,11 +164,33 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
       setSubmitting(false)
     }
   }
+  // 설문 제출: 점수 계산과 성향 판정·저장은 서버가 한다. 결과 성향은 홈·추천에 바로 반영한다
+  const finish = async (): Promise<boolean> => {
+    setSubmitting(true)
+    try {
+      const res = await submitAssessment(survey.answers)
+      const key = profileKeyOf(res.investorType)
+      RETURNS_DATA.setDemo({ profile: key })
+      await syncAssessState()
+      setResult(key)
+      return true
+    } catch (err) {
+      showToast(apiErrorMessage(err, '설문을 제출하지 못했어요. 잠시 뒤 다시 시도해 주세요'))
+      return false
+    } finally {
+      setSubmitting(false)
+    }
+  }
   // 설문을 건너뛰면 투자성향은 미진단으로 남고, 홈에서 진단하라는 안내가 보인다(가입은 이미 끝나 로그인된 상태)
   const skipQuiz = () => navigate('/home')
   const goNext = async () => {
     if (nextDisabled) return
-    if (step === 2 && !(await register())) return
+    if (step === 2) {
+      if (!(await register())) return
+      survey.reset()
+      void survey.load()
+    }
+    if (step === 3 && lastQuestion && !(await finish())) return
     if (step === 3 && !lastQuestion) {
       setQi(qi + 1)
       return
@@ -348,15 +375,23 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
         </div>
       )}
 
-      {step === 3 && (
+      {step === 3 && survey.questions && (
         <SignupQuiz
+          question={survey.questions[qi]}
           qi={qi}
-          answers={answers}
-          onPick={(i) => setAnswers((st) => st.map((v, j) => (j === qi ? i : v)))}
+          total={survey.questions.length}
+          isPicked={(v) => survey.isPicked(survey.questions![qi], v)}
+          onPick={(v) => survey.pick(survey.questions![qi], v)}
         />
       )}
+      {step === 3 && !survey.questions && (
+        <div className={styles.section}>
+          <h2 className={styles.title}>{survey.error || '설문을 불러오는 중이에요'}</h2>
+          {survey.error && <button type="button" className={styles.outlineBtn} onClick={() => void survey.load()}>다시 불러오기</button>}
+        </div>
+      )}
 
-      {step === 4 && <SignupResult name={info.name} profile={profileKey(answers)} />}
+      {step === 4 && result && <SignupResult name={info.name} profile={result} />}
 
       {step < 4 && (
         <div className={styles.nav}>
