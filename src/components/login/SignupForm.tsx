@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import type { ChangeEvent, InputHTMLAttributes } from 'react'
 import '../../styles/tokens.css'
+import { apiErrorMessage } from '../../api/client'
+import { signup } from '../../api/auth'
+import { useAuth } from '../../contexts/authState'
 import { RETURNS_DATA } from '../../data/returns'
 import { F } from '../../lib/calc'
 import { cx } from '../common/cx'
@@ -31,14 +34,17 @@ const RIA_OPTS: [Ria, string][] = [
 const PW_RULES = ['8자 이상', '영문+숫자', '특수문자']
 
 type Ria = 'have' | 'none'
-type InfoKey = 'name' | 'birth' | 'phone' | 'email' | 'uid' | 'pw' | 'pw2'
+type InfoKey = 'name' | 'birth' | 'rrn' | 'phone' | 'email' | 'uid' | 'pw' | 'pw2'
 type Info = Record<InfoKey, string>
 
-const EMPTY_INFO: Info = { name: '', birth: '', phone: '', email: '', uid: '', pw: '', pw2: '' }
+const EMPTY_INFO: Info = { name: '', birth: '', rrn: '', phone: '', email: '', uid: '', pw: '', pw2: '' }
 
 const digits = (v: string) => (v || '').replace(/\D/g, '')
 const pwChecks = (pw: string) => [pw.length >= 8, /[A-Za-z]/.test(pw) && /\d/.test(pw), /[^A-Za-z0-9]/.test(pw)]
 const phoneOk = (v: string) => /^01\d{8,9}$/.test(digits(v))
+// 서버로 보내는 모양: 1994.05.17 → 1994-05-17, 01012345678 → 010-1234-5678
+const isoBirth = (v: string) => digits(v).replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3')
+const dashPhone = (v: string) => digits(v).replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')
 
 const CheckIcon = ({ size }: { size: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
@@ -67,6 +73,7 @@ const Field = ({ active, label, span, value, onChange, type, placeholder, autoCo
 
 // 회원가입 1~3단계(약관 동의 · 본인 정보 · RIA 계좌 연결). 4단계(투자성향 진단)는 자리만
 export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
+  const { applySession } = useAuth()
   const { message: toast, showToast } = useToast()
   const [step, setStep] = useState(0)
   const [terms, setTerms] = useState([false, false, false, false])
@@ -77,6 +84,7 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   const [riaNo, setRiaNo] = useState('')
   const [riaOk, setRiaOk] = useState(false)
   const [riaTried, setRiaTried] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [qi, setQi] = useState(0)
   const [answers, setAnswers] = useState<(number | null)[]>(QUESTIONS.map(() => null))
 
@@ -97,6 +105,7 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
     if (step === 1) {
       if (!info.name.trim()) return '이름을 입력해 주세요'
       if (digits(info.birth).length !== 8) return '생년월일 8자리를 입력해 주세요'
+      if (digits(info.rrn).length !== 13) return '주민등록번호 13자리를 입력해 주세요'
       if (!phoneOk(info.phone)) return '휴대폰 번호를 입력해 주세요'
       if (!codeSent) return '휴대폰 인증번호를 받아 주세요'
       if (!codeOk) return '인증번호 6자리를 입력해 주세요'
@@ -115,7 +124,7 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
     return ''
   }
   const why = reason()
-  const nextDisabled = !!why
+  const nextDisabled = !!why || submitting
   const lastQuestion = qi === QUESTIONS.length - 1
 
   const goPrev = () => {
@@ -123,8 +132,32 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
     else if (step === 3 && qi > 0) setQi(qi - 1)
     else setStep(step - 1)
   }
-  const goNext = () => {
+  // 본인 정보와 계좌 연결 선택이 끝나면 서버에 가입한다(가입하면 바로 로그인돼 투자성향 진단을 이어서 저장할 수 있다)
+  const register = async (): Promise<boolean> => {
+    setSubmitting(true)
+    try {
+      const me = await signup({
+        loginId: info.uid.trim(),
+        password: info.pw,
+        rrn: digits(info.rrn),
+        name: info.name.trim(),
+        birthDate: isoBirth(info.birth),
+        phone: dashPhone(info.phone),
+        email: info.email.trim()
+      })
+      applySession(me)
+      return true
+    } catch (err) {
+      showToast(apiErrorMessage(err, '가입하지 못했어요. 잠시 뒤 다시 시도해 주세요'))
+      setStep(1)
+      return false
+    } finally {
+      setSubmitting(false)
+    }
+  }
+  const goNext = async () => {
     if (nextDisabled) return
+    if (step === 2 && !(await register())) return
     if (step === 3 && !lastQuestion) {
       setQi(qi + 1)
       return
@@ -144,7 +177,7 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   }
 
   const demoFill = () => {
-    setInfo({ name: '김리아', birth: '1994.05.17', phone: '010-1234-5678', email: 'ria@returns.co.kr', uid: 'kimria', pw: 'returns!2026', pw2: 'returns!2026' })
+    setInfo({ name: '김리아', birth: '1994.05.17', rrn: '9405172123456', phone: '010-1234-5678', email: 'ria@returns.co.kr', uid: 'kimria', pw: 'returns!2026', pw2: 'returns!2026' })
     setCodeSent(true)
     setCode('123456')
   }
@@ -203,6 +236,7 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
           <div className={styles.grid}>
             <Field active={active} label="이름" span={wide ? 1 : 2} type="text" placeholder="김리아" autoComplete="name" value={info.name} onChange={setField('name')} />
             <Field active={active} label="생년월일" span={wide ? 1 : 2} type="text" placeholder="1994.01.01" autoComplete="bday" inputMode="numeric" value={info.birth} onChange={setField('birth')} />
+            <Field active={active} label="주민등록번호" span={2} type="password" placeholder="숫자 13자리" autoComplete="off" inputMode="numeric" value={info.rrn} onChange={setField('rrn')} />
           </div>
           <div className={styles.fieldBlock}>
             <span className={styles.label}>휴대폰</span>
