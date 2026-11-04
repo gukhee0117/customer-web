@@ -212,6 +212,12 @@
   line-height: var(--line-height-body);
 }
 
+.kkLink {
+  color: var(--color-primary, #2563eb);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .kkSrc {
   margin-top: var(--space-4);
   font-size: var(--font-size-12);

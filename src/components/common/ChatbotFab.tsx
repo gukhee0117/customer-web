@@ -1,9 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import '../../styles/tokens.css'
 import { assetUrl } from './assetUrl'
 import { cx } from './cx'
 import styles from './ChatbotFab.module.css'
+
+function TextWithLinks({ text }: { text: string }) {
+  const parts = text.split(/(\[[^\]]+\]\([^)]+\))/g)
+  return (
+    <>
+      {parts.map((part, i) => {
+        const m = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+        if (m) return <Link key={i} to={m[2]} className={styles.kkLink}>{m[1]}</Link>
+        return <span key={i}>{part}</span>
+      })}
+    </>
+  )
+}
 
 export type BotMessage = { me: true; text: string } | { kk: true; text: string; src?: string }
 
@@ -161,7 +175,7 @@ export function ChatbotFab({ open: openProp, onOpenChange, children, panelWidth 
                       <div className={styles.kkRow}>
                         <img className={styles.kkFace} src={assetUrl('assets/kkiru-ai-face.png')} alt="끼루" />
                         <div className={styles.kkBody}>
-                          <p className={styles.kkText}>{m.text}</p>
+                          <p className={styles.kkText}><TextWithLinks text={m.text} /></p>
                           {m.src && <div className={styles.kkSrc}>근거: {m.src}</div>}
                         </div>
                       </div>
