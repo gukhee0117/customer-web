@@ -1,6 +1,3 @@
-import { RETURNS_DATA as RD } from '../../data/returns'
-import { getBusinessToday } from '../../lib/clock'
-import { series } from './investPkgLogic'
 import type { PkgView } from './investPkgLogic'
 
 // ───── 종목 비중(도넛·줄) ─────
@@ -44,78 +41,11 @@ export function weightRowsOf(pkg: PkgView): WeightRow[] {
   const live = pkg.items.map((it, i) => ({ it, w: w[i] })).filter((x) => x.it.val > 0)
   return live.map(({ it, w: wi }, i) => ({
     code: it.code,
-    name: RD.SN[it.code] || it.code,
+    name: it.name || it.code,
     frac: it.val / (pkg.val || 1),
     w: wi,
     target: it.target,
     shade: shadeOf(i, live.length),
     tone: Math.abs(wi - it.target) >= 2 ? (wi > it.target ? 'up' : 'down') : 'flat'
   }))
-}
-
-// ───── 패키지 수익률 차트 ─────
-
-export type RangeKey = '1w' | '1m' | '3m'
-export const RANGES: [RangeKey, string][] = [
-  ['1w', '1주'],
-  ['1m', '1개월'],
-  ['3m', '3개월']
-]
-const RANGE_DAYS: Record<RangeKey, number> = { '1w': 7, '1m': 30, '3m': 90 }
-
-export const CHART_W = 600
-export const CHART_H = 160
-
-const fp1 = (v: number) => (v > 0 ? '+' : '') + v.toFixed(1) + '%'
-const fp2 = (v: number) => (v > 0 ? '+' : '') + v.toFixed(2) + '%'
-
-export interface ChartData {
-  count: number
-  pts: string
-  y0: string
-  yTop: string
-  yMid: string
-  yBot: string
-  xs: { label: string; left: string; shift: string }[]
-  at: (i: number) => { x: string; y: string; date: string; val: string; shift: string }
-}
-
-// 선택한 기간의 값들로 선·축·마우스 올림 표시를 계산(원본 renderVals의 수익률 선 부분)
-export function chartOf(pkg: PkgView, range: RangeKey): ChartData {
-  // TODO: 백엔드 연결 시 패키지 수익률 이력 API로 교체(지금은 원본처럼 seed로 정해지는 예시 값)
-  const sl = series(pkg.seed || 7, pkg.ret).slice(-RANGE_DAYS[range])
-  let mn = Math.min(0, ...sl)
-  let mx = Math.max(0, ...sl)
-  const pad = (mx - mn) * 0.12 || 1
-  mn -= pad
-  mx += pad
-  const Y = (v: number) => CHART_H - ((v - mn) / (mx - mn)) * CHART_H
-  const X = (i: number) => (i / (sl.length - 1)) * CHART_W
-  const [yy, mm, dd] = getBusinessToday().split('-').map(Number)
-  const base = Date.UTC(yy, mm - 1, dd)
-  const dAt = (i: number) => {
-    const d = new Date(base - (sl.length - 1 - i) * 864e5)
-    return String(d.getUTCMonth() + 1).padStart(2, '0') + '.' + String(d.getUTCDate()).padStart(2, '0')
-  }
-  const last = sl.length - 1
-  return {
-    count: sl.length,
-    pts: sl.map((v, i) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' '),
-    y0: Y(0).toFixed(1),
-    yTop: fp1(mx),
-    yMid: fp1((mx + mn) / 2),
-    yBot: fp1(mn),
-    xs: [0, Math.round(last / 3), Math.round((last * 2) / 3), last].map((i, k) => ({
-      label: dAt(i),
-      left: ((i / last) * 100).toFixed(1) + '%',
-      shift: k === 0 ? '0' : k === 3 ? '-100%' : '-50%'
-    })),
-    at: (i) => ({
-      x: ((i / last) * 100).toFixed(2) + '%',
-      y: ((Y(sl[i]) / CHART_H) * 100).toFixed(2) + '%',
-      date: dAt(i),
-      val: fp2(sl[i]),
-      shift: i / last > 0.7 ? 'calc(-100% - 8px)' : '8px'
-    })
-  }
 }

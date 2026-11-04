@@ -62,13 +62,19 @@ export function InvestDialog({ dialog: d, onClose }: Props) {
               닫기
             </button>
           </div>
-        ) : (
+        ) : d.onOk || d.okLabel ? (
           <div className={styles.std}>
             <button type="button" className={cx(styles.btn, styles.cancel)} onClick={onClose}>
               취소
             </button>
             <button type="button" className={cx(styles.btn, styles.ok, styles[d.okTone ?? 'navy'])} onClick={ok}>
               {d.okLabel}
+            </button>
+          </div>
+        ) : (
+          <div className={styles.solo}>
+            <button type="button" className={cx(styles.btn, styles.close)} onClick={onClose}>
+              확인
             </button>
           </div>
         )}

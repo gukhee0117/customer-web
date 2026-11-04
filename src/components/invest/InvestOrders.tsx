@@ -1,7 +1,7 @@
 import { F } from '../../lib/calc'
-import { StockLabel } from '../common/StockLabel'
 import { cx } from '../common/cx'
 import type { OrderView } from './investHoldingData'
+import { InvestStockName } from './InvestStockName'
 import styles from './InvestOrders.module.css'
 
 interface Props {
@@ -43,12 +43,15 @@ export function InvestOrders({ className, orders, open, onOpen }: Props) {
               <div key={o.id} className={cx(styles.grid, styles.row, i < list.length - 1 && styles.rowLine)}>
                 <span className={styles.time}>{o.time}</span>
                 <span className={styles.stock}>
-                  <StockLabel sym={o.code} size="sm" />
+                  <InvestStockName code={o.code} name={o.name} size="sm" />
                 </span>
                 <b className={cx(styles.side, o.side === 'buy' ? styles.buy : styles.sell)}>{o.side === 'buy' ? '매수' : '매도'}</b>
                 <span className={styles.r}>{`${o.qty}주`}</span>
-                <span className={styles.r}>{F.won(o.price)}</span>
-                <span className={cx(styles.status, o.status === 'reject' && styles.reject)}>{o.status === 'done' ? '체결 완료' : '거부'}</span>
+                <span className={styles.r}>{o.status === 'reject' ? '-' : F.won(o.price)}</span>
+                <span className={cx(styles.status, o.status === 'reject' && styles.reject)} title={o.reason ?? undefined}>
+                  {o.status === 'done' ? '체결 완료' : '거부'}
+                  {o.status === 'reject' && o.reason && <span className={styles.reason}>{o.reason}</span>}
+                </span>
               </div>
             ))}
           </div>

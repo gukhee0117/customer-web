@@ -1,30 +1,31 @@
-import { useEffect, useRef } from 'react'
-import type { MouseEvent, ReactNode } from 'react'
+import type { MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { Link } from 'react-router-dom'
 import '../../styles/tokens.css'
-import { demo } from '../../data/returns'
+import { checkPackage } from '../../api/stockPackage'
+import type { CandidateItem } from '../../api/stockPackage'
 import { F } from '../../lib/calc'
-import { KkiruAvatar } from '../common/KkiruAvatar'
 import { StockIcon } from '../common/StockIcon'
 import { StockLabel } from '../common/StockLabel'
 import { cx } from '../common/cx'
 import { cleanPct } from './investAddLogic'
-import { NM_STEPS, buyCalc, checkOf, exKK, gShort, nameOf, phaseOf, profileCap, rowsOf, searchHits, sumOf } from './investNewPkgLogic'
-import type { CkPhase, NewPkgState, NmBuyRow, NmHit, NmLab } from './investNewPkgLogic'
+import { NM_STEPS, ackClock, buyCalc, checkItemsOf, gradeLabel, labOf, phaseOf, pickedFrom, profileOf, rowsOf, sumOf } from './investNewPkgLogic'
+import type { CkPhase, NewPkgState, NmBuyRow, NmLab } from './investNewPkgLogic'
 import type { DialogState } from './InvestDialog'
 import type { ChkDemo } from './investDevData'
-import { orderClock } from './investOrderLogic'
+import { InvestCheckResult } from './InvestCheckResult'
+import { InvestNewPkgStart } from './InvestNewPkgStart'
+import type { OrderFees } from '../../api/stockPackage'
+import { ratePct } from './investOrderLogic'
+import { useKeywordHits, useTendency } from './useNewPkgData'
+import { useQuotes } from './useQuotes'
 import styles from './InvestNewPkg.module.css'
-
-const ASSESS_PATH = '/myinfo#assess'
-const CHECK_MS = 900 // 검사 중 표시 시간(원본 900ms)
 
 type Patch = Partial<NewPkgState> | ((n: NewPkgState) => Partial<NewPkgState>)
 
 interface Props {
   nm: NewPkgState
   cash: number
+  fees: OrderFees | null // 오늘 기준 수수료율(서버). 아직 못 받았으면 null
   onPatch: (p: Patch) => void
   onClose: () => void
   onMake: (buy: NmBuyRow[] | null) => void // null이면 목표 비중만 정해 만들기, 목록이면 만들고 바로 사기
@@ -46,47 +47,45 @@ function StockName({ lab, sector, muted }: { lab: NmLab; sector: boolean; muted?
   )
 }
 
-function Bubble({ children }: { children: ReactNode }) {
-  const { prof } = profileCap()
-  return (
-    <div className={styles.kkRow}>
-      <KkiruAvatar profile={prof} size={24} />
-      <span className={styles.kkBubble}>{children}</span>
-    </div>
-  )
-}
-
-// "새 패키지" 창 — 이름 → 시작 방법(끼루) → 목표 비중 → 살 금액
-export function InvestNewPkg({ nm, cash, onPatch, onClose, onMake, onDialog, noCand = false, chkDemo = null }: Props) {
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  useEffect(() => () => clearTimeout(timer.current), [])
+// "새 패키지" 창 — 이름 → 후보 찾기 → 목표 비중 → 살 금액
+// 종목을 고르고 비중을 정하는 것은 고객이다. 서버는 후보를 조건으로 거르고, 고른 구성을 점검해 사실만 알려 준다(투자 권유 아님)
+export function InvestNewPkg({ nm, cash, fees, onPatch, onClose, onMake, onDialog, noCand = false, chkDemo = null }: Props) {
+  const tendency = useTendency()
+  const kw = useKeywordHits(nm.q2)
 
   const st = nm.step
   const codes = Object.keys(nm.w)
   const sum = sumOf(nm.w)
   const empty = !codes.length
   const wOk = empty || sum === 100
-  const buy = buyCalc(nm.w, nm.amt, cash)
-  const assess = demo().assess || 'ok'
-  const kOff = assess === 'expired' || assess === 'none'
-  const { profL, maxG } = profileCap()
-  const nextOn = st === 0 ? !!nm.name.trim() : st === 1 ? !empty && !kOff && !noCand : st === 2 ? wOk && !empty : buy.ok
+  const quotes = useQuotes(codes, st === 3)
+  const buy = buyCalc(nm.w, nm.amt, cash, nm.picked, quotes, fees)
+  const { profL, maxG } = profileOf(tendency.data)
+  const nextOn = st === 0 ? !!nm.name.trim() : st === 1 ? true : st === 2 ? wOk && !empty : buy.ok
 
-  const kk = nm.kk
-  const kkRows = noCand ? [] : (kk?.rows ?? [])
-  const kkReply = kk ? (noCand ? '성향에 맞는 상품이 없어요. 예탁금으로 둬도 RIA 혜택은 유지돼요.' : kk.reply) : ''
-  const sendKk = () => {
-    const q = nm.kkIn.trim()
-    if (!q) return
-    const k = exKK(q)
-    onPatch({ kkIn: '', kk: k, kkAlt: 0, w: k.w, amt: String(k.amt), chk: null })
-  }
-  const againKk = () => {
-    const k = exKK(kk ? (kk.q ?? '') : '')
-    onPatch((n) => ({ kk: k, kkAlt: n.kkAlt + 1, w: k.w, chk: null }))
+  // 종목 담기: 진단이 없으면 막고, 내 성향보다 위험하면 한 번 확인(확인한 시각이 기록됨)
+  const addCode = (c: CandidateItem) =>
+    onPatch((n) => ({ w: { ...n.w, [c.ticker]: '0' }, picked: { ...n.picked, [c.ticker]: pickedFrom(c) }, q2: '' }))
+  const pick = (c: CandidateItem) => {
+    if (!c.selectable || nm.w[c.ticker] !== undefined) return
+    if (tendency.state === 'ready' && !tendency.data?.survey.available) {
+      onDialog({ title: '투자성향 진단이 필요해요', body: '진단이 없거나 유효기간이 지나 종목을 담을 수 없어요. 내 정보에서 투자성향을 진단해 주세요.' })
+      return
+    }
+    if (!c.outOfProfile) return addCode(c)
+    onDialog({
+      title: '내 투자성향보다 위험한 종목이에요',
+      body: c.name + '는 ' + c.riskGrade + '등급(' + F.gradeName(c.riskGrade as number) + ')이고, 고객님 성향(' + profL + ')은 ' + maxG + '예요. 그래도 담으시겠어요? 확인한 시각이 기록돼요.',
+      okLabel: '확인하고 담기',
+      okTone: 'navy',
+      onOk: () => {
+        addCode(c)
+        onPatch((n) => ({ ack: { ...n.ack, [c.ticker]: ackClock() } }))
+      }
+    })
   }
 
-  // 검사: 구성이 100%일 때만. 잠시 '검사 중'을 보인 뒤 그때의 구성으로 결과를 확정
+  // 검사: 구성이 100%일 때만. 서버가 지표를 계산하고, 검사한 때의 구성으로 결과를 확정한다
   const realPh = phaseOf(nm.chk, nm.w)
   const ph: CkPhase = chkDemo ?? realPh
   const ckOn = !empty && sum === 100
@@ -94,29 +93,19 @@ export function InvestNewPkg({ nm, cash, onPatch, onClose, onMake, onDialog, noC
   const can = ckOn && !busy
   const runCheck = () => {
     if (!ckOn || busy) return
+    const items = checkItemsOf(nm.w, nm.picked)
+    if (!items) {
+      onPatch({ chk: { phase: 'error' } })
+      return
+    }
+    const snap = JSON.stringify(nm.w)
     onPatch({ chk: { phase: 'loading' } })
-    clearTimeout(timer.current)
-    timer.current = setTimeout(() => onPatch((n) => ({ chk: { phase: 'done', snap: JSON.stringify(n.w) } })), CHECK_MS)
+    checkPackage(items).then(
+      (result) => onPatch({ chk: { phase: 'done', snap, result } }),
+      () => onPatch({ chk: { phase: 'error' } })
+    )
   }
-  const ck = ph === 'before' || ph === 'loading' ? null : checkOf(nm.chk, nm.w, ph)
-
-  // 검색한 종목 담기: 내 성향보다 위험하면 한 번 확인(확인한 시각이 기록됨)
-  const hits = searchHits(nm.q2, codes)
-  const addCode = (c: string) => onPatch((n) => ({ w: { ...n.w, [c]: '0' }, q2: '' }))
-  const pickHit = (h: NmHit) => {
-    if (h.disabled) return
-    if (!h.out) return addCode(h.code)
-    onDialog({
-      title: '내 투자성향보다 위험한 종목이에요',
-      body: nameOf(h.code) + '는 ' + h.grade + '등급(' + F.gradeName(h.grade as number) + ')이고, 고객님 성향(' + profL + ')은 ' + maxG + '예요. 그래도 담으시겠어요? 확인한 시각이 기록돼요.',
-      okLabel: '확인하고 담기',
-      okTone: 'navy',
-      onOk: () => {
-        addCode(h.code)
-        onPatch((n) => ({ ack: { ...n.ack, [h.code]: orderClock() } }))
-      }
-    })
-  }
+  const shown = nm.chk?.result
 
   const next = () => {
     if (st < 2) {
@@ -148,15 +137,6 @@ export function InvestNewPkg({ nm, cash, onPatch, onClose, onMake, onDialog, noC
   const onBackdrop = (e: MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) onClose()
   }
-
-  const authBox = (msg: string, btn: string) => (
-    <div className={styles.box}>
-      <p className={styles.offMsg}>{msg}</p>
-      <Link className={styles.linkBtn} to={ASSESS_PATH}>
-        {btn}
-      </Link>
-    </div>
-  )
 
   return createPortal(
     <div className={styles.backdrop} onClick={onBackdrop}>
@@ -190,69 +170,11 @@ export function InvestNewPkg({ nm, cash, onPatch, onClose, onMake, onDialog, noC
             </>
           )}
 
-          {st === 1 && (
-            <>
-              <div className={styles.label}>어떤 패키지를 만들까요</div>
-              {assess === 'expired' && authBox('진단 유효기간이 지나 후보를 보여드릴 수 없어요.', '다시 진단하기')}
-              {assess === 'none' && authBox('투자성향을 진단하면 성향에 맞는 후보로 패키지를 만들 수 있어요.', '진단하기')}
-              {!kOff && (
-                <div className={styles.box}>
-                  <form
-                    className={styles.kkForm}
-                    onSubmit={(e) => {
-                      e.preventDefault()
-                      sendKk()
-                    }}
-                  >
-                    <input className={styles.kkInput} value={nm.kkIn} onChange={(e) => onPatch({ kkIn: e.target.value.slice(0, 60) })} placeholder="만들고 싶은 패키지와 금액을 자유롭게 적어 주세요" aria-label="끼루에게 조건 말하기" />
-                    <button type="submit" className={styles.send}>
-                      보내기
-                    </button>
-                  </form>
-                  {kk && (
-                    <>
-                      {!!kk.q && (
-                        <div className={styles.mineRow}>
-                          <span className={styles.mine}>{kk.q}</span>
-                        </div>
-                      )}
-                      <Bubble>{kkReply}</Bubble>
-                      {kkRows.length > 0 && (
-                        <>
-                          <div>
-                            <div className={cx(styles.kkGrid, styles.kkHead)}>
-                              <span>종목</span>
-                              <span>위험</span>
-                              <span className={styles.r}>시작 비중</span>
-                              <span>고른 이유</span>
-                            </div>
-                            {kkRows.map((r) => (
-                              <div key={r.code} className={cx(styles.kkGrid, styles.kkRowLine)}>
-                                <span className={styles.kkStock}>
-                                  <StockLabel sym={r.code} size="sm" sector={false} />
-                                </span>
-                                <span className={styles.kkRisk}>{gShort(r.code)}</span>
-                                <b className={styles.r}>{r.w}%</b>
-                                <span className={styles.kkWhy}>{r.why}</span>
-                              </div>
-                            ))}
-                          </div>
-                          <div className={styles.kkActs}>
-                            <button type="button" className={styles.act} onClick={() => onPatch({ w: kk.w, step: 2 })}>
-                              이대로 다음 ›
-                            </button>
-                            <button type="button" className={styles.act} onClick={againKk}>
-                              다시 골라줘
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </>
-                  )}
-                  <div className={styles.note}>끼루는 성향에 맞는 후보 안에서 종목과 이유만 골라요. 비중은 직접 정하고, 주 수·금액은 시스템이 계산해요 · 교육용 프로젝트의 자체 분석 결과예요. 수익을 보장하지 않으며, 실제 금융상품 판매·권유 절차를 대체하지 않아요.</div>
-                </div>
-              )}
-            </>
+          {/* 후보 찾기는 1단계 이상에서 계속 두어서, 목표 비중 단계에서 돌아와도 조건·목록이 그대로 남게 한다(이름 단계로 돌아가면 초기화) */}
+          {st >= 1 && (
+            <div className={cx(styles.startWrap, st !== 1 && styles.startHidden)}>
+              <InvestNewPkgStart tendency={tendency} addedCodes={codes} ask={nm.ask} noCand={noCand} onPick={pick} />
+            </div>
           )}
 
           {st === 2 && (
@@ -265,7 +187,7 @@ export function InvestNewPkg({ nm, cash, onPatch, onClose, onMake, onDialog, noC
               </div>
               {empty && <div className={styles.emptyText}>빈 패키지로 만들어요. 종목은 만든 뒤 [+ 종목 추가]로 담을 수 있어요.</div>}
               <div>
-                {rowsOf(nm.w).map((r) => (
+                {rowsOf(nm.w, nm.picked).map((r) => (
                   <div key={r.code} className={styles.wRow}>
                     <span className={styles.wLabel}>
                       <StockName lab={r} sector />
@@ -280,22 +202,31 @@ export function InvestNewPkg({ nm, cash, onPatch, onClose, onMake, onDialog, noC
               </div>
               <div className={styles.search}>
                 <input className={styles.searchInput} value={nm.q2} onChange={(e) => onPatch({ q2: e.target.value.slice(0, 30) })} placeholder="종목명이나 코드로 검색해서 담기" aria-label="종목 검색" />
-                {hits.length > 0 && (
+                {kw.items.length > 0 && (
                   <div className={styles.hits}>
-                    {hits.map((h, i) => (
-                      <div key={h.code} className={cx(styles.hit, i > 0 && styles.hitLine)}>
-                        <span className={styles.hitMain}>
-                          <StockName lab={h} sector={false} muted={h.nameMuted} />
-                          <span className={cx(styles.hitMeta, styles[h.metaTone])}>{h.meta}</span>
-                        </span>
-                        <button type="button" className={cx(styles.hitBtn, styles[h.btnTone])} disabled={h.disabled} onClick={() => pickHit(h)}>
-                          {h.label}
-                        </button>
-                      </div>
-                    ))}
+                    {kw.items.map((c, i) => {
+                      const has = nm.w[c.ticker] !== undefined
+                      const off = has || !c.selectable
+                      const lab = labOf(c.ticker, { [c.ticker]: pickedFrom(c) })
+                      const metaTone = !c.selectable ? 'muted' : c.outOfProfile ? 'warn' : 'sub'
+                      return (
+                        <div key={c.domesticProductId} className={cx(styles.hit, i > 0 && styles.hitLine)}>
+                          <span className={styles.hitMain}>
+                            <StockName lab={lab} sector={false} muted={!c.selectable} />
+                            <span className={cx(styles.hitMeta, styles[metaTone])}>{!c.selectable ? (c.unselectableReason ?? '담을 수 없음') : '위험 ' + gradeLabel(c.riskGrade) + (c.outOfProfile ? ' · 내 성향 밖' : '')}</span>
+                          </span>
+                          <button type="button" className={cx(styles.hitBtn, off ? styles.muted : styles.navy)} disabled={off} onClick={() => pick(c)}>
+                            {has ? '담김' : c.selectable ? '담기' : '담을 수 없음'}
+                          </button>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
-                {!!nm.q2.trim() && !hits.length && <div className={styles.none}>검색 결과가 없어요</div>}
+                {kw.state === 'loading' && !!nm.q2.trim() && <div className={styles.none}>찾는 중이에요…</div>}
+                {kw.state === 'error' && <div className={styles.none}>검색하지 못했어요. 잠시 후 다시 시도해 주세요</div>}
+                {kw.state === 'unauthorized' && <div className={styles.none}>로그인하면 종목을 검색할 수 있어요</div>}
+                {kw.state === 'ready' && !!nm.q2.trim() && !kw.items.length && <div className={styles.none}>검색 결과가 없어요</div>}
               </div>
               <div className={styles.ckRow}>
                 <button type="button" className={cx(styles.ckBtn, can && styles.ckOn)} disabled={!can} onClick={runCheck}>
@@ -315,6 +246,14 @@ export function InvestNewPkg({ nm, cash, onPatch, onClose, onMake, onDialog, noC
                     ))}
                   </div>
                 )}
+                {ph === 'error' && (
+                  <div className={styles.stale}>
+                    <span className={styles.staleText}>검사하지 못했어요 · 잠시 후 다시 검사해 주세요</span>
+                    <button type="button" className={styles.again} onClick={runCheck}>
+                      다시 검사
+                    </button>
+                  </div>
+                )}
                 {ph === 'stale' && (
                   <div className={styles.stale}>
                     <span className={styles.staleText}>구성이 바뀌었어요 · 이전 구성 기준 결과예요</span>
@@ -323,21 +262,7 @@ export function InvestNewPkg({ nm, cash, onPatch, onClose, onMake, onDialog, noC
                     </button>
                   </div>
                 )}
-                {ck && (
-                  <div className={cx(styles.res, ph === 'stale' && styles.resStale)}>
-                    {ck.band && <div className={styles.band}>{ck.bandText}</div>}
-                    <div className={styles.cards}>
-                      {ck.cards.map((c) => (
-                        <div key={c.k} className={styles.card}>
-                          <span className={styles.ck1}>{c.k}</span>
-                          <b className={cx(styles.ck2, c.muted && styles.ck2Muted)}>{c.v}</b>
-                          {!!c.n && <span className={styles.ck3}>{c.n}</span>}
-                        </div>
-                      ))}
-                    </div>
-                    {ck.explain && <Bubble>{ck.expl}</Bubble>}
-                  </div>
-                )}
+                {shown && (ph === 'full' || ph === 'stale') && <InvestCheckResult result={shown} stale={ph === 'stale'} />}
                 <div className={styles.note}>
                   위험등급은 금투협 가이드라인 VaR 방식을 참고한 리턴증권 자체 산정이에요.
                   <br />
@@ -375,7 +300,7 @@ export function InvestNewPkg({ nm, cash, onPatch, onClose, onMake, onDialog, noC
                 ))}
                 <div className={cx(styles.sumLine, styles.feeLine)}>
                   <span className={styles.feeK}>예상 수수료</span>
-                  <span className={styles.feeNote}>0.015% · 예시</span>
+                  <span className={styles.feeNote}>{fees ? ratePct(fees.commissionRatePercent) : ''}</span>
                   <span className={styles.feeV}>₩{F.won(buy.fee)}</span>
                 </div>
                 <div className={styles.sumLine}>
