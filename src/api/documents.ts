@@ -1,12 +1,8 @@
 import { apiClient } from './client'
+import type { ApiResponse } from './client'
 
 // 서버 DocumentType과 같은 값
 export type DocType = 'TAX_RELIEF_CERT' | 'NET_PURCHASE_STATEMENT'
-
-interface ApiResponse<T> {
-  message: string
-  data: T
-}
 
 export interface DocumentIssue {
   documentIssueId: number
@@ -36,9 +32,9 @@ export async function downloadDocument(documentIssueId: number, fileName: string
     res = await apiClient.get<Blob>(`/api/customer/documents/${documentIssueId}/download`, { responseType: 'blob' })
   } catch (e) {
     // blob으로 받은 오류 응답({message, code})을 JSON으로 풀어 apiErrorMessage가 읽게 한다
-    const r = (e as { response?: { data?: unknown } }).response
-    if (r?.data instanceof Blob) r.data = await r.data.text().then(JSON.parse).catch(() => undefined)
-    throw e
+    const data = (e as { response?: { data?: unknown } }).response?.data
+    if (!(data instanceof Blob)) throw e
+    throw Object.assign(new Error('증빙서류를 받지 못했어요'), { response: { data: await data.text().then(JSON.parse).catch(() => undefined) } })
   }
   const url = URL.createObjectURL(res.data)
   const a = document.createElement('a')

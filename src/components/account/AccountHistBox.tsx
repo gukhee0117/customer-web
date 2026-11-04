@@ -88,7 +88,7 @@ function Deposits({ added, more, openIn, setOpenIn, onMore, onApplyIn }: { added
           const open = !r.rej && openIn === i
           return (
             <div key={i} className={cx(styles.item, i === all.length - 1 && styles.noLine)}>
-              <button type="button" className={cx(styles.row, styles.inCols, styles.body, styles.toggle, open && styles.toggleOpen)} aria-expanded={open} onClick={() => !r.rej && setOpenIn(open ? null : i)}>
+              <button type="button" className={cx(styles.row, styles.inCols, styles.body, r.knownDetail && styles.toggle, open && styles.toggleOpen)} aria-expanded={r.knownDetail ? open : undefined} onClick={() => r.knownDetail && !r.rej && setOpenIn(open ? null : i)}>
                 <span className={styles.date}>{r.date}</span>
                 <span className={styles.stockCell}>
                   <StockCellView s={r} />
@@ -97,9 +97,11 @@ function Deposits({ added, more, openIn, setOpenIn, onMore, onApplyIn }: { added
                 <b className={cx(styles.right, styles.strong)}>{r.gotTxt}</b>
                 <span className={cx(styles.status, depToneClass[r.tone])}>{r.status}</span>
                 <span className={cx(styles.right, r.retOn ? styles.tonePart : styles.faint)}>{r.ret}</span>
-                <svg className={cx(styles.chev, open && styles.chevOpen)} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
+                {r.knownDetail ? (
+                  <svg className={cx(styles.chev, open && styles.chevOpen)} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                ) : <span />}
               </button>
               {r.rej && (
                 <div className={styles.rejRow}>

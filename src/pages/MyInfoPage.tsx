@@ -1,5 +1,9 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { fetchAssessStatus, profileKeyOf } from '../api/investor'
+import type { InvestorStatus } from '../api/investor'
+import { getProfile } from '../api/profile'
+import type { Profile } from '../api/profile'
 import { Toast } from '../components/common/Toast'
 import { cx } from '../components/common/cx'
 import { useToast } from '../components/common/useToast'
@@ -18,11 +22,11 @@ import { MyInfoLoginsBox } from '../components/myinfo/MyInfoLoginsBox'
 import { MyInfoPwDialog } from '../components/myinfo/MyInfoPwDialog'
 import { MyInfoSecurityBox } from '../components/myinfo/MyInfoSecurityBox'
 import { MyInfoTradeBox } from '../components/myinfo/MyInfoTradeBox'
-import { HIST_KEY, assessState, readHist } from '../components/myinfo/myinfoProfile'
+import { assessState } from '../components/myinfo/myinfoProfile'
+import type { AssessHistItem } from '../components/myinfo/myinfoProfile'
 import { useAppShell } from '../layouts/appShell'
 import { RETURNS_DATA as RD } from '../data/returns'
 import type { ProfileKey } from '../data/returns'
-import { F } from '../lib/calc'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
 
 const HASH_BOXES = ['assess', 'notify', 'theme']
@@ -36,14 +40,38 @@ export function MyInfoPage() {
   const { message: toast, showToast } = useToast()
   const [, refresh] = useReducer((n: number) => n + 1, 0)
   const [riskyHide, setRiskyHide] = useState(false)
-  const [hist, setHist] = useState(readHist)
   const [asOpen, setAsOpen] = useState(false)
   const [pwOpen, setPwOpen] = useState(false)
+  // 서버 프로필(기본 정보·커뮤니티 박스가 같이 씀). 못 받으면 null + 다시 불러오기
+  const [prof, setProf] = useState<Profile | null>(null)
+  const [profErr, setProfErr] = useState(false)
+  const [profTries, setProfTries] = useState(0)
+  const [assessStatus, setAssessStatus] = useState<InvestorStatus | null>(null) // 서버 진단일·만료일
+  const loadAssessStatus = () => fetchAssessStatus().then(setAssessStatus).catch(() => {})
+  useEffect(() => {
+    void loadAssessStatus()
+  }, [])
   const [flash, setFlash] = useState<string | null>(null)
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const firstHash = useRef(true)
   const fontWatch = useRef<(() => void) | undefined>(undefined)
   const profLabel = RD.PROFILES[RD.CUSTOMER.profile]?.label
+  // 진단 이력은 서버 값(최신이 위). 프로필을 받기 전엔 null
+  const hist: AssessHistItem[] | null = prof
+    ? [...prof.assessmentHistory]
+        .sort((a, b) => b.assessedAt.localeCompare(a.assessedAt))
+        .map((h) => ({ date: h.assessedAt.slice(0, 10), score: h.totalScore, profile: profileKeyOf(h.investorType) }))
+    : null
+
+  useEffect(() => {
+    let alive = true
+    getProfile()
+      .then((p) => alive && setProf((prev) => prev ?? p)) // 저장 응답이 먼저 와 있으면 늦게 온 조회로 덮지 않는다
+      .catch(() => alive && setProfErr(true))
+    return () => {
+      alive = false
+    }
+  }, [profTries])
 
   // 시연 설정(성향 상태 등)이 바뀌면 다시 그림
   useEffect(() => {
@@ -105,18 +133,11 @@ export function MyInfoPage() {
 
   const openAssess = () => setAsOpen(true)
 
-  // 원본 "이 결과로 저장": 진단 이력 맨 앞에 추가(날짜는 업무일) + 시연 설정의 성향 바꿈 → 홈·추천·상단 바에 바로 반영
-  const saveAssess = (score: number, profile: string) => {
-    const base = hist ?? [{ date: RD.ASSESSMENT.date, score: RD.ASSESSMENT.score, profile: RD.ASSESSMENT.profile }]
-    const next = [{ date: F.today(), score, profile }, ...base]
-    try {
-      localStorage.setItem(HIST_KEY, JSON.stringify(next))
-    } catch {
-      // 저장소를 못 쓰면 이번 화면에서만 반영
-    }
-    setHist(next)
-    setAsOpen(false)
+  // 재진단 제출 직후(창은 결과 화면 그대로): 서버 프로필을 다시 받아 이력에 반영 + 시연 설정의 성향 바꿈 → 홈·추천·상단 바에 바로 반영
+  const saveAssess = (_score: number, profile: string) => {
+    getProfile().then(setProf).catch(() => {})
     RD.setDemo({ profile: profile as ProfileKey, assess: 'ok' })
+    void loadAssessStatus()
     showToast('투자성향을 저장했어요 · 홈·추천에 바로 반영돼요')
   }
 
@@ -125,7 +146,7 @@ export function MyInfoPage() {
       <h1 className={styles.srOnly}>내 정보</h1>
       <div className={styles.page}>
         <div className={styles.col}>
-          <MyInfoProfileBox className={cx(styles.profile, styles.flashable, flash === 'assess' && styles.flashOn)} hist={hist} onOpenAssess={openAssess} />
+          <MyInfoProfileBox className={cx(styles.profile, styles.flashable, flash === 'assess' && styles.flashOn)} hist={hist} name={prof?.name} status={assessStatus} onOpenAssess={openAssess} />
           {assessState() === 'risky' && !riskyHide && (
             <MyInfoRiskyNotice
               className={styles.trade}
@@ -137,9 +158,9 @@ export function MyInfoPage() {
             />
           )}
           {assessState() !== 'none' && <MyInfoTradeBox className={styles.trade} onOpenAssess={openAssess} />}
-          <MyInfoBasicBox className={styles.basic} onToast={showToast} />
-          <MyInfoAccountBox className={styles.account} onToast={showToast} />
-          <MyInfoCommunityBox className={styles.community} onToast={showToast} />
+          <MyInfoBasicBox className={styles.basic} onToast={showToast} prof={prof} loadErr={profErr} onProfile={setProf} onRetry={() => { setProfErr(false); setProfTries((n) => n + 1) }} />
+          <MyInfoAccountBox className={styles.account} onToast={showToast} account={prof?.account} loaded={prof != null} />
+          <MyInfoCommunityBox className={styles.community} onToast={showToast} nickname={prof ? prof.nickname ?? '아직 없어요' : '-'} pub={prof?.investorTypePublic} />
         </div>
         <div className={styles.col}>
           <MyInfoNotifyBox id="notify" className={cx(styles.notify, styles.flashable, flash === 'notify' && styles.flashOn)} onToast={showToast} />

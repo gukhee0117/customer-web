@@ -1,15 +1,11 @@
 import { apiClient } from './client'
+import type { ApiResponse } from './client'
 
 export interface MeData {
   customerId: number
   loginId: string
   name: string
   expiresAt: string
-}
-
-interface ApiResponse<T> {
-  message: string
-  data: T
 }
 
 export async function initCsrf(): Promise<void> {

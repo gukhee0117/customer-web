@@ -65,8 +65,9 @@ export function inRows(inQ: Record<string, string>): InRowView[] {
 }
 
 export const SUBMIT_NOTE = '신청하면 심사가 시작돼요. 결과는 알림으로 알려드려요.'
+export const IN_SUBMIT_NOTE = '신청하면 수량이 즉시 확정돼요.'
 export const inMinNote = (): string => '입고 가능 수량 = 신청 수량, ' + F.dot(RD.FIXED.DEPOSIT_BASE) + ' 기준 보유 수량, 현재 보유 수량 중 가장 적은 수량'
-export const IN_NEXT = ['입고 심사를 시작해요(1~2영업일)', '심사 결과는 알림으로 알려드려요', '입고 가능 수량을 넘은 수량은 일반계좌로 돌려드려요']
+export const IN_NEXT = ['예상 가능 수량 내에서 승인되며, 미승인 수량은 입고되지 않아요']
 
 // ---- 인출 ----
 export interface OutValues {

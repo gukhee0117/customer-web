@@ -81,13 +81,14 @@ export interface DepRowView extends StockCell {
   tone: DepTone
   ret: string
   retOn: boolean
+  knownDetail: boolean
 }
 
 // added: 방금 접수한 입고 신청(심사 중) — 가장 위에 보임
 export function depositRows(added: AddedIn[] = []): DepRowView[] {
   const dep = RD.DATES.deposit
   const bizShort = F.short(RD.C.BUSINESS_DATE)
-  const review = added.map((a) => ({ t: a.t, req: a.req, base: a.base, now: a.now, rej: false, review: true, date: bizShort }))
+  const review = added.map((a) => ({ t: a.t, req: a.req, base: a.base, now: a.now, rej: false, review: false, knownDetail: false, date: bizShort }))
   const rej = {
     t: DEP_REJ[0],
     req: DEP_REJ[1],
@@ -95,9 +96,10 @@ export function depositRows(added: AddedIn[] = []): DepRowView[] {
     now: 0,
     rej: true,
     review: false,
+    knownDetail: true,
     date: F.short(F.bizAdd(dep, -1))
   }
-  const rest = DEP_ROWS.map(([t, req, base, now]) => ({ t, req, base, now, rej: false, review: false, date: F.short(F.bizAdd(dep, -2)) }))
+  const rest = DEP_ROWS.map(([t, req, base, now]) => ({ t, req, base, now, rej: false, review: false, knownDetail: true, date: F.short(F.bizAdd(dep, -2)) }))
   return [...review, rej, ...rest].map((x): DepRowView => {
     const got = Math.min(x.req, x.base, x.now)
     const ret = x.rej ? 0 : x.req - got
@@ -114,7 +116,8 @@ export function depositRows(added: AddedIn[] = []): DepRowView[] {
       status: x.rej ? '반려' : x.review ? '심사 중' : ret ? '일부 반환' : '입고 완료',
       tone: x.rej ? 'rej' : x.review ? 'review' : ret ? 'part' : 'ok',
       ret: !x.review && ret ? ret + '주' : '-',
-      retOn: !x.review && !!ret
+      retOn: !x.review && !!ret,
+      knownDetail: x.knownDetail,
     }
   })
 }

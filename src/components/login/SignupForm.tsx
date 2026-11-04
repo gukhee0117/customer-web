@@ -12,6 +12,7 @@ import { useInvestorSurvey } from '../assessment/useInvestorSurvey'
 import { cx } from '../common/cx'
 import { Toast } from '../common/Toast'
 import { useToast } from '../common/useToast'
+import { PW_MAX, pwCharsOk, pwChecks } from './passwordRule'
 import { SignupQuiz } from './SignupQuiz'
 import { SignupResult } from './SignupResult'
 import type { ProfileKey } from './signupProfile'
@@ -43,7 +44,6 @@ type Info = Record<InfoKey, string>
 const EMPTY_INFO: Info = { name: '', birth: '', rrn: '', phone: '', email: '', uid: '', pw: '', pw2: '' }
 
 const digits = (v: string) => (v || '').replace(/\D/g, '')
-const pwChecks = (pw: string) => [pw.length >= 8, /[A-Za-z]/.test(pw) && /\d/.test(pw), /[^A-Za-z0-9]/.test(pw)]
 const phoneOk = (v: string) => /^01\d{8,9}$/.test(digits(v))
 // 서버로 보내는 모양: 1994.05.17 → 1994-05-17, 01012345678 → 010-1234-5678
 const isoBirth = (v: string) => digits(v).replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3')
@@ -89,7 +89,6 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   const [riaOk, setRiaOk] = useState(false)
   const [riaTried, setRiaTried] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [registered, setRegistered] = useState(false) // 가입이 끝났는가 — 설문에서 '이전'으로 돌아와도 다시 가입하지 않는다
   const [qi, setQi] = useState(0)
   const survey = useInvestorSurvey()
   const [result, setResult] = useState<ProfileKey | null>(null)
@@ -118,6 +117,8 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
       if (!codeOk) return '인증번호 6자리를 입력해 주세요'
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.email)) return '이메일 주소를 확인해 주세요'
       if (!/^[A-Za-z0-9]{4,20}$/.test(info.uid.trim())) return '아이디는 영문·숫자 4~20자예요'
+      if (!pwCharsOk(info.pw)) return '비밀번호에는 공백·한글을 쓸 수 없어요'
+      if (info.pw.length > PW_MAX) return '비밀번호는 ' + PW_MAX + '자 이하예요'
       if (!checks.every(Boolean)) return '비밀번호 조건을 모두 채워 주세요'
       if (info.pw2 !== info.pw) return '비밀번호가 서로 달라요'
       return ''
@@ -187,9 +188,8 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   const skipQuiz = () => navigate('/home')
   const goNext = async () => {
     if (nextDisabled) return
-    if (step === 2 && !registered) {
+    if (step === 2) {
       if (!(await register())) return
-      setRegistered(true)
       survey.reset()
       void survey.load()
     }
@@ -399,7 +399,8 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
       {step < 4 && (
         <div className={styles.nav}>
           <div className={styles.navRow}>
-            <button type="button" className={styles.prev} onClick={goPrev}>이전</button>
+            {/* 가입은 설문 앞에서 끝나므로 첫 문항에서는 본인 정보로 돌아갈 수 없다 */}
+            {!(step === 3 && qi === 0) && <button type="button" className={styles.prev} onClick={goPrev}>이전</button>}
             <button type="button" className={cx(styles.next, nextDisabled && styles.nextOff)} onClick={goNext} disabled={nextDisabled} aria-disabled={nextDisabled}>
               {step === 3 && lastQuestion ? '결과 보기' : '다음'}
             </button>

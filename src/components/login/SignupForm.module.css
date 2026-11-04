@@ -414,6 +414,11 @@
   gap: var(--space-8);
 }
 
+/* 이전 버튼이 없을 때(설문 첫 문항) 다음 버튼이 한 줄을 다 쓴다 */
+.navRow > :only-child {
+  grid-column: 1 / -1;
+}
+
 .prev,
 .next {
   all: unset;
