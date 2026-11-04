@@ -34,8 +34,8 @@ function parseKkText(text: string): { body: string; links: { label: string; to: 
   const links: { label: string; to: string }[] = []
   const body = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, to) => {
     links.push({ label, to })
-    return label
-  })
+    return ''
+  }).trim()
   return { body, links }
 }
 

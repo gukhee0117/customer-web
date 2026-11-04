@@ -39,9 +39,13 @@ export function HomePage() {
   // 첫 마운트 시 대화가 비어 있으면 홈 인사말 추가 (페이지 이동 후 돌아오면 이력 유지)
   const streamRef = useRef(stream)
   streamRef.current = stream
+  const greetingAdded = useRef(false)
   useEffect(() => {
-    if (streamRef.current.messages.length === 0)
-      streamRef.current.addMessages([{ kk: true, text: 'RIA 계좌·세액·인출 일정에 대해 물어보세요.' }])
+    if (!greetingAdded.current) {
+      greetingAdded.current = true
+      if (streamRef.current.messages.length === 0)
+        streamRef.current.addMessages([{ kk: true, text: 'RIA 계좌·세액·인출 일정에 대해 물어보세요.' }])
+    }
   }, []) // intentional: mount only
   const [aClosed, setAClosed] = useState<string | null>(null)
   const [welcome, setWelcome] = useState(hash === '#new')

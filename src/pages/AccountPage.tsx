@@ -70,9 +70,13 @@ export function AccountPage() {
   const { messages: bot, send, cancel, addMessages } = stream
   const streamRef = useRef(stream)
   streamRef.current = stream
+  const greetingAdded = useRef(false)
   useEffect(() => {
-    if (streamRef.current.messages.length === 0)
-      streamRef.current.addMessages([botGreeting()])
+    if (!greetingAdded.current) {
+      greetingAdded.current = true
+      if (streamRef.current.messages.length === 0)
+        streamRef.current.addMessages([botGreeting()])
+    }
   }, []) // intentional: mount only
   const chat = useMemo(
     () => ({
