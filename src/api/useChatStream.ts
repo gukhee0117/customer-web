@@ -30,7 +30,10 @@ function toHistory(msgs: BotMessage[]) {
 }
 
 export function useChatStream(greeting: BotMessage = defaultGreeting()) {
-  const [messages, setMessages] = useState<BotMessage[]>([greeting])
+  // greeting은 렌더마다 새 객체가 될 수 있으므로 ref로 고정 — 안 그러면 reset/importMessages가
+  // 매 렌더마다 교체되어 HomePage의 cleanup effect가 setBotOpen(false)를 계속 호출함
+  const greetingRef = useRef(greeting)
+  const [messages, setMessages] = useState<BotMessage[]>([greetingRef.current])
   const [busy, setBusy] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -123,16 +126,16 @@ export function useChatStream(greeting: BotMessage = defaultGreeting()) {
   }, [])
 
   const reset = useCallback(() => {
-    setMessages([greeting])
+    setMessages([greetingRef.current])
     setBusy(false)
-  }, [greeting])
+  }, [])
 
   /** 외부 대화 내용을 가져와 현재 대화에 삽입 (인사말 뒤에 위치) */
   const importMessages = useCallback(
     (msgs: BotMessage[]) => {
-      if (!busy) setMessages([greeting, ...msgs])
+      if (!busy) setMessages([greetingRef.current, ...msgs])
     },
-    [greeting, busy],
+    [busy],
   )
 
   return { messages, busy, send, cancel, reset, importMessages }
