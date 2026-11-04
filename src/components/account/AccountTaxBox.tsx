@@ -2,18 +2,25 @@ import '../../styles/tokens.css'
 import { F } from '../../lib/calc'
 import { Box } from '../common/Box'
 import { taxValues } from './accountTaxData'
+import type { CustomerTaxBriefing } from '../../api/briefing'
 import type { SellGuideState } from './useSellGuide'
+import type { ServerState } from './useServerData'
 import styles from './AccountTaxBox.module.css'
 
 interface AccountTaxBoxProps {
   className?: string
   onOpenCalc: () => void
+  tax: ServerState<CustomerTaxBriefing> // 서버 세액 브리핑(집계 기준)
+  onRetryTax: () => void
   guide: SellGuideState // 서버 매도 가이드("남은 한도까지 팔면 감면" 한 줄만 이 값을 쓴다)
   onRetryGuide: () => void
 }
 
-// 세액 박스(data-box="tax") — 예상 감면액·RIA가 없었다면·최종 납부 예상 세액. 혜택 취소·조정비율 문구는 상태에 따라
-export function AccountTaxBox({ className, onOpenCalc, guide, onRetryGuide }: AccountTaxBoxProps) {
+// 세액 박스(data-box="tax") — 예상 감면액·RIA가 없었다면·최종 납부 예상 세액은 서버 세액 브리핑(집계 기준). 혜택 취소 안내는 서버가 상태를 안 줘서 시연 설정을 따르고, 예상 범위·조정비율 문구는 서버 값이 없어 뺐다
+// 값이 없으면(받는 중·집계 전·실패) '-'
+const won = (v: number | null) => (v == null ? '-' : '₩' + F.won(v))
+
+export function AccountTaxBox({ className, onOpenCalc, tax, onRetryTax, guide, onRetryGuide }: AccountTaxBoxProps) {
   const t = taxValues()
 
   return (
@@ -21,7 +28,7 @@ export function AccountTaxBox({ className, onOpenCalc, guide, onRetryGuide }: Ac
       data-box="tax"
       className={className}
       title="세액"
-      head={<span className={styles.scope}>{t.bizShort} 기준</span>}
+      head={<span className={styles.scope}>{tax.status === 'live' ? '집계 ' + tax.data.calculatedAt.slice(5, 16).replace('T', ' ').replace('-', '.') : ''}</span>}
       actions={
         <button type="button" className={styles.link} onClick={onOpenCalc}>
           계산 근거 ›
@@ -36,15 +43,20 @@ export function AccountTaxBox({ className, onOpenCalc, guide, onRetryGuide }: Ac
           </div>
         )}
         <div className={styles.cutLabel}>예상 감면액</div>
-        <div className={styles.cut}>₩{t.cut}</div>
-        {t.rangeOn && <div className={styles.range}>남은 한도까지 팔 경우 · 주가·환율 변동 반영 약 {t.range}(10번 중 8번 · 예시)</div>}
+        <div className={styles.cut}>{won(tax.status === 'live' ? tax.data.current.reliefAmount : null)}</div>
+        {tax.status === 'none' && <div className={styles.adj}>아직 집계된 자료가 없어요. 집계가 끝나면 보여드려요.</div>}
+        {tax.status === 'error' && (
+          <div className={styles.adj}>
+            세액을 불러오지 못했어요 <button type="button" className={styles.link} onClick={onRetryTax}>다시 시도</button>
+          </div>
+        )}
         <div className={styles.row}>
           <span className={styles.key}>RIA가 없었다면</span>
-          <span className={styles.val}>₩{t.general}</span>
+          <span className={styles.val}>{won(tax.status === 'live' ? tax.data.current.generalTax : null)}</span>
         </div>
         <div className={styles.row}>
           <span>최종 납부 예상 세액</span>
-          <b className={styles.valBold}>₩{t.ria}</b>
+          <b className={styles.valBold}>{won(tax.status === 'live' ? tax.data.current.riaTax : null)}</b>
         </div>
         <div className={styles.row}>
           <span className={styles.key}>남은 한도까지 팔면 감면</span>
@@ -61,7 +73,6 @@ export function AccountTaxBox({ className, onOpenCalc, guide, onRetryGuide }: Ac
           </span>
         </div>
         {guide.status === 'live' && !guide.data.summary && guide.data.warnings.length > 0 && <div className={styles.adj}>{guide.data.warnings.join(' · ')}</div>}
-        {t.adjOn && <div className={styles.adj}>{t.adjMsg}</div>}
       </div>
     </Box>
   )

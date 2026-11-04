@@ -11,16 +11,18 @@ interface AccountStateBoxProps {
   className?: string
   onOpen: () => void // 계좌 개설 신청
   onCancel: () => void // 신청 취소
+  appliedAt: string | undefined // 서버의 신청 일시(없으면 시연 설정의 값)
 }
 
 // 계좌 상태 박스(data-box="acct-state") — 계좌 없음 / 심사 중 / 반려일 때만 보임(정상 계좌에서는 화면이 그리지 않음)
-export function AccountStateBox({ className, onOpen, onCancel }: AccountStateBoxProps) {
+export function AccountStateBox({ className, onOpen, onCancel, appliedAt }: AccountStateBoxProps) {
   const state = RD.ACCOUNT_STATE
   const none = state === 'none'
   const review = state === 'reviewing'
   const reject = state === 'rejected'
   const states = RD.ACCOUNT_STATES
-  const applied = states.reviewing.appliedAt ? F.short(states.reviewing.appliedAt) : ''
+  const appliedDate = appliedAt?.slice(0, 10) ?? states.reviewing.appliedAt
+  const applied = appliedDate ? F.short(appliedDate) : ''
   const limitRows: [string, string][] = [
     ['이번 계좌 한도', '₩' + F.won(RD.ACCOUNT.sellLimit)],
     ['연결 일반계좌', RD.LINKED.name + ' ' + RD.LINKED.no]

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { ACCOUNT_STATUS_LABEL, maskAccountNo } from '../../api/profile'
 import type { ProfileAccount } from '../../api/profile'
 import { RETURNS_DATA as RD } from '../../data/returns'
 import { F } from '../../lib/calc'
@@ -13,15 +14,6 @@ interface Props {
   account: ProfileAccount | null | undefined // 서버 값(계좌 없으면 null, 프로필을 못 받았으면 undefined)
   loaded: boolean
 }
-
-const STATUS_LABEL: Record<ProfileAccount['status'], string> = {
-  APPLIED: '심사 중',
-  OPENED: '정상',
-  REJECTED: '반려',
-  CLOSURE_REQUESTED: '해지 신청',
-  CLOSED: '해지'
-}
-const maskNo = (no: string | null) => (no == null ? '-' : no.length > 6 ? no.slice(0, 4) + '****' + no.slice(-2) : no)
 
 // 계좌 — 서버 프로필의 account 값. 계좌 없음이면 개설 안내만. 연결 일반계좌는 서버가 아직 안 줘서 목업
 export function MyInfoAccountBox({ className, onToast, account, loaded }: Props) {
@@ -42,7 +34,7 @@ export function MyInfoAccountBox({ className, onToast, account, loaded }: Props)
         <div className={rows.grid}>
           <span className={rows.label}>RIA 계좌</span>
           <span className={cx(rows.value, rows.nowrap)}>
-            {`Returns RIA ${maskNo(account.accountNo)}`}
+            {`Returns RIA ${maskAccountNo(account.accountNo)}`}
           </span>
           <span className={cx(rows.label, styles.copyCell)}>
             <button type="button" className={styles.copy} onClick={copy}>
@@ -50,7 +42,7 @@ export function MyInfoAccountBox({ className, onToast, account, loaded }: Props)
             </button>
           </span>
           <span className={rows.label}>상태</span>
-          <span className={cx(rows.value, rows.span2)}>{STATUS_LABEL[account.status]}</span>
+          <span className={cx(rows.value, rows.span2)}>{ACCOUNT_STATUS_LABEL[account.status]}</span>
           <span className={rows.label}>개설일</span>
           <span className={cx(rows.value, rows.span2)}>{account.openedAt ? F.dot(account.openedAt.slice(0, 10)) : '-'}</span>
           <span className={cx(rows.label, rows.last)}>연결 일반계좌</span>

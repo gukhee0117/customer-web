@@ -32,11 +32,15 @@ import type { BotMessage } from '../components/common/ChatbotFab'
 import { Tabs } from '../components/common/Tabs'
 import { Toast } from '../components/common/Toast'
 import { useToast } from '../components/common/useToast'
-import { RETURNS_DATA as RD } from '../data/returns'
+import { RETURNS_DATA as RD, demo } from '../data/returns'
 import type { DemoSettings } from '../data/returns'
 import { useAppShell } from '../layouts/appShell'
 import { F } from '../lib/calc'
 import { useFundFlow } from '../components/account/useFundFlow'
+import { accountViewState, getProfile } from '../api/profile'
+import { getCustomerAssetBriefing, getCustomerTaxBriefing } from '../api/briefing'
+import { getWithdrawalAvailability } from '../api/withdrawalAvailability'
+import { useServerData } from '../components/account/useServerData'
 import { useSellGuide } from '../components/account/useSellGuide'
 import { useSellLimit } from '../components/account/useSellLimit'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
@@ -67,6 +71,18 @@ export function AccountPage() {
   // 자금 흐름 탭에 들어왔을 때만 서버 값을 받아옴(실패하면 시연 데이터로 보임)
   const { state: sellLimit, retry: retrySellLimit } = useSellLimit()
   const { state: sellGuide, retry: retrySellGuide } = useSellGuide()
+  // 서버 값: 계좌(프로필)·세액·자산·인출 가능 금액. 박스마다 따로 받아 느린 것이 다른 박스를 막지 않는다
+  const NO_DATA = ['ACCOUNT_NOT_FOUND', 'ACCOUNT_STATE_NOT_ALLOWED', 'TAX_SNAPSHOT_NOT_FOUND']
+  const { state: profileState } = useServerData(getProfile)
+  const { state: taxState, retry: retryTax } = useServerData(getCustomerTaxBriefing, NO_DATA)
+  const { state: assetState, retry: retryAssets } = useServerData(getCustomerAssetBriefing, NO_DATA)
+  const { state: availState, retry: retryAvail } = useServerData(getWithdrawalAvailability, NO_DATA)
+  const account = profileState.status === 'live' ? profileState.data.account : undefined // 계좌 없음 null, 받는 중·실패 undefined
+  // 화면이 시연 설정의 계좌 상태로 갈리므로, 서버 계좌 상태가 오면 그 값으로 맞춘다(투자성향 상태를 서버로 맞추는 것과 같은 방식)
+  const serverAcctState = account === undefined ? null : account === null ? 'none' : accountViewState(account.status)
+  useEffect(() => {
+    if (serverAcctState && demo().account !== serverAcctState) RD.setDemo({ account: serverAcctState })
+  }, [serverAcctState])
   const fundFlow = useFundFlow(RD.ACCOUNT_STATE === 'opened' && hash === '#flow')
 
   // 끼루 AI 상담 창 — 내용은 AppLayout의 챗봇 버튼에 넘기고, 이 페이지를 떠나면 비움
@@ -178,7 +194,7 @@ export function AccountPage() {
 
   const copyAcct = () => {
     try {
-      navigator.clipboard.writeText(RD.ACCOUNT.no)
+      navigator.clipboard.writeText(account?.accountNo ?? RD.ACCOUNT.no)
     } catch {
       // 클립보드를 못 쓰는 환경에서도 안내는 보여 준다(원본과 동일)
     }
@@ -271,15 +287,15 @@ export function AccountPage() {
       <h1 className={styles.srOnly}>내 계좌</h1>
       {opened && <Tabs variant="page" ariaLabel="내 계좌 화면" items={PAGE_TABS} value={page} onChange={setPage} />}
 
-      {!opened && <AccountStateBox onOpen={() => openApply('open')} onCancel={cancelOpen} />}
+      {!opened && <AccountStateBox onOpen={() => openApply('open')} onCancel={cancelOpen} appliedAt={account?.appliedAt} />}
 
       {opened && page === 'status' && (
         <div className={styles.status}>
           <div className={styles.colLeft}>
-            <AccountSummaryBox className={styles.summary} onCopy={copyAcct} onApply={(k) => (k === 'sell' ? openSell() : openApply(k))} />
+            <AccountSummaryBox className={styles.summary} onCopy={copyAcct} account={account} assets={assetState} onRetryAssets={retryAssets} onApply={(k) => (k === 'sell' ? openSell() : openApply(k))} />
             <AccountLimitBox className={styles.limit} onApply={openSell} limit={sellLimit} onRetryLimit={retrySellLimit} />
-            <AccountTaxBox className={styles.tax} onOpenCalc={openCalc} guide={sellGuide} onRetryGuide={retrySellGuide} />
-            <AccountHoldBox className={styles.hold} onHistory={goWithdraw} />
+            <AccountTaxBox className={styles.tax} onOpenCalc={openCalc} tax={taxState} onRetryTax={retryTax} guide={sellGuide} onRetryGuide={retrySellGuide} />
+            <AccountHoldBox className={styles.hold} onHistory={goWithdraw} avail={availState} onRetry={retryAvail} />
             <AccountDocsBox className={styles.docs} issued={issued} onIssue={issue} onReissue={reissue} />
           </div>
           <div className={styles.colRight}>

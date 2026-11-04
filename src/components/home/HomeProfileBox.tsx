@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
 import '../../styles/tokens.css'
 import { profileKeyOf } from '../../api/investor'
-import type { Profile, ProfileAccount } from '../../api/profile'
+import { accountViewState, maskAccountNo } from '../../api/profile'
+import type { Profile } from '../../api/profile'
 import { RETURNS_DATA as RD, demo } from '../../data/returns'
 import { F } from '../../lib/calc'
 import { Box } from '../common/Box'
@@ -10,14 +11,6 @@ import type { SellLimitState } from '../account/useSellLimit'
 import { Toast } from '../common/Toast'
 import { useToast } from '../common/useToast'
 import styles from './HomeProfileBox.module.css'
-
-const STATE_OF: Record<ProfileAccount['status'], 'opened' | 'reviewing' | 'rejected' | 'none'> = {
-  OPENED: 'opened',
-  APPLIED: 'reviewing',
-  REJECTED: 'rejected',
-  CLOSURE_REQUESTED: 'opened',
-  CLOSED: 'none'
-}
 
 // 프로필·계좌 박스. 이름·성향·진단일·유효기간·계좌는 서버 프로필 값(받기 전·실패하면 이름·진단일 '-', 계좌는 시연 설정의 목업). 진단 상태(미진단·만료)는 demo().assess를 따른다
 interface Props {
@@ -33,9 +26,9 @@ export function HomeProfileBox({ className, prof, limit, onRetryLimit }: Props) 
   const { message: toast, showToast } = useToast()
   const biz = F.today()
   const profile = RD.PROFILES[prof?.assessed ? profileKeyOf(prof.investorType) : RD.CUSTOMER.profile]
-  const acct = account === undefined ? RD.ACCOUNT_STATE : account === null ? 'none' : STATE_OF[account.status]
+  const acct = account === undefined ? RD.ACCOUNT_STATE : account === null ? 'none' : accountViewState(account.status)
   const accountNo = account?.accountNo
-  const acctNo = account ? (accountNo ? (accountNo.length > 6 ? accountNo.slice(0, 4) + '****' + accountNo.slice(-2) : accountNo) : '-') : RD.ACCOUNT.no
+  const acctNo = account ? maskAccountNo(accountNo ?? null) : RD.ACCOUNT.no
   const assess = demo().assess || 'ok'
   const assessedDate = prof?.assessedAt?.slice(0, 10)
   const pfLeft = prof?.expiresAt ? F.days(biz, F.addDays(prof.expiresAt.slice(0, 10), -1)) : 999 // 진단 유효기간 남은 날(만료일 전날까지 유효)
