@@ -1,0 +1,158 @@
+/* 새 패키지 창 › 후보 찾기 단계 — 성향 비교와 말로 조건 찾기. 조건 고르기·후보 목록은 InvestCandidateFilters·InvestCandidateList */
+.label {
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-bold);
+}
+
+.box {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-6);
+  padding: var(--space-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+.boxTitle {
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-extrabold);
+}
+
+.plain {
+  margin: 0;
+  font-size: var(--font-size-14);
+  line-height: var(--line-height-body);
+  color: var(--color-ink);
+}
+
+.linkBtn {
+  box-sizing: border-box;
+  align-self: flex-start;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-6);
+  background: var(--color-navy);
+  color: var(--color-on-navy);
+  display: flex;
+  align-items: center;
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+}
+
+.blk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.blkTitle {
+  font-size: var(--font-size-13);
+}
+
+.fact {
+  font-size: var(--font-size-13);
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+
+.defn {
+  font-size: var(--font-size-12);
+  line-height: 1.5;
+  color: var(--color-sub);
+}
+
+.defn summary {
+  cursor: pointer;
+  color: var(--color-navy);
+}
+
+/* 말로 조건 찾기 */
+.kkForm {
+  display: flex;
+  gap: var(--space-8);
+  margin: 0;
+}
+
+.kkInput {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-6);
+  padding: 0 var(--space-12);
+  font-family: inherit;
+  font-size: var(--font-size-14);
+  outline: 0;
+  color: var(--color-ink);
+}
+
+.send {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: var(--radius-6);
+  background: var(--color-navy);
+  color: var(--color-on-navy);
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-bold);
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.send:hover {
+  background: var(--color-navy-dark);
+}
+
+.send:disabled {
+  cursor: default;
+  background: var(--color-line-strong);
+}
+
+.mineRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mine {
+  max-width: 85%;
+  background: var(--color-navy);
+  color: var(--color-on-navy);
+  border-radius: var(--radius-8);
+  padding: var(--space-8) var(--space-12);
+  font-size: var(--font-size-14);
+  line-height: var(--line-height-body);
+}
+
+.kkRow {
+  display: flex;
+  gap: var(--space-8);
+  align-items: flex-start;
+}
+
+.kkBubble {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-surface-hover);
+  border-radius: var(--radius-8);
+  padding: var(--space-8) var(--space-12);
+  font-size: var(--font-size-14);
+  line-height: var(--line-height-body);
+}
+
+.kkLine {
+  display: block;
+}
+
+.note {
+  font-size: var(--font-size-11);
+  line-height: 1.5;
+  color: var(--color-sub);
+}

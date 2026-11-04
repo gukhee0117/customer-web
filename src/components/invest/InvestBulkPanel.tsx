@@ -1,31 +1,33 @@
 import '../../styles/tokens.css'
 import { RETURNS_DATA as RD } from '../../data/returns'
+import type { OrderFees } from '../../api/stockPackage'
 import { F } from '../../lib/calc'
-import { StockLabel } from '../common/StockLabel'
 import { cx } from '../common/cx'
-import { bulkAll, bulkCalc, cleanInput } from './investOrderLogic'
+import { bulkAll, bulkCalc, cleanInput, ratePct } from './investOrderLogic'
 import type { BulkCalc } from './investOrderLogic'
 import type { PkgView } from './investPkgLogic'
 import { InvestSidePanel, PanelClose } from './InvestSidePanel'
+import { InvestStockName } from './InvestStockName'
 import styles from './InvestSidePanel.module.css'
 
 interface Props {
   pkg: PkgView
   cash: number
+  fees: OrderFees
   amt: string
   onAmt: (v: string) => void
   onClose: () => void
   onSubmit: (c: BulkCalc) => void
 }
 
-const NOTE = () => 'RIA 계좌의 국내주식 매매예요. 매도 대금은 RIA 계좌에 남고, 원금 인출 가능일(' + F.dot(RD.WITHDRAW.availableDate) + ')은 바뀌지 않아요.'
+const NOTE = () => 'RIA 계좌의 국내주식 매매예요. 매도 대금은 RIA 계좌에 남고, 원금 인출 가능일은 바뀌지 않아요.'
 
 // "패키지 한 번에 사기" 창 — 살 금액을 목표 비중대로 나눠 종목별 주 수를 계산
-export function InvestBulkPanel({ pkg, cash, amt, onAmt, onClose, onSubmit }: Props) {
-  const c = bulkCalc(pkg, amt, cash)
+export function InvestBulkPanel({ pkg, cash, fees, amt, onAmt, onClose, onSubmit }: Props) {
+  const c = bulkCalc(pkg, amt, cash, fees)
   const sums: [string, string, boolean][] = [
     ['예상 금액', '₩' + F.won(c.sum), false],
-    ['예상 수수료(0.015% · 예시)', '₩' + F.won(c.fee), false],
+    ['예상 수수료(' + ratePct(fees.commissionRatePercent) + ')', '₩' + F.won(c.fee), false],
     ['합계', '₩' + F.won(c.total), true],
     ['남는 금액', '₩' + F.won(c.left), false]
   ]
@@ -48,7 +50,7 @@ export function InvestBulkPanel({ pkg, cash, amt, onAmt, onClose, onSubmit }: Pr
               <input className={styles.input} value={c.amt ? F.won(c.amt) : ''} onChange={(e) => onAmt(cleanInput(e.target.value))} inputMode="numeric" placeholder="0" aria-label="살 금액" />
               <span className={styles.unit}>원</span>
             </label>
-            <button type="button" className={styles.allBtn} onClick={() => onAmt(bulkAll(cash))}>
+            <button type="button" className={styles.allBtn} onClick={() => onAmt(bulkAll(cash, fees))}>
               주문 가능 전부
             </button>
           </div>
@@ -63,10 +65,10 @@ export function InvestBulkPanel({ pkg, cash, amt, onAmt, onClose, onSubmit }: Pr
           {c.rows.map((r) => (
             <div key={r.code} className={cx(styles.planGrid, styles.planRow)}>
               <span className={styles.planStock}>
-                <StockLabel sym={r.code} size="sm" />
+                <InvestStockName code={r.code} name={r.name} size="sm" />
               </span>
               <span className={cx(styles.r, styles.planC2)}>{r.target + '%'}</span>
-              <span className={cx(styles.r, styles.planC3)}>{r.qty + '주 · ' + F.won(r.amount)}</span>
+              <span className={cx(styles.r, styles.planC3)}>{r.priced ? r.qty + '주 · ' + F.won(r.amount) : '-'}</span>
             </div>
           ))}
         </div>

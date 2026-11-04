@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { RETURNS_DATA as RD } from '../../data/returns'
 import { F } from '../../lib/calc'
-import { StockLabel } from '../common/StockLabel'
 import { cx } from '../common/cx'
-import { infoOf, isSuitable, riskLabel } from './investHoldingData'
+import { GRADE_WORD } from './investHoldingData'
+import { InvestStockName } from './InvestStockName'
 import { splitPercent } from './investChartLogic'
 import { sign, toneOf } from './investPkgLogic'
 import type { PkgView } from './investPkgLogic'
@@ -14,14 +13,13 @@ interface Props {
   pkg: PkgView
   hov: string | null // 도넛·비중 줄과 함께 강조되는 종목 코드
   onHov: (code: string | null) => void
-  unsuit?: Record<string, string> // 내 성향보다 위험한 종목을 담거나 살 때 확인한 날짜
   onAdd?: () => void // TODO: P-7에서 종목 추가 창 연결
   onBuy?: (code: string) => void
   onSell?: (code: string) => void
 }
 
 // 보유 종목 표 — 종목별 줄(누르면 종목 정보 펼침)과 합계 줄. 좁은 화면은 가로 스크롤(원본과 같음)
-export function InvestHoldings({ pkg, hov, onHov, unsuit = {}, onAdd, onBuy, onSell }: Props) {
+export function InvestHoldings({ pkg, hov, onHov, onAdd, onBuy, onSell }: Props) {
   const [open, setOpen] = useState<string | null>(null) // 펼친 종목(다른 패키지를 골라도 유지)
   const [tip, setTip] = useState(false) // 위험 열 안내
   const noItems = pkg.items.length === 0
@@ -77,14 +75,12 @@ export function InvestHoldings({ pkg, hov, onHov, unsuit = {}, onAdd, onBuy, onS
         )}
 
         {pkg.items.map((it, i) => {
-          const px = RD.PX[it.code] ?? [0, 0]
-          const chg = px[1]
-          const avg = it.qty ? it.cost / it.qty : 0
+          const held = it.qty > 0
+          const shown = held && it.priced // 보유했고 현재가가 있어야 평가값을 보인다
           const ret = it.cost ? ((it.val - it.cost) / it.cost) * 100 : 0
           const isOpen = open === it.code
-          const info = isOpen ? infoOf(it.code) : null
-          const out = !isSuitable(it.code)
-          const ack = unsuit[it.code]
+          const out = it.out === true
+          const ack = it.ack
           return (
             <div key={it.code} className={styles.rowBox}>
               <div
@@ -97,19 +93,19 @@ export function InvestHoldings({ pkg, hov, onHov, unsuit = {}, onAdd, onBuy, onS
                 onMouseLeave={() => onHov(null)}
               >
                 <span className={styles.stock}>
-                  <StockLabel sym={it.code} size="sm" />
+                  <InvestStockName code={it.code} name={it.name} size="sm" />
                 </span>
                 <span className={styles.r}>{`${it.qty}주`}</span>
-                <span className={styles.r}>{avg ? F.won(avg) : '-'}</span>
+                <span className={styles.r}>{held ? F.won(it.avg) : '-'}</span>
                 <span className={styles.px}>
-                  <span>{F.won(px[0])}</span>
-                  <span className={cx(styles.chg, styles[toneOf(chg)])}>{F.pct(chg)}</span>
+                  <span>{it.price != null ? F.won(it.price) : '-'}</span>
+                  {it.price != null && <span className={cx(styles.chg, styles[toneOf(it.chg)])}>{F.pct(it.chg)}</span>}
                 </span>
-                <b className={styles.val}>{F.won(it.val)}</b>
-                <span className={cx(styles.r, styles[toneOf(ret)])}>{it.qty && avg ? sign(it.val - it.cost) + F.won(Math.abs(it.val - it.cost)) : '-'}</span>
-                <span className={cx(styles.r, styles[toneOf(ret)])}>{it.qty ? F.pct(ret) : '-'}</span>
+                <b className={styles.val}>{shown ? F.won(it.val) : '-'}</b>
+                <span className={cx(styles.r, styles[toneOf(ret)])}>{shown ? sign(it.val - it.cost) + F.won(Math.abs(it.val - it.cost)) : '-'}</span>
+                <span className={cx(styles.r, styles[toneOf(ret)])}>{shown ? F.pct(ret) : '-'}</span>
                 <span className={styles.risk}>
-                  <span className={cx(styles.riskText, out && styles.warn)}>{riskLabel(it.code)}</span>
+                  <span className={cx(styles.riskText, out && styles.warn)}>{it.grade == null ? '-' : it.grade + ' ' + GRADE_WORD[it.grade]}</span>
                   {out && ack && <span className={cx(styles.riskText, styles.warn)}>{`부적합 확인함 · ${F.short(ack)}`}</span>}
                 </span>
                 <span className={styles.weight}>
@@ -140,7 +136,7 @@ export function InvestHoldings({ pkg, hov, onHov, unsuit = {}, onAdd, onBuy, onS
                   </button>
                 </span>
               </div>
-              {info && (
+              {isOpen && (
                 <div className={styles.more}>
                   <div className={styles.moreHead}>
                     종목 정보
@@ -148,15 +144,11 @@ export function InvestHoldings({ pkg, hov, onHov, unsuit = {}, onAdd, onBuy, onS
                       종목 채팅방 ›
                     </Link>
                   </div>
-                  <div className={styles.facts}>
-                    {info.facts.map(([k, v], x) => (
-                      <FactCell key={k} k={k} v={v} first={x === 0} />
-                    ))}
-                  </div>
                   <div className={styles.gradeLine}>
-                    위험등급 <b className={styles.gradeB}>{info.grade}</b> · 근거 {info.basis}
+                    위험등급 <b className={styles.gradeB}>{it.grade ?? '-'}</b>
+                    {it.out === true && ' · 내 투자성향 범위를 벗어난 종목이에요'}
                   </div>
-                  <div className={styles.asOf}>{info.asOf}</div>
+                  <div className={styles.asOf}>시가총액·PER 등 재무 정보는 아직 연결 전이에요 · 현재가는 한국투자증권 시세 기준</div>
                 </div>
               )}
             </div>
@@ -179,14 +171,5 @@ export function InvestHoldings({ pkg, hov, onHov, unsuit = {}, onAdd, onBuy, onS
         )}
       </div>
     </div>
-  )
-}
-
-function FactCell({ k, v, first }: { k: string; v: string; first: boolean }) {
-  return (
-    <>
-      <span className={cx(styles.fk, !first && styles.fkLine)}>{k}</span>
-      <b className={styles.fv}>{v}</b>
-    </>
   )
 }

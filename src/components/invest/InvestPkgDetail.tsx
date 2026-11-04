@@ -1,32 +1,37 @@
 import { useEffect, useRef, useState } from 'react'
 import '../../styles/tokens.css'
 import { F } from '../../lib/calc'
-import { Toast } from '../common/Toast'
 import { cx } from '../common/cx'
-import { useToast } from '../common/useToast'
 import { InvestHoldings } from './InvestHoldings'
-import { InvestPkgChart } from './InvestPkgChart'
 import { InvestPkgWeight } from './InvestPkgWeight'
-import type { RangeKey } from './investChartLogic'
 import { detailOf, sign, toneOf } from './investPkgLogic'
 import type { PkgView } from './investPkgLogic'
 import styles from './InvestPkgDetail.module.css'
 
 const signedWon = (n: number) => sign(n) + '₩' + F.won(Math.abs(n))
 
+// 위험 요약 칸에 보이는 서버 값(화면에서 만들지 않는다)
+export interface PkgRisk {
+  profRange: string // 예: '적극투자형, 2등급까지'(진단이 없으면 '-')
+  vol: string // 패키지 연 변동성(계산하지 못했으면 '-')
+  volNote: string // 변동성 옆 설명
+  checking: boolean // 다시 검사 중
+}
+
 interface Props {
   className?: string
   pkg: PkgView
+  risk: PkgRisk
+  onRecheck?: () => void // 다시 검사(서버에서 변동성을 다시 계산)
   onBuy?: () => void // 패키지 한 번에 사기 창 열기
   onAdd?: () => void // 종목 추가 창 열기
-  unsuit?: Record<string, string> // 내 성향보다 위험한 종목을 확인한 날짜(종목 코드별)
   onTrade?: (code: string, side: 'buy' | 'sell') => void // 보유 종목 표의 매수·매도 버튼
   onRename?: (name: string) => void // 바꿀 이름(앞뒤 공백을 뺀 값, 비어 있지 않을 때만 호출)
   onDelete?: () => void // 메뉴의 삭제(확인 창은 화면에서)
 }
 
 // 선택한 패키지 상세 — 머리 줄·수치 줄·위험 요약·종목 비중·수익률 차트·보유 종목 표
-export function InvestPkgDetail({ className, pkg, onBuy, onAdd, unsuit, onTrade, onRename, onDelete }: Props) {
+export function InvestPkgDetail({ className, pkg, risk, onRecheck, onBuy, onAdd, onTrade, onRename, onDelete }: Props) {
   const [menu, setMenu] = useState(false)
   // 이름 바꾸는 중인 패키지(다른 패키지를 고르면 자동으로 끝남) — 입력칸에서 엔터·바깥 클릭은 저장, Esc는 취소
   const [editId, setEditId] = useState<string | null>(null)
@@ -41,8 +46,6 @@ export function InvestPkgDetail({ className, pkg, onBuy, onAdd, unsuit, onTrade,
     setEditId(null)
   }
   const [hov, setHov] = useState<string | null>(null) // 도넛·줄에서 마우스를 올린 종목(보유 종목 표 줄과 함께 강조)
-  const [range, setRange] = useState<RangeKey>('1m') // 다른 패키지를 골라도 유지(원본과 같음)
-  const { message, showToast } = useToast()
   const d = detailOf(pkg)
   const noItems = pkg.items.length === 0
 
@@ -173,13 +176,14 @@ export function InvestPkgDetail({ className, pkg, onBuy, onAdd, unsuit, onTrade,
         </div>
       </div>
 
+      {pkg.unpriced > 0 && <div className={styles.unpriced}>현재가를 받지 못한 보유 종목이 {pkg.unpriced}개 있어요. 그 종목은 평가금액과 손익에 들어가지 않았어요.</div>}
+
       <div className={styles.risk}>
         {noItems && <div className={styles.empty}>담은 종목이 없어요</div>}
         {!noItems && (
           <div className={styles.riskBox}>
-            {/* 원본은 토스트만 띄움(결과가 같다는 안내) */}
-            <button type="button" className={styles.recheck} onClick={() => showToast('다시 검사했어요 · 결과가 같아요', 2200)}>
-              다시 검사
+            <button type="button" className={styles.recheck} disabled={risk.checking} onClick={onRecheck}>
+              {risk.checking ? '검사 중…' : '다시 검사'}
             </button>
             <div className={styles.riskGrid}>
               <div className={styles.riskCell}>
@@ -191,11 +195,11 @@ export function InvestPkgDetail({ className, pkg, onBuy, onAdd, unsuit, onTrade,
               <div className={styles.riskCell}>
                 <div className={styles.k}>패키지 연 변동성</div>
                 <div className={styles.rv}>
-                  {d.vol} <span className={styles.note}>(과거 3년 데이터 기준, 예측 아님)</span>
+                  {risk.vol} <span className={styles.note}>{risk.volNote}</span>
                 </div>
               </div>
               <div className={styles.riskCell}>
-                <div className={styles.k}>내 성향({d.profRange}) 범위를 벗어난 종목</div>
+                <div className={styles.k}>내 성향({risk.profRange}) 범위를 벗어난 종목</div>
                 <div className={cx(styles.rv, d.outCount > 0 && styles.warn)}>{d.outCount}개</div>
               </div>
             </div>
@@ -211,11 +215,13 @@ export function InvestPkgDetail({ className, pkg, onBuy, onAdd, unsuit, onTrade,
       {!noItems && (
         <div className={styles.charts}>
           <InvestPkgWeight pkg={pkg} hov={hov} onHov={setHov} />
-          <InvestPkgChart className={styles.chartRight} pkg={pkg} range={range} onRange={setRange} />
+          <div className={styles.chartNote}>
+            <div className={styles.chartNoteTitle}>패키지 수익률</div>
+            <p className={styles.chartNoteBody}>기간별 수익률 추이는 평가 이력이 쌓이면 보여드려요. 지금은 위 평가금액·손익과 아래 보유 종목 표로 확인할 수 있어요.</p>
+          </div>
         </div>
       )}
-      <InvestHoldings pkg={pkg} hov={hov} onHov={setHov} unsuit={unsuit} onAdd={onAdd} onBuy={(c) => onTrade?.(c, 'buy')} onSell={(c) => onTrade?.(c, 'sell')} />
-      <Toast message={message} />
+      <InvestHoldings pkg={pkg} hov={hov} onHov={setHov} onAdd={onAdd} onBuy={(c) => onTrade?.(c, 'buy')} onSell={(c) => onTrade?.(c, 'sell')} />
     </section>
   )
 }

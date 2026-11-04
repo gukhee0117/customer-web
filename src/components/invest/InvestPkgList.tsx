@@ -3,7 +3,7 @@ import { F } from '../../lib/calc'
 import { Box } from '../common/Box'
 import { StockIcon } from '../common/StockIcon'
 import { cx } from '../common/cx'
-import { iconsOf, sparkPoints, toneOf } from './investPkgLogic'
+import { iconsOf, toneOf } from './investPkgLogic'
 import type { PkgSort, PkgView } from './investPkgLogic'
 import styles from './InvestPkgList.module.css'
 
@@ -62,9 +62,6 @@ export function InvestPkgList({ className, rows, sort, onSort, selected, onSelec
               <span className={styles.muted}>{v.items.length}종목</span>
             </span>
           </span>
-          <svg width="64" height="22" viewBox="0 0 64 22" className={styles.spark} aria-hidden="true">
-            <polyline points={sparkPoints(v.seed, v.ret)} fill="none" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" className={v.ret >= 0 ? styles.lineUp : styles.lineDown} />
-          </svg>
           <span className={styles.right}>
             <b className={styles.amt}>₩{F.won(v.val)}</b>
             <span className={styles.line}>

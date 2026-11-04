@@ -1,0 +1,35 @@
+.sm {
+  --label-gap: var(--space-6);
+  --label-fs: var(--font-size-13);
+  --label-fc: var(--font-size-12);
+}
+
+.md {
+  --label-gap: var(--space-8);
+  --label-fs: var(--font-size-15);
+  --label-fc: var(--font-size-13);
+}
+
+.sm,
+.md {
+  display: flex;
+  align-items: center;
+  gap: var(--label-gap);
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.name {
+  font-size: var(--label-fs);
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.code {
+  font-size: var(--label-fc);
+  color: var(--color-sub);
+  white-space: nowrap;
+}

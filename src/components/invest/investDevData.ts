@@ -1,15 +1,13 @@
-// 주식 패키지 시연 설정에서만 쓰는 선택지(원본 invest.dc.html 그대로). 이 화면 안에서만 유지하고 홈·내 계좌와 공유하지 않음
+// 주식 패키지 시연 설정에서만 쓰는 선택지. 이 화면 안에서만 유지하고 홈·내 계좌와 공유하지 않음
 
-// 새 패키지 창 검사 결과를 실제 흐름 대신 보여 주는 상태(원본 chkDemo). null이면 실제 흐름
-export type ChkDemo = 'before' | 'loading' | 'full' | 'noexp' | 'novol' | 'risky' | 'stale'
+// 새 패키지 창 검사 결과를 실제 흐름 대신 보여 주는 상태. null이면 실제 흐름(서버 검사 결과)
+// 서버 결과 자체(설명·지표)는 시연 값으로 바꾸지 않는다. 화면 상태(검사 전·검사 중·실패·이전 구성 기준)만 확인하는 용도
+export type ChkDemo = 'before' | 'loading' | 'error' | 'stale'
 export const CHK_DEMOS: [ChkDemo | null, string][] = [
   [null, '실제 흐름'],
   ['before', '검사 전'],
   ['loading', '검사 중'],
-  ['full', '결과(설명 있음)'],
-  ['noexp', '결과(설명 없음)'],
-  ['novol', '변동성 계산 불가'],
-  ['risky', '성향보다 위험'],
+  ['error', '검사 실패'],
   ['stale', '이전 구성 기준']
 ]
 

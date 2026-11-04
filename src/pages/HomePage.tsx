@@ -7,12 +7,12 @@ import { HomeBriefBox } from '../components/home/HomeBriefBox'
 import { HomeChatBox } from '../components/home/HomeChatBox'
 import { HomeDevPanel } from '../components/home/HomeDevPanel'
 import { HomePackageBox } from '../components/home/HomePackageBox'
-import { HomeRecBox } from '../components/home/HomeRecBox'
+import { HomeTendencyBox } from '../components/home/HomeTendencyBox'
 import { HomeNewsBox } from '../components/home/HomeNewsBox'
 import { HomeProfileBox } from '../components/home/HomeProfileBox'
-import { BOT_CHIPS, DEPOSIT_QUESTION, WELCOME_MS } from '../components/home/homeBotData'
+import { BOT_CHIPS, WELCOME_MS } from '../components/home/homeBotData'
 import { botGreeting, botTurn, homeTodos } from '../components/home/homeBotLogic'
-import type { FullAskMsg, HomeBotMsg } from '../components/home/homeBotLogic'
+import type { HomeBotMsg } from '../components/home/homeBotLogic'
 import { DISCLAIMER } from '../components/home/homeChatData'
 import styles from '../components/home/HomeLayout.module.css'
 import { RETURNS_DATA as RD, demo } from '../data/returns'
@@ -73,18 +73,6 @@ export function HomePage() {
     [shell]
   )
 
-  const openFullAsk = (conv: FullAskMsg[]) => {
-    setBot((b) => {
-      const rest = b.filter((m) => !m.fromAsk)
-      return [rest[0], ...conv.map((m): HomeBotMsg => ({ ...m, fromAsk: true })), ...rest.slice(1)]
-    })
-    shell.setBotOpen(true)
-  }
-  const askDeposit = () => {
-    shell.setBotOpen(true)
-    ask(DEPOSIT_QUESTION)
-  }
-
   const changeDemo = (patch: Partial<DemoSettings>) => {
     if (patch.assess !== undefined) setAClosed(null)
     RD.setDemo(patch)
@@ -103,7 +91,7 @@ export function HomePage() {
           <HomeNewsBox className={styles.news} />
           <div className={styles.pair}>
             <HomePackageBox className={styles.pkg} hasPkg={hasPkg} />
-            <HomeRecBox className={styles.rec} onOpenFullAsk={openFullAsk} onAskDeposit={askDeposit} />
+            <HomeTendencyBox className={styles.rec} />
           </div>
         </div>
         <div className={styles.colSide}>
