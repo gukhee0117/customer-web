@@ -6,17 +6,37 @@ import { assetUrl } from './assetUrl'
 import { cx } from './cx'
 import styles from './ChatbotFab.module.css'
 
-function TextWithLinks({ text }: { text: string }) {
-  const parts = text.split(/(\[[^\]]+\]\([^)]+\))/g)
+/** 끼루 말풍선 본문 + 링크 목록 */
+function KkBody({ text, src }: { text: string; src?: string }) {
+  const { body, links } = parseKkText(text)
   return (
-    <>
-      {parts.map((part, i) => {
-        const m = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
-        if (m) return <Link key={i} to={m[2]} className={styles.kkLink}>{m[1]}</Link>
-        return <span key={i}>{part}</span>
-      })}
-    </>
+    <div className={styles.kkBody}>
+      <p className={styles.kkText}>{body}</p>
+      {links.length > 0 && (
+        <div className={styles.kkLinks}>
+          {links.map((l, i) => (
+            <Link key={i} to={l.to} className={styles.kkLink}>
+              → {l.label}
+            </Link>
+          ))}
+        </div>
+      )}
+      {src && <div className={styles.kkSrc}>근거: {src}</div>}
+    </div>
   )
+}
+
+/** 메시지 텍스트에서 마크다운 링크를 추출한다.
+ *  body: 링크 문법을 라벨 텍스트로 대체한 평문
+ *  links: 추출된 링크 목록 (말풍선 아래에 별도 표시)
+ */
+function parseKkText(text: string): { body: string; links: { label: string; to: string }[] } {
+  const links: { label: string; to: string }[] = []
+  const body = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, to) => {
+    links.push({ label, to })
+    return label
+  })
+  return { body, links }
 }
 
 export type BotMessage = { me: true; text: string } | { kk: true; text: string; src?: string }
@@ -174,10 +194,7 @@ export function ChatbotFab({ open: openProp, onOpenChange, children, panelWidth 
                     ) : (
                       <div className={styles.kkRow}>
                         <img className={styles.kkFace} src={assetUrl('assets/kkiru-ai-face.png')} alt="끼루" />
-                        <div className={styles.kkBody}>
-                          <p className={styles.kkText}><TextWithLinks text={m.text} /></p>
-                          {m.src && <div className={styles.kkSrc}>근거: {m.src}</div>}
-                        </div>
+                        <KkBody text={m.text} src={m.src} />
                       </div>
                     )}
                   </div>
