@@ -148,6 +148,7 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
   const [candidateMap, setCandidateMap] = useState<Record<number, CandidateResult>>({})
   const [srcPick, setSrcPick] = useState<Record<string, number>>({})
   const [inDoneResults, setInDoneResults] = useState<SubmittedInboundResult[] | null>(null)
+  const [inDoneSkipped, setInDoneSkipped] = useState(0)
 
   // 인출 API 상태
   const [availability, setAvailability] = useState<WithdrawalAvailability | null>(null)
@@ -374,6 +375,7 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
       if (auth401 && results.length === 0) {
         setSubmitError('로그인이 만료됐어요. 다시 로그인해 주세요.')
       } else {
+        setInDoneSkipped(auth401 ? pickedSubmitItems.length - results.length : 0)
         setInDoneResults(results)
         onSubmitIn(results)
         setStep(2)
@@ -608,6 +610,11 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
             </div>
           ))}
         </div>
+        {inDoneSkipped > 0 && (
+          <div className={styles.fetchErr}>
+            로그인이 만료됐어요. {inDoneSkipped}개 종목은 신청되지 않았어요. 다시 로그인 후 시도해 주세요.
+          </div>
+        )}
         <div>
           <div className={styles.nextHead}>다음에 일어날 일</div>
           {IN_NEXT.map((text, i) => (
