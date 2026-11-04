@@ -244,7 +244,11 @@ export function InvestPage() {
           showToast(res.orders.length > 1 ? res.orders.length + '건 체결 완료' : o.name + ' ' + o.qty + '주 ' + (o.side === 'BUY' ? '매수' : '매도') + ' 체결 완료', 2200)
           return true
         }
-        setDlg(rejectDialog(rejected, executed, () => void placeOrders(pkgId, lines)))
+        // 다시 시도는 거부된 종목·방향만 다시 보낸다(이미 체결된 주문까지 보내면 새 멱등키로 중복 체결된다)
+        const retryLines = lines.filter((l) =>
+          rejected.some((o) => o.domesticProductId === l.pid && o.side === (l.side === 'buy' ? 'BUY' : 'SELL'))
+        )
+        setDlg(rejectDialog(rejected, executed, () => void placeOrders(pkgId, retryLines)))
         return executed > 0
       } catch (err) {
         failDialog('주문하지 못했어요', err)

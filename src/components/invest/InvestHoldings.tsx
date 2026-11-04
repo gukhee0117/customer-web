@@ -162,8 +162,10 @@ export function InvestHoldings({ pkg, hov, onHov, onAdd, onBuy, onSell }: Props)
             <span />
             <span className={cx(styles.todaySum, styles[toneOf(pkg.today)])}>{`오늘 ${sign(pkg.today)}${F.won(Math.abs(pkg.today))}`}</span>
             <span className={styles.r}>{F.won(pkg.val)}</span>
-            <span className={cx(styles.r, styles[toneOf(pkg.pnl)])}>{sign(pkg.pnl) + F.won(Math.abs(pkg.pnl))}</span>
-            <span className={cx(styles.r, styles[toneOf(pkg.pnl)])}>{F.pct(pkg.ret)}</span>
+            <span className={cx(styles.r, pkg.unpriced === 0 && styles[toneOf(pkg.pnl)])}>
+              {pkg.unpriced > 0 ? '-' : sign(pkg.pnl) + F.won(Math.abs(pkg.pnl))}
+            </span>
+            <span className={cx(styles.r, pkg.unpriced === 0 && styles[toneOf(pkg.pnl)])}>{pkg.unpriced > 0 ? '-' : F.pct(pkg.ret)}</span>
             <span className={styles.avgGrade}>{`가중평균 ${pkg.grade}등급`}</span>
             <span className={styles.r}>100%</span>
             <span />

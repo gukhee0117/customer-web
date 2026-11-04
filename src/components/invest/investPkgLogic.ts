@@ -30,7 +30,8 @@ export interface PkgView {
   created: number // 클수록 최근에 만든 패키지
   items: PkgItemView[]
   val: number
-  cost: number
+  cost: number // 보유 전체 원금(현재가 없는 종목 포함)
+  evalCost: number // 현재가를 받은 종목의 원금 — 평가손익·수익률은 val과 같은 범위(이 값)로만 계산한다
   pnl: number
   ret: number
   today: number
@@ -64,12 +65,15 @@ export function sortViews(views: PkgView[], sort: PkgSort): PkgView[] {
 export function totalsOf(views: PkgView[]) {
   const val = views.reduce((a, v) => a + v.val, 0)
   const cost = views.reduce((a, v) => a + v.cost, 0)
+  const evalCost = views.reduce((a, v) => a + v.evalCost, 0)
+  const unpriced = views.reduce((a, v) => a + v.unpriced, 0)
   const today = views.reduce((a, v) => a + v.today, 0)
   return {
     val,
     cost,
-    pnl: val - cost,
-    ret: cost ? ((val - cost) / cost) * 100 : 0,
+    unpriced, // 0보다 크면 현재가를 못 받은 종목이 있어 평가금액·손익은 일부 종목만 반영한 값
+    pnl: val - evalCost,
+    ret: evalCost ? ((val - evalCost) / evalCost) * 100 : 0,
     today,
     todayPct: val - today ? (today / (val - today)) * 100 : 0
   }

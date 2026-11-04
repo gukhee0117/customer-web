@@ -13,6 +13,7 @@ const signedWon = (n: number) => sign(n) + '₩' + F.won(Math.abs(n))
 // 패키지 자산 박스 — 전체 패키지 합계. 합계는 홈·내 계좌와 같은 RD.PKG_HOLDINGS 기준
 export function InvestAssetsBox({ className, views, cash }: { className?: string; views: PkgView[]; cash: number }) {
   const t = totalsOf(views)
+  const partial = t.unpriced > 0 // 현재가를 못 받은 종목이 있으면 손익·수익률은 확인 불가로 보인다
   const tone = (n: number) => styles[toneOf(n)]
 
   return (
@@ -27,16 +28,16 @@ export function InvestAssetsBox({ className, views, cash }: { className?: string
       }
     >
       <div className={styles.total}>
-        <div className={styles.label}>총 평가금액</div>
+        <div className={styles.label}>총 평가금액{partial && ' (현재가 없는 종목 ' + t.unpriced + '개 제외)'}</div>
         <div className={styles.totalRow}>
           <b className={styles.val}>₩{F.won(t.val)}</b>
-          <b className={cx(styles.ret, tone(t.pnl))}>{F.pct(t.ret)}</b>
+          {partial ? <b className={styles.ret}>-</b> : <b className={cx(styles.ret, tone(t.pnl))}>{F.pct(t.ret)}</b>}
         </div>
       </div>
       <div className={styles.rows}>
         <div className={styles.row}>
           <span className={styles.k}>평가손익</span>
-          <span className={tone(t.pnl)}>{signedWon(t.pnl)}</span>
+          {partial ? <span>-</span> : <span className={tone(t.pnl)}>{signedWon(t.pnl)}</span>}
         </div>
         <div className={styles.row}>
           <span className={styles.k}>오늘 손익</span>

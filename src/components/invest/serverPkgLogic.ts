@@ -41,6 +41,8 @@ export function viewsFromServer(summaries: PackageSummary[], details: PackageDet
     const items = (hold ? hold.items : []).map((h) => itemOf(h, detail))
     const val = items.reduce((a, it) => a + it.val, 0)
     const cost = items.reduce((a, it) => a + it.cost, 0)
+    // 현재가를 못 받은 보유 종목은 평가액이 0이라 원금까지 빼야 손익이 전액 손실로 잘못 나오지 않는다
+    const evalCost = items.filter((it) => it.qty === 0 || it.priced).reduce((a, it) => a + it.cost, 0)
     const today = items.reduce((a, it) => a + it.today, 0)
     return {
       id: String(s.stockPackageId),
@@ -52,8 +54,9 @@ export function viewsFromServer(summaries: PackageSummary[], details: PackageDet
       items,
       val,
       cost,
-      pnl: val - cost,
-      ret: cost ? ((val - cost) / cost) * 100 : 0,
+      evalCost,
+      pnl: val - evalCost,
+      ret: evalCost ? ((val - evalCost) / evalCost) * 100 : 0,
       today,
       todayPct: val - today ? (today / (val - today)) * 100 : 0,
       grade: weightedGrade(items),

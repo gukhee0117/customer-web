@@ -66,7 +66,11 @@ export function InvestPkgList({ className, rows, sort, onSort, selected, onSelec
             <b className={styles.amt}>₩{F.won(v.val)}</b>
             <span className={styles.line}>
               <span className={styles.muted}>오늘 {F.pct(v.todayPct)}</span>
-              <span className={cx(styles.ret, styles[toneOf(v.ret)])}>{F.pct(v.ret)}</span>
+              {v.unpriced > 0 ? (
+                <span className={styles.muted}>수익률 확인 불가</span>
+              ) : (
+                <span className={cx(styles.ret, styles[toneOf(v.ret)])}>{F.pct(v.ret)}</span>
+              )}
             </span>
             <span className={styles.muted}>가중평균 {v.grade}등급</span>
           </span>
