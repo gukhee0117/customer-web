@@ -13,7 +13,7 @@ import { TaxCalcModal } from '../components/account/TaxCalcModal'
 import { issuedRecords, setAdjOverride, docTypeOf } from '../components/account/accountTaxData'
 import { apiErrorMessage } from '../api/client'
 import { downloadDocument, issueDocument, listDocuments } from '../api/documents'
-import { ALERT_DESC, ALERT_LINK, ALERT_TAG, BOT_CHIPS, botGreeting } from '../components/account/accountBotData'
+import { ALERT_DESC, ALERT_LINK, ALERT_TAG, BOT_CHIPS, botGreeting, botTurn } from '../components/account/accountBotData'
 import type { ApplyAlert } from '../components/account/accountBotData'
 import type { IssueRecord } from '../components/account/accountTaxData'
 import { AccountStateBox } from '../components/account/AccountStateBox'
@@ -28,7 +28,7 @@ import { isHistTab } from '../components/account/accountHistData'
 import type { HistTab } from '../components/account/accountHistData'
 import styles from '../components/account/AccountLayout.module.css'
 import { FlowAllocBox, FlowCutBox, FlowMonthlyBox, FlowStepsBox } from '../components/account/AccountFlowBoxes'
-import { useChatStream } from '../api/useChatStream'
+import { useStream } from '../api/useChatStream'
 import { Tabs } from '../components/common/Tabs'
 import { Toast } from '../components/common/Toast'
 import { useToast } from '../components/common/useToast'
@@ -65,11 +65,22 @@ export function AccountPage() {
   // 자금 흐름 탭에 들어왔을 때만 서버 값을 받아옴(실패하면 시연 데이터로 보임)
   const fundFlow = useFundFlow(RD.ACCOUNT_STATE === 'opened' && hash === '#flow')
 
-  // 끼루 AI 상담 창 — 내용은 AppLayout의 챗봇 버튼에 넘기고, 이 페이지를 떠나면 비움
-  const { messages: bot, send, cancel, reset } = useChatStream(botGreeting())
+  // 끼루 AI 상담 창 — AppLayout 공유 스트림 사용, 페이지 이동 시 대화 이력 유지
+  const stream = useStream()
+  const { messages: bot, send, cancel, addMessages } = stream
+  const streamRef = useRef(stream)
+  streamRef.current = stream
+  useEffect(() => {
+    if (streamRef.current.messages.length === 0)
+      streamRef.current.addMessages([botGreeting()])
+  }, []) // intentional: mount only
   const chat = useMemo(
-    () => ({ messages: bot, chips: BOT_CHIPS.map((label) => ({ label, onClick: () => send(label) })), onSend: send }),
-    [bot, send]
+    () => ({
+      messages: bot,
+      chips: BOT_CHIPS.map((label) => ({ label, onClick: () => addMessages(botTurn(label)) })),
+      onSend: send
+    }),
+    [bot, send, addMessages]
   )
   useEffect(() => {
     shell.setChat(chat)
@@ -80,10 +91,9 @@ export function AccountPage() {
       shell.setChat(null)
       shell.setBotOpen(false)
       shell.setTopBar({})
-      reset()
       setAdjOverride(null)
     },
-    [shell, reset]
+    [shell]
   )
 
   // 상단 종 알림 — 신청이 접수될 때마다 1건 추가(누르면 해당 내역 탭으로)

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Toast } from '../components/common/Toast'
 import { useToast } from '../components/common/useToast'
@@ -22,7 +22,7 @@ import { F } from '../lib/calc'
 import { getProfile } from '../api/profile'
 import type { Profile } from '../api/profile'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
-import { useChatStream } from '../api/useChatStream'
+import { useStream } from '../api/useChatStream'
 import type { BotMessage } from '../components/common/ChatbotFab'
 
 
@@ -34,7 +34,15 @@ export function HomePage() {
   const { message: toast, showToast } = useToast()
   const [, refresh] = useReducer((n: number) => n + 1, 0)
   const [hasPkg, setHasPkg] = useState(true)
-  const { messages: bot, busy, send, cancel, reset, importMessages } = useChatStream()
+  const stream = useStream()
+  const { messages: bot, busy, send, cancel, importMessages } = stream
+  // 첫 마운트 시 대화가 비어 있으면 홈 인사말 추가 (페이지 이동 후 돌아오면 이력 유지)
+  const streamRef = useRef(stream)
+  streamRef.current = stream
+  useEffect(() => {
+    if (streamRef.current.messages.length === 0)
+      streamRef.current.addMessages([{ kk: true, text: 'RIA 계좌·세액·인출 일정에 대해 물어보세요.' }])
+  }, []) // intentional: mount only
   const [aClosed, setAClosed] = useState<string | null>(null)
   const [welcome, setWelcome] = useState(hash === '#new')
   const [prof, setProf] = useState<Profile | null>(null) // 서버 프로필(이름·계좌). 못 받으면 null → 이름 '-'·계좌는 목업
@@ -76,9 +84,9 @@ export function HomePage() {
       shell.setChat(null)
       shell.setBotOpen(false)
       shell.setTopBar({})
-      reset()
+      // reset 호출 안 함 — 페이지 이동 시 대화 이력 유지
     },
-    [shell, reset]
+    [shell]
   )
 
   const openFullAsk = (conv: FullAskMsg[]) => {
