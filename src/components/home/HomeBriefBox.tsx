@@ -51,10 +51,8 @@ function useBriefingRequest<T>(request: () => Promise<T>, onSessionExpired: () =
   const [attempt, setAttempt] = useState(0)
   const running = useRef(false)
   const pending = useRef(false)
-  const background = useRef(false)
   const retry = useCallback(() => {
     pending.current = false
-    background.current = false
     setState({ status: 'loading' })
     setAttempt((value) => value + 1)
   }, [])
@@ -63,16 +61,14 @@ function useBriefingRequest<T>(request: () => Promise<T>, onSessionExpired: () =
       pending.current = true
       return
     }
-    background.current = true
     setAttempt((value) => value + 1)
   }, [])
 
   useEffect(() => {
     let active = true
     running.current = true
-    const quiet = background.current
     void load(request).then((result) => {
-      if (active) setState((previous) => quiet && previous.status === 'success' && result.status === 'error' ? previous : result)
+      if (active) setState((previous) => previous.status === 'success' && result.status === 'error' ? previous : result)
     }).catch(() => {
       if (active) onSessionExpired()
     }).finally(() => {
@@ -80,7 +76,6 @@ function useBriefingRequest<T>(request: () => Promise<T>, onSessionExpired: () =
       running.current = false
       if (pending.current) {
         pending.current = false
-        background.current = true
         setAttempt((value) => value + 1)
       }
     })
@@ -375,7 +370,7 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
 }
 
 interface AssetTabProps {
-  connection?: AssetConnection
+  connection: AssetConnection
   state: RequestState<CustomerAssetBriefing>
   minHeight: number
   onRetry: () => void
