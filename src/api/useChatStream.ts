@@ -96,7 +96,7 @@ export function useChatStream(greeting?: BotMessage) {
             } else if (event.type === 'error') {
               setMessages((prev) => {
                 const last = prev[prev.length - 1]
-                if ('kk' in last && last.text === '')
+                if ('kk' in last)
                   return [
                     ...prev.slice(0, -1),
                     { kk: true, text: event.content ?? '오류가 발생했어요.' },
@@ -118,7 +118,7 @@ export function useChatStream(greeting?: BotMessage) {
         } else {
           setMessages((prev) => {
             const last = prev[prev.length - 1]
-            if ('kk' in last && last.text === '')
+            if ('kk' in last)
               return [
                 ...prev.slice(0, -1),
                 { kk: true, text: '요청 처리 중 오류가 발생했어요.' },

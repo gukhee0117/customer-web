@@ -13,7 +13,7 @@ import { TaxCalcModal } from '../components/account/TaxCalcModal'
 import { issuedRecords, setAdjOverride, docTypeOf } from '../components/account/accountTaxData'
 import { apiErrorMessage } from '../api/client'
 import { downloadDocument, issueDocument, listDocuments } from '../api/documents'
-import { ALERT_DESC, ALERT_LINK, ALERT_TAG, BOT_CHIPS, botGreeting, botTurn } from '../components/account/accountBotData'
+import { ALERT_DESC, ALERT_LINK, ALERT_TAG, BOT_CHIPS, botGreeting } from '../components/account/accountBotData'
 import type { ApplyAlert } from '../components/account/accountBotData'
 import type { IssueRecord } from '../components/account/accountTaxData'
 import { AccountStateBox } from '../components/account/AccountStateBox'
@@ -67,7 +67,7 @@ export function AccountPage() {
 
   // 끼루 AI 상담 창 — AppLayout 공유 스트림 사용, 페이지 이동 시 대화 이력 유지
   const stream = useStream()
-  const { messages: bot, send, cancel, addMessages } = stream
+  const { messages: bot, busy, send, cancel, addMessages } = stream
   const streamRef = useRef(stream)
   streamRef.current = stream
   const greetingAdded = useRef(false)
@@ -81,10 +81,11 @@ export function AccountPage() {
   const chat = useMemo(
     () => ({
       messages: bot,
-      chips: BOT_CHIPS.map((label) => ({ label, onClick: () => addMessages(botTurn(label)) })),
+      busy,
+      chips: BOT_CHIPS.map((label) => ({ label, onClick: () => send(label) })),
       onSend: send
     }),
-    [bot, send, addMessages]
+    [bot, busy, send]
   )
   useEffect(() => {
     shell.setChat(chat)

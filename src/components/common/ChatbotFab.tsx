@@ -45,6 +45,7 @@ export interface BotChat {
   messages: BotMessage[]
   chips?: { label: string; onClick: () => void }[]
   onSend: (text: string) => void
+  busy?: boolean
   // true면 내 계좌용 간단한 창: panelWidth 폭, 입력칸·근거 줄 없이 말풍선 + 빠른 질문 버튼만
   simple?: boolean
   // 간단한 창에서 말풍선 목록이 늘어날 수 있는 최대 높이(px). 안 넘기면 360
@@ -128,7 +129,7 @@ export function ChatbotFab({ open: openProp, onOpenChange, children, panelWidth 
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    if (!chat || !input.trim()) return
+    if (!chat || !input.trim() || chat.busy) return
     chat.onSend(input)
     setInput('')
   }
@@ -210,8 +211,8 @@ export function ChatbotFab({ open: openProp, onOpenChange, children, panelWidth 
                 </div>
               )}
               <form className={styles.form} onSubmit={submit}>
-                <input className={styles.input} value={input} onChange={(e) => setInput(e.target.value)} placeholder="궁금한 점을 입력하세요" aria-label="질문 입력" />
-                <button type="submit" className={styles.send}>보내기</button>
+                <input className={styles.input} value={input} onChange={(e) => setInput(e.target.value)} placeholder="궁금한 점을 입력하세요" aria-label="질문 입력" disabled={chat.busy} />
+                <button type="submit" className={styles.send} disabled={chat.busy}>보내기</button>
               </form>
             </>
           ) : (
