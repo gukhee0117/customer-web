@@ -79,8 +79,13 @@ export function useChatStream(greeting: BotMessage = defaultGreeting()) {
           const lines = buffer.split('\n')
           buffer = lines.pop() ?? ''
           for (const line of lines) {
-            if (!line.startsWith('data: ')) continue
-            const event = JSON.parse(line.slice(6)) as { type: string; content?: string }
+            if (!line.startsWith('data:')) continue
+            // Spring SseEmitter → "data:json" (공백 없음), 일부 구현 → "data: json" (공백 있음)
+            const raw = line.slice(5)
+            const event = JSON.parse(raw.startsWith(' ') ? raw.slice(1) : raw) as {
+              type: string
+              content?: string
+            }
             if (event.type === 'token' && event.content) {
               setMessages((prev) => {
                 const last = prev[prev.length - 1]
