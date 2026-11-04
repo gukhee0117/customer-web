@@ -1,9 +1,43 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import '../../styles/tokens.css'
 import { assetUrl } from './assetUrl'
 import { cx } from './cx'
 import styles from './ChatbotFab.module.css'
+
+/** 끼루 말풍선 본문 + 링크 목록 */
+function KkBody({ text, src }: { text: string; src?: string }) {
+  const { body, links } = parseKkText(text)
+  return (
+    <div className={styles.kkBody}>
+      <p className={styles.kkText}>{body}</p>
+      {links.length > 0 && (
+        <div className={styles.kkLinks}>
+          {links.map((l, i) => (
+            <Link key={i} to={l.to} className={styles.kkLink}>
+              → {l.label}
+            </Link>
+          ))}
+        </div>
+      )}
+      {src && <div className={styles.kkSrc}>근거: {src}</div>}
+    </div>
+  )
+}
+
+/** 메시지 텍스트에서 마크다운 링크를 추출한다.
+ *  body: 링크 문법을 라벨 텍스트로 대체한 평문
+ *  links: 추출된 링크 목록 (말풍선 아래에 별도 표시)
+ */
+function parseKkText(text: string): { body: string; links: { label: string; to: string }[] } {
+  const links: { label: string; to: string }[] = []
+  const body = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, to) => {
+    links.push({ label, to })
+    return ''
+  }).trim()
+  return { body, links }
+}
 
 export type BotMessage = { me: true; text: string } | { kk: true; text: string; src?: string }
 
@@ -11,6 +45,7 @@ export interface BotChat {
   messages: BotMessage[]
   chips?: { label: string; onClick: () => void }[]
   onSend: (text: string) => void
+  busy?: boolean
   // true면 내 계좌용 간단한 창: panelWidth 폭, 입력칸·근거 줄 없이 말풍선 + 빠른 질문 버튼만
   simple?: boolean
   // 간단한 창에서 말풍선 목록이 늘어날 수 있는 최대 높이(px). 안 넘기면 360
@@ -94,7 +129,7 @@ export function ChatbotFab({ open: openProp, onOpenChange, children, panelWidth 
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    if (!chat || !input.trim()) return
+    if (!chat || !input.trim() || chat.busy) return
     chat.onSend(input)
     setInput('')
   }
@@ -160,10 +195,7 @@ export function ChatbotFab({ open: openProp, onOpenChange, children, panelWidth 
                     ) : (
                       <div className={styles.kkRow}>
                         <img className={styles.kkFace} src={assetUrl('assets/kkiru-ai-face.png')} alt="끼루" />
-                        <div className={styles.kkBody}>
-                          <p className={styles.kkText}>{m.text}</p>
-                          {m.src && <div className={styles.kkSrc}>근거: {m.src}</div>}
-                        </div>
+                        <KkBody text={m.text} src={m.src} />
                       </div>
                     )}
                   </div>
@@ -179,8 +211,8 @@ export function ChatbotFab({ open: openProp, onOpenChange, children, panelWidth 
                 </div>
               )}
               <form className={styles.form} onSubmit={submit}>
-                <input className={styles.input} value={input} onChange={(e) => setInput(e.target.value)} placeholder="궁금한 점을 입력하세요" aria-label="질문 입력" />
-                <button type="submit" className={styles.send}>보내기</button>
+                <input className={styles.input} value={input} onChange={(e) => setInput(e.target.value)} placeholder="궁금한 점을 입력하세요" aria-label="질문 입력" disabled={chat.busy} />
+                <button type="submit" className={styles.send} disabled={chat.busy}>보내기</button>
               </form>
             </>
           ) : (

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Toast } from '../components/common/Toast'
 import { useToast } from '../components/common/useToast'
@@ -12,8 +12,8 @@ import { HomeRecBox } from '../components/home/HomeRecBox'
 import { HomeNewsBox } from '../components/home/HomeNewsBox'
 import { HomeProfileBox } from '../components/home/HomeProfileBox'
 import { BOT_CHIPS, DEPOSIT_QUESTION, WELCOME_MS } from '../components/home/homeBotData'
-import { botGreeting, botTurn, homeTodos } from '../components/home/homeBotLogic'
-import type { FullAskMsg, HomeBotMsg } from '../components/home/homeBotLogic'
+import { homeTodos } from '../components/home/homeBotLogic'
+import type { FullAskMsg } from '../components/home/homeBotLogic'
 import { DISCLAIMER } from '../components/home/homeChatData'
 import styles from '../components/home/HomeLayout.module.css'
 import { RETURNS_DATA as RD, demo } from '../data/returns'
@@ -23,6 +23,8 @@ import { F } from '../lib/calc'
 import { getProfile } from '../api/profile'
 import type { Profile } from '../api/profile'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
+import { useStream } from '../api/useChatStream'
+import type { BotMessage } from '../components/common/ChatbotFab'
 
 
 // 홈 — 1~6번째 부분: 배치 + 박스 6개 + 아래 고지 + 상담 창·알림·성향 알림 창·환영 배너·시연 설정
@@ -33,7 +35,19 @@ export function HomePage() {
   const { message: toast, showToast } = useToast()
   const [, refresh] = useReducer((n: number) => n + 1, 0)
   const [hasPkg, setHasPkg] = useState(true)
-  const [bot, setBot] = useState<HomeBotMsg[]>(() => [botGreeting()])
+  const stream = useStream()
+  const { messages: bot, busy, send, cancel, importMessages } = stream
+  // 첫 마운트 시 대화가 비어 있으면 홈 인사말 추가 (페이지 이동 후 돌아오면 이력 유지)
+  const streamRef = useRef(stream)
+  streamRef.current = stream
+  const greetingAdded = useRef(false)
+  useEffect(() => {
+    if (!greetingAdded.current) {
+      greetingAdded.current = true
+      if (streamRef.current.messages.length === 0)
+        streamRef.current.addMessages([{ kk: true, text: 'RIA 계좌·세액·인출 일정에 대해 물어보세요.' }])
+    }
+  }, []) // intentional: mount only
   const [aClosed, setAClosed] = useState<string | null>(null)
   const [welcome, setWelcome] = useState(hash === '#new')
   const { state: limit, retry: retryLimit } = useSellLimit()
@@ -61,14 +75,13 @@ export function HomePage() {
     shell.setTopBar({ todos: list, todoDate: F.short(F.today()), todoAlert: list.filter((t) => t.level !== 'info').length, profLabel })
   }, [todoKey, profLabel, shell, showToast, remainingLimit])
 
-  const ask = useCallback((q: string) => {
-    if (!q.trim()) return
-    setBot((b) => b.concat(botTurn(q)))
-  }, [])
+  const ask = useCallback((q: string) => { send(q) }, [send])
+  // 페이지 이탈 시 진행 중인 스트리밍 취소
+  useEffect(() => () => { cancel() }, [cancel])
 
   const chat = useMemo(
-    () => ({ messages: bot, chips: BOT_CHIPS.map((label) => ({ label, onClick: () => ask(label) })), onSend: ask }),
-    [bot, ask]
+    () => ({ messages: bot, busy, chips: BOT_CHIPS.map((label) => ({ label, onClick: () => ask(label) })), onSend: ask }),
+    [bot, busy, ask]
   )
   useEffect(() => {
     shell.setChat(chat)
@@ -78,15 +91,13 @@ export function HomePage() {
       shell.setChat(null)
       shell.setBotOpen(false)
       shell.setTopBar({})
+      // reset 호출 안 함 — 페이지 이동 시 대화 이력 유지
     },
     [shell]
   )
 
   const openFullAsk = (conv: FullAskMsg[]) => {
-    setBot((b) => {
-      const rest = b.filter((m) => !m.fromAsk)
-      return [rest[0], ...conv.map((m): HomeBotMsg => ({ ...m, fromAsk: true })), ...rest.slice(1)]
-    })
+    importMessages(conv.map((m): BotMessage => ({ ...m })))
     shell.setBotOpen(true)
   }
   const askDeposit = () => {

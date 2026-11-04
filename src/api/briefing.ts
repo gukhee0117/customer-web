@@ -11,12 +11,15 @@ export interface CustomerTaxBriefing {
   calculatedAt: string
 }
 
-/** 아직 팔지 않은 보유분만 가정 매도한 결과. 현재 감면액 대비 추가분이 아니다. */
+/** 확정 매도분 + 보유분 가정 매도를 합쳐 기본공제를 한 번 적용한 전체 예상 결과. */
 export interface CustomerExpectedTaxBriefing {
   generalTax: number
   riaTax: number
   reliefAmount: number
-  additionalReliefAmount: null
+  /** 예상 조회 시점의 확정 매도분 감면액. 일일 집계 값과 시점이 다를 수 있다. */
+  finalizedReliefAmount: number
+  /** 전체 감면액 - 확정 매도분 감면액. 손실 상계 등으로 음수가 될 수 있다. */
+  additionalReliefAmount: number
   expectedFinalAt: string
   /** 잔량이 있는 입고 lot 수. 종목 수가 아니며 0일 때만 빈 보유분 판단에 사용한다. */
   holdingCount: number
