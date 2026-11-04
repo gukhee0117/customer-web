@@ -1,9 +1,4 @@
-import { apiClient } from './client'
-
-interface ApiResponse<T> {
-  message: string
-  data: T
-}
+import { apiClient, type ApiResponse } from './client'
 
 export interface CustomerTaxBriefing {
   accountId: number

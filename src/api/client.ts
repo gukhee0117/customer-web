@@ -1,5 +1,10 @@
 import axios from 'axios'
 
+export interface ApiResponse<T> {
+  message: string
+  data: T
+}
+
 function getXsrfToken(): string | undefined {
   const row = document.cookie
     .split(';')
