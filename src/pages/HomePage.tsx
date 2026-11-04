@@ -11,8 +11,8 @@ import { HomeRecBox } from '../components/home/HomeRecBox'
 import { HomeNewsBox } from '../components/home/HomeNewsBox'
 import { HomeProfileBox } from '../components/home/HomeProfileBox'
 import { BOT_CHIPS, DEPOSIT_QUESTION, WELCOME_MS } from '../components/home/homeBotData'
-import { botGreeting, botTurn, homeTodos } from '../components/home/homeBotLogic'
-import type { FullAskMsg, HomeBotMsg } from '../components/home/homeBotLogic'
+import { homeTodos } from '../components/home/homeBotLogic'
+import type { FullAskMsg } from '../components/home/homeBotLogic'
 import { DISCLAIMER } from '../components/home/homeChatData'
 import styles from '../components/home/HomeLayout.module.css'
 import { RETURNS_DATA as RD, demo } from '../data/returns'
@@ -22,6 +22,8 @@ import { F } from '../lib/calc'
 import { getProfile } from '../api/profile'
 import type { Profile } from '../api/profile'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
+import { useChatStream } from '../api/useChatStream'
+import type { BotMessage } from '../components/common/ChatbotFab'
 
 
 // 홈 — 1~6번째 부분: 배치 + 박스 6개 + 아래 고지 + 상담 창·알림·성향 알림 창·환영 배너·시연 설정
@@ -32,7 +34,7 @@ export function HomePage() {
   const { message: toast, showToast } = useToast()
   const [, refresh] = useReducer((n: number) => n + 1, 0)
   const [hasPkg, setHasPkg] = useState(true)
-  const [bot, setBot] = useState<HomeBotMsg[]>(() => [botGreeting()])
+  const { messages: bot, busy, send, cancel, reset, importMessages } = useChatStream()
   const [aClosed, setAClosed] = useState<string | null>(null)
   const [welcome, setWelcome] = useState(hash === '#new')
   const [prof, setProf] = useState<Profile | null>(null) // 서버 프로필(이름·계좌). 못 받으면 null → 이름 '-'·계좌는 목업
@@ -58,10 +60,9 @@ export function HomePage() {
     shell.setTopBar({ todos: list, todoDate: F.short(F.today()), todoAlert: list.filter((t) => t.level !== 'info').length, profLabel })
   }, [todoKey, profLabel, shell, showToast])
 
-  const ask = useCallback((q: string) => {
-    if (!q.trim()) return
-    setBot((b) => b.concat(botTurn(q)))
-  }, [])
+  const ask = useCallback((q: string) => { send(q) }, [send])
+  // 페이지 이탈 시 진행 중인 스트리밍 취소
+  useEffect(() => () => { cancel() }, [cancel])
 
   const chat = useMemo(
     () => ({ messages: bot, chips: BOT_CHIPS.map((label) => ({ label, onClick: () => ask(label) })), onSend: ask }),
@@ -75,15 +76,13 @@ export function HomePage() {
       shell.setChat(null)
       shell.setBotOpen(false)
       shell.setTopBar({})
+      reset()
     },
-    [shell]
+    [shell, reset]
   )
 
   const openFullAsk = (conv: FullAskMsg[]) => {
-    setBot((b) => {
-      const rest = b.filter((m) => !m.fromAsk)
-      return [rest[0], ...conv.map((m): HomeBotMsg => ({ ...m, fromAsk: true })), ...rest.slice(1)]
-    })
+    importMessages(conv.map((m): BotMessage => ({ ...m })))
     shell.setBotOpen(true)
   }
   const askDeposit = () => {
