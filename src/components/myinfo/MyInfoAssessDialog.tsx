@@ -19,7 +19,6 @@ interface Props {
 
 // 투자성향 다시 진단 창: 서버 문항(복수 선택 포함) → 마지막 문항에서 서버에 제출해 결과(총점·성향)를 보여 준다
 // 창을 열 때마다 처음부터. 중간에 닫아도 확인 없이 닫힘(어두운 막·Esc·X). 제출 결과는 서버에 저장되며, 제출하면 바로 화면에 반영하고, 결과 단계의 "확인"은 창만 닫는다
-// TODO: 진단 이력(진단 날짜·점수 목록)은 아직 localStorage — 서버에는 현재 성향 조회만 있다
 export function MyInfoAssessDialog({ onClose, onSave }: Props) {
   const survey = useInvestorSurvey()
   const Q = survey.questions ?? []

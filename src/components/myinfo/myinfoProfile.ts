@@ -11,17 +11,6 @@ export interface AssessHistItem {
   profile: string
 }
 
-// 진단 이력(최신이 위) 저장 위치. "이 결과로 저장"이 앞에 쌓는다
-export const HIST_KEY = 'returns-assess-hist'
-export const readHist = (): AssessHistItem[] | null => {
-  try {
-    const h = JSON.parse(localStorage.getItem(HIST_KEY) || 'null')
-    return Array.isArray(h) ? h : null
-  } catch {
-    return null
-  }
-}
-
 export interface ProfileView {
   label: string
   img: string
@@ -32,7 +21,7 @@ export interface ProfileView {
   noteBtn: string
   date: string
   next: string
-  score: number | null // 이번 브라우저에서 제출한 진단이 없으면 null(서버가 점수를 아직 안 준다)
+  score: number | null // 진단 이력이 없으면 null
   allowed: string
   warnOn: boolean
   warn: string
@@ -51,7 +40,7 @@ export const profileView = (stored: AssessHistItem[] | null, status: InvestorSta
   const key = profileKey(), pf = RD.PROFILES[key], aSt = assessState()
   const hist = stored ?? []
   const last = hist[0]
-  // 진단일·유효기간은 서버 값(없으면 이번에 제출한 진단). 점수·이력은 서버가 아직 안 줘서 이번 브라우저에서 제출한 것만 보인다
+  // 진단일·유효기간은 서버 값(없으면 이력의 최신 진단). 점수·이력은 서버 프로필의 assessmentHistory
   const date = status?.assessedAt ? status.assessedAt.slice(0, 10) : last?.date ?? ''
   const validUntil = status?.expiresAt ? F.addDays(status.expiresAt.slice(0, 10), -1) : date ? F.addDays(F.addMonths(date, 24), -1) : ''
   const dLeft = validUntil ? F.days(F.today(), validUntil) : 999
