@@ -178,9 +178,22 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
   const noHoldings = expected?.holdingCount === 0
   const useExpected = guide && expected !== null
   const scenario = useExpected ? expected! : briefing.current
-  const maxTax = Math.max(briefing.current.generalTax, briefing.current.riaTax, expected?.generalTax ?? 0, expected?.riaTax ?? 0, 1)
-  const generalHeight = `${(scenario.generalTax / maxTax) * 70}%`
-  const riaHeight = `${(scenario.riaTax / maxTax) * 70}%`
+  const maxTax = Math.max(briefing.current.generalTax, briefing.current.riaTax + briefing.current.reliefAmount, expected?.generalTax ?? 0, (expected?.riaTax ?? 0) + (expected?.reliefAmount ?? 0), 1)
+  const generalHeight = `${(scenario.generalTax / maxTax) * 100}%`
+  const riaHeight = `${(scenario.riaTax / maxTax) * 100}%`
+  // 합산 감면액이 줄어들 수도 있으므로, 막대는 실제 합계 안에서만 나눈다.
+  const finalizedRelief = useExpected ? expected!.finalizedReliefAmount : scenario.reliefAmount
+  const confirmedSegment = Math.min(finalizedRelief, scenario.reliefAmount)
+  const projectedSegment = Math.max(scenario.reliefAmount - confirmedSegment, 0)
+  const confirmedHeight = `${(confirmedSegment / maxTax) * 100}%`
+  const projectedHeight = `${(projectedSegment / maxTax) * 100}%`
+  const reliefHeight = `${(scenario.reliefAmount / maxTax) * 100}%`
+  const reliefLabelPosition = scenario.reliefAmount > 0
+    ? Math.max(18, Math.min(82, ((scenario.riaTax + scenario.reliefAmount / 2) / maxTax) * 100))
+    : 50
+  const confirmedLabelInside = confirmedSegment / maxTax >= 0.2
+  const projectedLabelInside = projectedSegment / maxTax >= 0.2
+  const chartMotionKey = `${guide}:${maxTax}:${scenario.generalTax}:${scenario.riaTax}:${scenario.reliefAmount}`
   const expectedMessage = expectedState.status === 'loading' ? '계산 중…' : '확인 불가'
 
   return (
@@ -197,13 +210,16 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
         </span>
       </div>
 
-      <div className={styles.cutNote}>
-        {guide
-          ? '아직 팔지 않은 보유분만 가정 매도한 예상치예요. 이미 판 내역은 포함하지 않아요.'
-          : '확정된 매도 내역을 마지막 집계 시점 기준으로 계산했어요.'}
+      <div className={styles.scenarioNotes}>
+        <div className={cx(styles.cutNote, guide && styles.hiddenNote)} aria-hidden={guide}>
+          확정된 매도 내역을 마지막 집계 시점 기준으로 계산했어요.
+        </div>
+        <div className={cx(styles.cutNote, !guide && styles.hiddenNote)} aria-hidden={!guide}>
+          지금까지 확정된 매도와 남은 보유분을 함께 계산한 전체 예상 세액이에요.
+        </div>
       </div>
       <div className={styles.cutNote}>
-        매도·조기인출 등 최근 변경은 다음 일일 집계 후 반영돼요.
+        현재까지는 일일 집계 기준이며, 가정 매도는 조회 시점의 확정 매도분까지 포함해요.
       </div>
 
       <div role="group" aria-label="세액 계산 기준" className={styles.seg}>
@@ -224,16 +240,6 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
           보유 종목을 가정 매도하면
         </button>
       </div>
-
-      {!guide && expectedState.status === 'loading' && (
-        <div className={styles.factSub} role="status">보유 종목의 가정 매도 예상 세액을 계산하고 있어요.</div>
-      )}
-      {!guide && expectedState.status !== 'loading' && expectedState.status !== 'success' && (
-        <div className={styles.warn} role="status">
-          예상 세액을 불러오지 못했어요. 현재까지의 결과는 확인할 수 있어요.
-          <button type="button" className={styles.segBtn} onClick={onRetryExpected}>다시 시도</button>
-        </div>
-      )}
 
       <div className={styles.chart}>
         {guide && noHoldings ? (
@@ -258,23 +264,55 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
             <div className={styles.chartLabels}>
               <div><div className={styles.barCaption}>일반 과세 세액</div>{formatWon(scenario.generalTax)}</div>
               <div aria-hidden="true" />
-              <div><div className={styles.barCaption}>RIA 세액</div>{formatWon(scenario.riaTax)}</div>
+              <div><div className={styles.barCaption}>감면 후 납부세액</div>{formatWon(scenario.riaTax)}</div>
             </div>
-            {scenario.generalTax === 0 && scenario.riaTax === 0 && (
-              <div className={styles.zeroTax} role="status">{guide ? '보유분 가정 매도 예상 세액은 0원이에요.' : '현재까지 계산된 세액과 감면액은 0원이에요.'}</div>
-            )}
             <div className={styles.plot}>
+              {scenario.generalTax > 0 && (
+                <div key={`taxGuideLine:${chartMotionKey}`} className={cx(styles.taxGuideLine, styles.chartAnnotation)} style={{ bottom: generalHeight }} aria-hidden="true" />
+              )}
               <div className={styles.barGeneral} style={{ height: generalHeight }} />
               <div className={styles.barRia} style={{ height: riaHeight }} />
-              <div className={styles.reliefLabel}><div className={styles.barCaption}>감면액</div>{formatWon(scenario.reliefAmount)}</div>
+              <div className={styles.barRelief} style={{ height: confirmedHeight, bottom: riaHeight }}>
+                {confirmedLabelInside && <span className={styles.segmentText}>확정 감면액<br />{formatWon(confirmedSegment)}</span>}
+              </div>
+              <div className={cx(styles.barProjected, styles.expectedRelief)} style={{ height: projectedHeight, bottom: `${((scenario.riaTax + confirmedSegment) / maxTax) * 100}%` }}>
+                {projectedLabelInside && <span className={styles.segmentText}>추가 예상 감면액<br />{formatWon(projectedSegment)}</span>}
+              </div>
+              {scenario.reliefAmount > 0 && (
+                <div key={`reliefBracket:${chartMotionKey}`} className={cx(styles.reliefBracket, styles.chartAnnotation)} style={{ bottom: riaHeight, height: reliefHeight }} aria-hidden="true" />
+              )}
+              <div key={`reliefLabel:${chartMotionKey}`} className={cx(styles.reliefLabel, styles.chartAnnotation)} style={{ bottom: `${reliefLabelPosition}%` }}><div className={styles.barCaption}>총 감면액</div>−{formatWon(scenario.reliefAmount)}</div>
             </div>
             <div className={styles.axis}>
               <span className={styles.axisGeneral}>일반 과세</span>
               <span className={styles.axisRia}>RIA 적용</span>
             </div>
+            <div className={styles.chartLegend}>
+              <span><i className={styles.taxSwatch} aria-hidden="true" />감면 후 납부세액 {formatWon(scenario.riaTax)}</span>
+              <span><i className={styles.reliefSwatch} aria-hidden="true" />확정 감면액 {formatWon(confirmedSegment)}</span>
+              {useExpected && <span><i className={cx(styles.reliefSwatch, styles.expectedRelief)} aria-hidden="true" />추가 예상 감면액 {formatWon(projectedSegment)}</span>}
+            </div>
+            <div className={styles.zeroTax} role="status">
+              <span className={cx(styles.zeroNote, (guide || scenario.generalTax !== 0 || scenario.riaTax !== 0) && styles.hiddenNote)} aria-hidden={guide || scenario.generalTax !== 0 || scenario.riaTax !== 0}>
+                현재까지 계산된 세액과 감면액은 0원이에요.
+              </span>
+              <span className={cx(styles.zeroNote, (!guide || scenario.generalTax !== 0 || scenario.riaTax !== 0) && styles.hiddenNote)} aria-hidden={!guide || scenario.generalTax !== 0 || scenario.riaTax !== 0}>
+                합산 가정 매도 예상 세액은 0원이에요.
+              </span>
+            </div>
           </>
         )}
       </div>
+
+      {!guide && expectedState.status === 'loading' && (
+        <div className={styles.factSub} role="status">보유 종목의 가정 매도 예상 세액을 계산하고 있어요.</div>
+      )}
+      {!guide && expectedState.status !== 'loading' && expectedState.status !== 'success' && (
+        <div className={styles.warn} role="status">
+          예상 세액을 불러오지 못했어요. 현재까지의 결과는 확인할 수 있어요.
+          <button type="button" className={styles.segBtn} onClick={onRetryExpected}>다시 시도</button>
+        </div>
+      )}
 
       <div className={styles.facts}>
         <div className={styles.factL}>
@@ -283,7 +321,7 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
           <div className={styles.factSub}>집계 기준 {formatDateTime(briefing.calculatedAt)}</div>
         </div>
         <div className={styles.factR}>
-          <div className={styles.factKey}>보유분 가정 매도 감면액</div>
+          <div className={styles.factKey}>가정 매도 후 전체 감면액</div>
           <div className={styles.factVal}>
             {noHoldings ? '대상 없음' : expected === null ? expectedMessage : formatWon(expected.reliefAmount)}
           </div>
@@ -294,8 +332,11 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
           )}
         </div>
       </div>
+      {expected && expected.additionalReliefAmount < 0 && (
+        <div className={styles.warn} role="status">보유분 손익 반영으로 감면액이 {formatWon(Math.abs(expected.additionalReliefAmount))} 줄어들어요.</div>
+      )}
       <div className={styles.assetFoot}>
-        보유분 예상액은 추가 감면액이 아니에요. 두 금액은 각각 다른 매도 내역을 계산한 값이에요.
+        가정 매도는 확정 매도분과 보유분 손익을 합쳐 기본공제를 한 번 적용해요. 손실을 반영하면 예상 세액이나 감면액이 줄 수도 있어요.
       </div>
     </div>
   )
