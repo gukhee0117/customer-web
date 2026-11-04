@@ -74,55 +74,6 @@
   padding-bottom: var(--space-4);
 }
 
-.rangeRow {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--space-6);
-  font-size: var(--font-size-13);
-  color: var(--color-gray-600);
-  margin-top: var(--space-2);
-}
-
-.rangeTxt {
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tipBtn {
-  all: unset;
-  cursor: pointer;
-  margin-left: auto;
-  flex: none;
-  width: 18px;
-  height: 18px;
-  display: grid;
-  place-items: center;
-  color: var(--color-muted);
-}
-
-.tipBtn:hover {
-  color: var(--color-navy);
-}
-
-.tip {
-  position: absolute;
-  right: 0;
-  top: 22px;
-  z-index: 20;
-  width: 260px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-8);
-  box-shadow: var(--shadow-pop);
-  padding: var(--space-10) var(--space-12);
-  font-size: var(--font-size-12);
-  line-height: 1.55;
-  color: var(--color-ink);
-}
-
 .cutNote {
   font-size: var(--font-size-12);
   color: var(--color-sub);
@@ -161,7 +112,7 @@
 
 /* 그래프 */
 .chart {
-  height: 160px;
+  min-height: 170px;
   flex: none;
   margin-top: var(--space-12);
   display: flex;
@@ -170,7 +121,8 @@
 
 .plot {
   position: relative;
-  flex: 1 1 auto;
+  height: 100px;
+  flex: none;
   border-bottom: 1px solid var(--color-line-strong);
 }
 
@@ -180,22 +132,11 @@
 
 .barGeneral {
   left: 5%;
-  width: 35%;
+  width: 22%;
   bottom: 0;
   background: var(--color-chart-general);
   border-radius: var(--radius-2) var(--radius-2) 0 0;
   transition: height 0.3s ease;
-}
-
-.generalLabel {
-  left: 5%;
-  width: 35%;
-  padding-bottom: var(--space-3);
-  text-align: center;
-  font-size: var(--font-size-13);
-  font-weight: var(--font-weight-bold);
-  transition: bottom 0.3s ease;
-  line-height: 1.3;
 }
 
 .barCaption {
@@ -206,11 +147,12 @@
 
 .barRia {
   right: 5%;
-  width: 35%;
+  width: 22%;
   bottom: 0;
   background: var(--color-navy);
   transition: height 0.3s ease;
-  padding-top: var(--space-4);
+  padding-top: 0;
+  border-radius: var(--radius-2) var(--radius-2) 0 0;
   color: var(--color-on-navy);
   font-size: var(--font-size-12);
   font-weight: var(--font-weight-bold);
@@ -222,80 +164,6 @@
   line-height: 1.3;
 }
 
-.barRia .barCaption {
-  color: inherit;
-  font-size: var(--font-size-11);
-  font-weight: var(--font-weight-medium);
-}
-
-.barConfirm {
-  right: 5%;
-  width: 35%;
-  background: var(--color-gold);
-  transition: height 0.3s ease, bottom 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-size-12);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-gold-ink);
-  overflow: hidden;
-  text-align: center;
-  line-height: 1.3;
-}
-
-.barExpect {
-  right: 5%;
-  width: 35%;
-  background: repeating-linear-gradient(45deg, var(--color-gold) 0 3px, var(--color-gold-light) 3px 7px);
-  border-radius: var(--radius-2) var(--radius-2) 0 0;
-  transition: height 0.3s ease, bottom 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.expectTxt {
-  background: var(--color-surface);
-  font-size: var(--font-size-12);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-gold-ink);
-  padding: 0 var(--space-4);
-}
-
-.guideLine {
-  left: 40%;
-  right: 40%;
-  border-top: 1px dashed var(--color-gold);
-  transition: bottom 0.3s ease;
-}
-
-.bracket {
-  left: calc(60% - 9px);
-  width: 6px;
-  border: 1px solid var(--color-gold);
-  border-right: 0;
-  transition: height 0.3s ease, bottom 0.3s ease;
-}
-
-.cutLabelChart {
-  left: 40%;
-  width: 20%;
-  text-align: center;
-  white-space: nowrap;
-  font-size: var(--font-size-16);
-  font-weight: var(--font-weight-extrabold);
-  color: var(--color-gold-dark);
-  transition: bottom 0.3s ease;
-  line-height: 1.25;
-}
-
-.cutLabelSmall {
-  font-size: var(--font-size-11);
-  font-weight: var(--font-weight-semibold);
-}
-
 .axis {
   position: relative;
   height: 20px;
@@ -305,18 +173,18 @@
 
 .axis span {
   position: absolute;
-  width: 35%;
+  width: 30%;
   top: var(--space-4);
   text-align: center;
 }
 
 .axisGeneral {
-  left: 5%;
+  left: 1%;
   color: var(--color-sub);
 }
 
 .axisRia {
-  right: 5%;
+  right: 1%;
   color: var(--color-navy);
   font-weight: var(--font-weight-bold);
 }
@@ -357,108 +225,10 @@
   color: var(--color-sub);
 }
 
-/* 보유 기간 */
-.hold {
-  margin-top: var(--space-12);
-  flex: none;
-}
-
-.holdDates {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--font-size-12);
-  color: var(--color-sub);
-}
-
-.track {
-  position: relative;
-  height: 12px;
-  margin-top: 5px;
-}
-
-.trackBg,
-.trackFill {
-  position: absolute;
-  left: 0;
-  top: var(--space-4);
-  height: 4px;
-  border-radius: var(--radius-2);
-}
-
-.trackBg {
-  right: 0;
-  background: var(--color-line-soft);
-}
-
-.trackFill {
-  background: var(--color-navy);
-}
-
-.thumb {
-  position: absolute;
-  top: 0;
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
-  border-radius: var(--radius-round);
-  background: var(--color-navy);
-  border: 2px solid var(--color-surface);
-  box-shadow: 0 0 0 1px var(--color-navy);
-}
-
-.holdLine {
-  margin-top: var(--space-6);
-  font-size: var(--font-size-14);
-}
-
-.holdSub {
-  color: var(--color-sub);
-}
-
-.holdD {
-  color: var(--color-navy);
-}
-
 .warn {
   margin-top: var(--space-4);
   font-size: var(--font-size-12);
   color: var(--color-sub);
-}
-
-.progress {
-  margin-top: var(--space-10);
-  padding-top: var(--space-10);
-  border-top: 1px solid var(--color-line-soft);
-  display: flex;
-  align-items: center;
-  gap: var(--space-6);
-  font-size: var(--font-size-13);
-  color: var(--color-ink);
-  text-decoration: none;
-}
-
-.progress:hover {
-  color: var(--color-navy);
-  text-decoration: none;
-}
-
-.progressTag {
-  font-weight: var(--font-weight-bold);
-  color: var(--color-navy);
-  flex: none;
-}
-
-.progressTxt {
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.progressArrow {
-  margin-left: auto;
-  color: var(--color-muted);
-  flex: none;
 }
 
 /* ===== 자산 탭 ===== */
@@ -565,11 +335,6 @@
   font-weight: var(--font-weight-bold);
 }
 
-.noAcctSub {
-  font-size: var(--font-size-13);
-  color: var(--color-gray-600);
-}
-
 .noAcctGo {
   display: flex;
   justify-content: flex-end;
@@ -579,4 +344,38 @@
 
 .noAcctGo a {
   color: var(--color-navy);
+}
+
+.withdrawalWarning {
+  margin: var(--space-12) var(--space-16) 0;
+  font-size: var(--font-size-12);
+  color: var(--color-sub);
+}
+.chartLabels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-6);
+  text-align: center;
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-bold);
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.reliefLabel {
+  left: 33%;
+  width: 34%;
+  bottom: 4%;
+  text-align: center;
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-gold-dark);
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+.zeroTax {
+  text-align: center;
+  font-size: var(--font-size-12);
+  color: var(--color-sub);
+  padding-top: var(--space-6);
 }

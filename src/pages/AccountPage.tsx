@@ -13,7 +13,7 @@ import { TaxCalcModal } from '../components/account/TaxCalcModal'
 import { issuedRecords, setAdjOverride, docTypeOf } from '../components/account/accountTaxData'
 import { apiErrorMessage } from '../api/client'
 import { downloadDocument, issueDocument, listDocuments } from '../api/documents'
-import { ALERT_DESC, ALERT_LINK, ALERT_TAG, BOT_CHIPS, botGreeting, botTurn } from '../components/account/accountBotData'
+import { ALERT_DESC, ALERT_LINK, ALERT_TAG, BOT_CHIPS, botGreeting } from '../components/account/accountBotData'
 import type { ApplyAlert } from '../components/account/accountBotData'
 import type { IssueRecord } from '../components/account/accountTaxData'
 import { AccountStateBox } from '../components/account/AccountStateBox'
@@ -28,7 +28,7 @@ import { isHistTab } from '../components/account/accountHistData'
 import type { HistTab } from '../components/account/accountHistData'
 import styles from '../components/account/AccountLayout.module.css'
 import { FlowAllocBox, FlowCutBox, FlowMonthlyBox, FlowStepsBox } from '../components/account/AccountFlowBoxes'
-import type { BotMessage } from '../components/common/ChatbotFab'
+import { useStream } from '../api/useChatStream'
 import { Tabs } from '../components/common/Tabs'
 import { Toast } from '../components/common/Toast'
 import { useToast } from '../components/common/useToast'
@@ -49,7 +49,7 @@ const FLOW_NOTICE: Record<string, string> = {
 // 내 계좌 — 1~8번째 부분: 뼈대·페이지 탭·계좌 요약·계좌 상태 + 매도 한도·세액·원금 유지·증빙서류 + 잔고 + 거래·신청 내역 + 자금 흐름 탭 박스 4개 + 입고·인출·계좌 개설 신청 창 + 매도 신청 창 + 상담 창·상단 종 알림·시연 설정
 export function AccountPage() {
   useDocumentTitle('Returns 내 계좌')
-  const { hash, pathname } = useLocation()
+  const { hash, pathname, search } = useLocation()
   const navigate = useNavigate()
   const shell = useAppShell()
   const { message: toast, showToast } = useToast()
@@ -65,15 +65,32 @@ export function AccountPage() {
   // 자금 흐름 탭에 들어왔을 때만 서버 값을 받아옴(실패하면 시연 데이터로 보임)
   const fundFlow = useFundFlow(RD.ACCOUNT_STATE === 'opened' && hash === '#flow')
 
-  // 끼루 AI 상담 창 — 내용은 AppLayout의 챗봇 버튼에 넘기고, 이 페이지를 떠나면 비움
-  const [bot, setBot] = useState<BotMessage[]>(() => [botGreeting()])
+  // 끼루 AI 상담 창 — AppLayout 공유 스트림 사용, 페이지 이동 시 대화 이력 유지
+  const stream = useStream()
+  const { messages: bot, busy, send, cancel, addMessages } = stream
+  const streamRef = useRef(stream)
+  streamRef.current = stream
+  const greetingAdded = useRef(false)
+  useEffect(() => {
+    if (!greetingAdded.current) {
+      greetingAdded.current = true
+      if (streamRef.current.messages.length === 0)
+        streamRef.current.addMessages([botGreeting()])
+    }
+  }, []) // intentional: mount only
   const chat = useMemo(
-    () => ({ simple: true, messages: bot, chips: BOT_CHIPS.map((label) => ({ label, onClick: () => setBot((b) => b.concat(botTurn(label))) })), onSend: () => {} }),
-    [bot]
+    () => ({
+      messages: bot,
+      busy,
+      chips: BOT_CHIPS.map((label) => ({ label, onClick: () => send(label) })),
+      onSend: send
+    }),
+    [bot, busy, send]
   )
   useEffect(() => {
     shell.setChat(chat)
   }, [shell, chat])
+  useEffect(() => () => { cancel() }, [cancel])
   useEffect(
     () => () => {
       shell.setChat(null)
@@ -165,6 +182,31 @@ export function AccountPage() {
       return () => clearTimeout(t)
     }
   }, [hash, opened])
+
+  // ?open=inbound|sell|withdrawal 파라미터로 해당 모달 열기 (끼루 챗봇 링크 연동)
+  useEffect(() => {
+    const params = new URLSearchParams(search)
+    const open = params.get('open')
+    if (open === 'inbound') {
+      setApplyKind('in')
+      navigate(pathname + hash, { replace: true })
+    } else if (open === 'withdrawal') {
+      setApplyKind('out')
+      navigate(pathname + hash, { replace: true })
+    } else if (open === 'sell') {
+      setSellOpen(true)
+      navigate(pathname + hash, { replace: true })
+    }
+  }, [search]) // pathname, hash, navigate는 안정적 — search 변경 시에만 실행
+
+  // #tax, #docs 해시로 해당 박스로 스크롤 (끼루 챗봇 링크 연동)
+  useEffect(() => {
+    if (hash === '#tax' || hash === '#docs') {
+      const selector = `[data-box="${hash.slice(1)}"]`
+      const el = document.querySelector(selector)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [hash])
 
   // 탭을 누르면 주소 끝(#flow)만 바꾸고 기록은 남기지 않음(원본의 replaceState)
   const setPage = (key: string) => {
