@@ -1,10 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { RETURNS_DATA as RD } from '../../data/returns'
+import { apiErrorMessage } from '../../api/client'
+import { setInvestorTypePublic } from '../../api/profile'
 import { Box } from '../common/Box'
-import { cx } from '../common/cx'
-import { NICK_MAX } from '../community/communityData'
-import { checkNick, type NickCheck } from '../community/communityNick'
 import { MyInfoPubDialog } from './MyInfoDialogs'
 import { MyInfoSwitch } from './MyInfoSwitch'
 import row from './MyInfoToggleRow.module.css'
@@ -13,43 +11,28 @@ import styles from './MyInfoCommunityBox.module.css'
 interface Props {
   className?: string
   onToast: (msg: string) => void
+  nickname: string // 서버 닉네임(페이지가 프로필을 받아 내려 줌). 받기 전 '-', 없으면 안내 문구
+  pub: boolean | undefined // 서버의 성향 공개 값(프로필을 받기 전엔 undefined)
 }
 
-const MSG: Record<NickCheck, string> = {
-  ok: '사용할 수 있어요',
-  dup: '이미 쓰고 있는 닉네임이에요',
-  bad: '2~10자, 한글·영문·숫자로 써 주세요'
-}
-
-// 커뮤니티 — 닉네임 바꾸기(커뮤니티 페이지와 같은 규칙) + 투자성향 공개 켜고 끄기
+// 커뮤니티 — 닉네임 보기(바꿀 수 없음) + 투자성향 공개 켜고 끄기
 // 원본은 이 화면 안에서만 값을 들고 있고(처음 값은 RD.COMMUNITY) 커뮤니티 화면과 공유하지 않음 — 그대로 따름.
-// TODO: 백엔드 연결 시 서버의 닉네임·성향 공개 저장·조회로 대체(그때 커뮤니티 화면과도 같은 값을 봄)
-export function MyInfoCommunityBox({ className, onToast }: Props) {
-  const [nick, setNick] = useState(RD.COMMUNITY.nickname || '리아')
-  const [edit, setEdit] = useState(false)
-  const [v, setV] = useState('')
-  const [res, setRes] = useState<NickCheck | null>(null)
-  const [pubOn, setPubOn] = useState(!!RD.COMMUNITY.profilePublic)
+// 닉네임·성향 공개는 서버 값(GET /api/customer/profile), 켜고 끄면 PUT /api/customer/profile/investor-type-public 로 저장한다
+export function MyInfoCommunityBox({ className, onToast, nickname, pub }: Props) {
+  const [saved, setSaved] = useState<boolean | null>(null) // 이 화면에서 저장한 값(없으면 서버 프로필 값)
+  const pubOn = saved ?? !!pub
+  const save = (value: boolean, okMsg: string) =>
+    setInvestorTypePublic(value)
+      .then(() => {
+        setSaved(value)
+        onToast(okMsg)
+      })
+      .catch((e) => onToast(apiErrorMessage(e, '저장하지 못했어요. 잠시 뒤 다시 해 주세요')))
   const [pd, setPd] = useState<{ agree: boolean } | null>(null)
-  const t = v.trim()
 
-  const check = () => setRes(checkNick(t))
-  const close = () => {
-    setEdit(false)
-    setV('')
-    setRes(null)
-  }
-  const save = () => {
-    if (res !== 'ok') return
-    setNick(t)
-    close()
-    onToast('닉네임을 바꿨어요')
-  }
   const togglePub = () => {
-    if (pubOn) {
-      setPubOn(false)
-      onToast('내 성향을 비공개로 바꿨어요')
-    } else setPd({ agree: false })
+    if (pubOn) void save(false, '내 성향을 비공개로 바꿨어요')
+    else setPd({ agree: false })
   }
 
   return (
@@ -57,34 +40,8 @@ export function MyInfoCommunityBox({ className, onToast }: Props) {
       <div className={styles.body}>
         <div className={styles.nickRow}>
           <span className={styles.label}>닉네임</span>
-          <span className={styles.nick}>{nick}</span>
-          {!edit && (
-            <button type="button" className={styles.edit} onClick={() => { setEdit(true); setV(nick); setRes(null) }}>
-              수정
-            </button>
-          )}
+          <span className={styles.nick}>{nickname}</span>
         </div>
-        {edit && (
-          <div className={styles.form}>
-            <div className={styles.inputs}>
-              <input
-                className={cx(styles.input, (res === 'dup' || res === 'bad') && styles.inputBad)}
-                value={v}
-                onChange={(e) => { setV(e.target.value.slice(0, NICK_MAX)); setRes(null) }}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (res === 'ok') save(); else check() } }}
-                maxLength={NICK_MAX}
-                placeholder="2~10자 · 한글·영문·숫자"
-                aria-label="닉네임"
-              />
-              <button type="button" className={styles.check} onClick={check}>중복 확인</button>
-              <button type="button" className={cx(styles.save, res === 'ok' && styles.saveOn)} disabled={res !== 'ok'} onClick={save}>저장</button>
-            </div>
-            <div className={styles.foot}>
-              {res && <span className={cx(styles.msg, res === 'ok' ? styles.msgOk : styles.msgBad)}>{MSG[res]}</span>}
-              <button type="button" className={styles.cancel} onClick={close}>취소</button>
-            </div>
-          </div>
-        )}
         <div className={styles.pubRow}>
           <span className={row.label}>
             <span id="pubLabel" className={row.name}>성향 공개</span>
@@ -101,8 +58,7 @@ export function MyInfoCommunityBox({ className, onToast }: Props) {
           onOk={() => {
             if (!pd.agree) return
             setPd(null)
-            setPubOn(true)
-            onToast('내 성향을 공개해요')
+            void save(true, '내 성향을 공개해요')
           }}
         />
       )}

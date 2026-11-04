@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import * as apiAuth from '../api/auth'
 import { syncAssessState } from '../api/investor'
 import type { MeData } from '../api/auth'
-import { clearLoginSession, setLoginSession } from '../components/login/loginSession'
+import { clearAssessHist, clearLoginSession, setLoginSession } from '../components/login/loginSession'
 import { AuthContext } from './authState'
 import type { AuthState } from './authState'
 
@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (loginId: string, password: string) => {
     const me = await apiAuth.login(loginId, password) // 실패 시 throw → 호출부에서 처리
+    clearAssessHist()
     setLoginSession({ name: me.name, expiresAt: me.expiresAt })
     setAuth({ status: 'authenticated', me })
   }, [])
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     // 클라이언트 세션 먼저 지우고 이동 (서버 실패해도 로그아웃은 완료)
     clearLoginSession()
+    clearAssessHist()
     setAuth({ status: 'unauthenticated' })
     try {
       await apiAuth.logout()
@@ -51,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 가입 API는 성공하면 서버가 바로 로그인 세션을 만든다. 로그인 폼을 거치지 않으므로 그 결과를 여기에 반영한다
   const applySession = useCallback((me: MeData) => {
+    clearAssessHist()
     setLoginSession({ name: me.name, expiresAt: me.expiresAt })
     setAuth({ status: 'authenticated', me })
   }, [])

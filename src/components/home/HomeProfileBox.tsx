@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import '../../styles/tokens.css'
+import type { ProfileAccount } from '../../api/profile'
 import { RETURNS_DATA as RD, demo } from '../../data/returns'
 import { F } from '../../lib/calc'
 import { Box } from '../common/Box'
@@ -8,12 +9,22 @@ import { Toast } from '../common/Toast'
 import { useToast } from '../common/useToast'
 import styles from './HomeProfileBox.module.css'
 
-// 프로필·계좌 박스. 계좌 상태(RD.ACCOUNT_STATE)와 진단 상태(demo().assess)는 원본 조건 그대로 따른다
-export function HomeProfileBox({ className }: { className?: string }) {
+const STATE_OF: Record<ProfileAccount['status'], 'opened' | 'reviewing' | 'rejected' | 'none'> = {
+  OPENED: 'opened',
+  APPLIED: 'reviewing',
+  REJECTED: 'rejected',
+  CLOSURE_REQUESTED: 'opened',
+  CLOSED: 'none'
+}
+
+// 프로필·계좌 박스. 이름·계좌는 서버 프로필 값(받기 전·실패하면 이름 '-', 계좌는 시연 설정의 목업). 진단 상태(demo().assess)는 원본 조건 그대로 따른다
+// 남은 매도 한도·진단일은 서버가 아직 안 줘서 목업
+export function HomeProfileBox({ className, name, account }: { className?: string; name: string | undefined; account: ProfileAccount | null | undefined }) {
   const { message: toast, showToast } = useToast()
   const biz = F.today()
   const profile = RD.PROFILES[RD.CUSTOMER.profile]
-  const acct = RD.ACCOUNT_STATE
+  const acct = account === undefined ? RD.ACCOUNT_STATE : account === null ? 'none' : STATE_OF[account.status]
+  const acctNo = account ? (account.accountNo.length > 6 ? account.accountNo.slice(0, 4) + '****' + account.accountNo.slice(-2) : account.accountNo) : RD.ACCOUNT.no
   const assess = demo().assess || 'ok'
   const pfLeft = F.days(biz, RD.ASSESSMENT.validUntil) // 진단 유효기간 남은 날
   const rem = F.remaining()
@@ -21,7 +32,7 @@ export function HomeProfileBox({ className }: { className?: string }) {
 
   const copyAcct = () => {
     try {
-      navigator.clipboard.writeText(RD.ACCOUNT.no)
+      navigator.clipboard.writeText(account?.accountNo ?? RD.ACCOUNT.no)
     } catch {
       // 클립보드를 못 쓰는 환경에서도 안내는 보여 준다(원본과 동일)
     }
@@ -35,7 +46,7 @@ export function HomeProfileBox({ className }: { className?: string }) {
           <img src={assetUrl(profile.img ?? '')} alt={profile.label + ' 끼루'} />
         </div>
         <div className={styles.info}>
-          <div className={styles.name}>{RD.CUSTOMER.name} 님</div>
+          <div className={styles.name}>{name ?? '-'} 님</div>
           <div className={styles.profName}>
             {assess === 'none' ? '미진단' : profile.label}
             {assess === 'expired' && <span className={styles.expired}>진단 만료</span>}
@@ -75,7 +86,7 @@ export function HomeProfileBox({ className }: { className?: string }) {
         <div className={styles.acct}>
           <div className={styles.acctRow}>
             <b className={styles.acctName}>{RD.ACCOUNT.name}</b>
-            <span className={styles.acctNo}>{RD.ACCOUNT.no}</span>
+            <span className={styles.acctNo}>{acctNo}</span>
             <button type="button" className={styles.copy} onClick={copyAcct} aria-label="계좌번호 복사">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="14" height="14" x="8" y="8" rx="2" />
@@ -106,7 +117,7 @@ export function HomeProfileBox({ className }: { className?: string }) {
 
       {acct === 'reviewing' && (
         <div className={styles.stateNote}>
-          <div className={styles.stateTitle}>계좌 개설 심사 중이에요 · 신청 {F.short(RD.ACCOUNT_STATES.reviewing.appliedAt ?? '')} · 보통 1~2영업일</div>
+          <div className={styles.stateTitle}>계좌 개설 심사 중이에요 · 신청 {F.short(account?.appliedAt.slice(0, 10) ?? RD.ACCOUNT_STATES.reviewing.appliedAt ?? '')} · 보통 1~2영업일</div>
           <div className={styles.linkRow}>
             <Link to="/account">신청 내용 보기 ›</Link>
           </div>
