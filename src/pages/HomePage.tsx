@@ -77,8 +77,8 @@ export function HomePage() {
   useEffect(() => () => { cancel() }, [cancel])
 
   const chat = useMemo(
-    () => ({ messages: bot, chips: BOT_CHIPS.map((label) => ({ label, onClick: () => ask(label) })), onSend: ask }),
-    [bot, ask]
+    () => ({ messages: bot, busy, chips: BOT_CHIPS.map((label) => ({ label, onClick: () => ask(label) })), onSend: ask }),
+    [bot, busy, ask]
   )
   useEffect(() => {
     shell.setChat(chat)
