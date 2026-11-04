@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
+import { useChatStream, StreamContext } from '../api/useChatStream'
 import { ChatbotFab } from '../components/common/ChatbotFab'
 import type { BotChat } from '../components/common/ChatbotFab'
 import { SiteFooter } from '../components/common/SiteFooter'
@@ -44,9 +45,12 @@ export function AppLayout() {
     setBotActive(active)
     setBotOpen(false)
   }
+  // 모든 페이지가 공유하는 끼루 스트림 — 페이지 이동 시 대화 이력 유지
+  const stream = useChatStream()
   const shell = useMemo<AppShellApi>(() => ({ setTopBar, setChat, setBotOpen }), [])
 
   return (
+    <StreamContext.Provider value={stream}>
     <div className={styles.shell}>
       {/* 원본은 다섯 화면 모두 검색창 없음 + 사용자 메뉴는 '내 정보'만 */}
       <TopBar active={active} noSearch simpleUserMenu {...topBar} />
@@ -67,5 +71,6 @@ export function AppLayout() {
         {bot.text}
       </ChatbotFab>
     </div>
+    </StreamContext.Provider>
   )
 }
