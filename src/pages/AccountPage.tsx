@@ -21,6 +21,7 @@ import { AccountSummaryBox } from '../components/account/AccountSummaryBox'
 import { FOOT_FLOW, FOOT_STATUS, PAGE_TABS } from '../components/account/accountData'
 import type { PageKey } from '../components/account/accountData'
 import type { AddedIn, AddedOut, ApplyKind } from '../components/account/accountApplyData'
+import type { SubmittedInboundResult } from '../components/account/ApplyModal'
 import { moreTitle } from '../components/account/accountSellData'
 import type { AddedSell, AddedSettle } from '../components/account/accountSellData'
 import { isHistTab } from '../components/account/accountHistData'
@@ -120,9 +121,18 @@ export function AccountPage() {
   const [addedSettle, setAddedSettle] = useState<AddedSettle[]>([])
   const [issued, setIssued] = useState<IssueRecord[]>([])
   // 발급 기록은 서버 기록(서버는 같은 종류를 한 번만 발급해 같은 서류가 두 줄이 되지 않는다)
-  const loadIssued = () => listDocuments().then((list) => setIssued(issuedRecords(list))).catch(() => {})
+  const issuedReq = useRef(0)
+  const loadIssued = () => {
+    const req = ++issuedReq.current
+    return listDocuments()
+      .then((list) => req === issuedReq.current && setIssued(issuedRecords(list)))
+      .catch(() => {})
+  }
   useEffect(() => {
     void loadIssued()
+    return () => {
+      issuedReq.current = -1 // 화면을 떠나면 늦게 온 응답을 버린다
+    }
   }, [])
 
   // 거래·신청 내역 탭 — 주소 끝(#deposits 등)이 탭 이름이면 그 탭을 연다(원본 onHash). 자금 흐름 화면에 다녀와도 유지
@@ -301,9 +311,12 @@ export function AccountPage() {
           kind={applyKind}
           onClose={() => setApplyKind(null)}
           onGoHist={goHist}
-          onSubmitIn={(rows) => {
-            setAddedIn((prev) => [...rows, ...prev])
-            addAlert('입고 신청 · ' + moreTitle(rows), 'deposits')
+          onSubmitIn={(results: SubmittedInboundResult[]) => {
+            const rows: AddedIn[] = results
+              .filter((r) => r.status === 'ok')
+              .map((r) => ({ t: r.ticker, req: r.requestedQty ?? r.approvedQty ?? 0, base: r.approvedQty ?? 0, now: r.approvedQty ?? 0 }))
+            if (rows.length > 0) setAddedIn((prev) => [...rows, ...prev])
+            addAlert('입고 신청 · ' + moreTitle(results.map((r) => ({ t: r.ticker }))), 'deposits')
           }}
           onSubmitOut={(amt) => {
             setAddedOut((prev) => [{ amt }, ...prev])
