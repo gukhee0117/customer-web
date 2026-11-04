@@ -14,13 +14,13 @@ export function botAnswer(q: string): string {
   const biz = C.BUSINESS_DATE
   const wd = RD.WITHDRAW.availableDate
   if (/인출/.test(q)) {
-    return F.dot(RD.WITHDRAW.paidDate) + ' 납입분 ' + F.man(RD.WITHDRAW.paidIn) + ' 원은 ' + F.dot(wd) + '부터 인출할 수 있어요(D-' + F.withdrawDday(biz) + '). 지금은 수익 초과분 ' + F.won(F.withdrawableNow()) + '원만 인출할 수 있어요.'
+    return F.dot(RD.WITHDRAW.paidDate) + ' 납입분 ' + F.man(RD.WITHDRAW.paidIn) + ' 원은 ' + F.dot(wd) + '부터 인출할 수 있어요(D-' + F.withdrawDday(biz) + '). 지금은 수익 초과분 ' + F.won(F.withdrawableNow()) + '원만 인출할 수 있어요.[내 계좌 › 인출 신청](/account?open=withdrawal)'
   }
   if (/한도/.test(q)) {
-    return '전 증권사 합산 ' + F.man(C.SELL_LIMIT) + ' 원 중 ' + F.man(C.SOLD.amount) + ' 원을 매도해서 남은 매도 한도는 ' + F.man(F.remaining()) + ' 원이에요.'
+    return '전 증권사 합산 ' + F.man(C.SELL_LIMIT) + ' 원 중 ' + F.man(C.SOLD.amount) + ' 원을 매도해서 남은 매도 한도는 ' + F.man(F.remaining()) + ' 원이에요.[내 계좌 › 매도 신청](/account?open=sell)'
   }
   const t0 = F.tax(0, biz, currentAdj())
-  return '예상 감면액은 ' + F.won(t0.cut) + '원이에요. 최종 납부 예상 세액은 ' + F.won(t0.ria) + '원이에요.'
+  return '예상 감면액은 ' + F.won(t0.cut) + '원이에요. 최종 납부 예상 세액은 ' + F.won(t0.ria) + '원이에요.[내 계좌 › 세액예상](/account#tax)'
 }
 
 export const botTurn = (q: string): BotMessage[] => [{ me: true, text: q }, { kk: true, text: botAnswer(q) }]
