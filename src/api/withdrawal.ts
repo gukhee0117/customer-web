@@ -22,6 +22,7 @@ export interface WithdrawalAvailability {
   cashAmount: number
   provisionalAmount: number
   requestableAmount: number
+  earningsAmount: number
   withdrawableWithoutPenalty: number
   immaturePrincipalAmount: number
   asOf: string

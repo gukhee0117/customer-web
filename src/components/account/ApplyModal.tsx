@@ -292,8 +292,7 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
   // ---- 인출 계산 ----
   const oAmt = parseInt0(outAmt)
   const avail = availability
-  const totalPrincipal = avail ? avail.leftAmounts.reduce((s, la) => s + la.curAmount, 0) : 0
-  const earnings = avail ? Math.max(0, avail.requestableAmount - totalPrincipal) : 0
+  const earnings = avail ? avail.earningsAmount : 0
   const maturedPrincipal = avail
     ? avail.leftAmounts.filter((la) => la.matured).reduce((s, la) => s + la.curAmount, 0)
     : 0
