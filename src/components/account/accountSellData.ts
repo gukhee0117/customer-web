@@ -61,33 +61,34 @@ export interface SellSum {
   foreign: string
 }
 
-export function sellSum(rows: SellRowView[]): SellSum {
+// limit: 서버 남은 매도 한도(원). 못 받았으면 null — 한도 안내만 비우고 합계는 그대로 계산한다
+export function sellSum(rows: SellRowView[], limit: number | null): SellSum {
   const C = RD.C
   const biz = C.BUSINESS_DATE
-  const limit = F.remaining()
+  const cap = limit ?? 0
   const bRate = F.band(biz).rate
   const bEnd = F.bandEnd(biz)
   const tb = F.tax(0, biz)
   const total = rows.reduce((a, r) => a + r.amtN, 0)
   const gain = rows.reduce((a, r) => a + r.gain, 0)
-  const over = Math.max(0, total - limit)
-  const ded = Math.round(gain * (total ? Math.min(1, limit / total) : 0) * bRate)
+  const over = limit == null ? 0 : Math.max(0, total - cap)
+  const ded = Math.round(gain * (total ? Math.min(1, cap / total) : 0) * bRate)
   const g = C.SOLD.gain + gain
   const save =
     Math.round(Math.max(0, g - C.BASIC_DEDUCTION) * C.TAX_RATE) - Math.round(Math.max(0, g - C.BASIC_DEDUCTION - tb.ded - ded) * C.TAX_RATE) - tb.cut
-  const scale = Math.max(total, limit) || 1
+  const scale = Math.max(total, cap) || 1
   return {
     total,
     totalTxt: F.won(total),
-    left: F.won(Math.max(0, limit - total)),
+    left: limit == null ? '-' : F.won(Math.max(0, cap - total)),
     gain: F.won(gain),
     ded: F.won(ded),
     save: F.won(Math.max(0, save)),
     over: over > 0,
     overMsg: '한도를 ' + manW(over) + ' 넘었어요. 넘은 금액은 일반 해외주식처럼 과세돼요',
-    navyW: ((Math.min(total, limit) / scale) * 100).toFixed(2) + '%',
+    navyW: ((Math.min(total, cap) / scale) * 100).toFixed(2) + '%',
     redW: ((over / scale) * 100).toFixed(2) + '%',
-    head: '남은 한도 ' + F.man(limit) + ' 원 · 지금 ' + Math.round(bRate * 100) + '% 구간 · ' + +bEnd.slice(5, 7) + '/' + +bEnd.slice(8) + ' 마감(D-' + F.days(biz, bEnd) + ')',
+    head: (limit == null ? '남은 한도를 확인할 수 없어요' : '남은 한도 ' + F.man(limit) + ' 원') + ' · 지금 ' + Math.round(bRate * 100) + '% 구간 · ' + +bEnd.slice(5, 7) + '/' + +bEnd.slice(8) + ' 마감(D-' + F.days(biz, bEnd) + ')',
     foreign: F.won(RD.ASSETS.foreignHeld)
   }
 }

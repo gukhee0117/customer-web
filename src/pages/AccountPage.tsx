@@ -37,6 +37,8 @@ import type { DemoSettings } from '../data/returns'
 import { useAppShell } from '../layouts/appShell'
 import { F } from '../lib/calc'
 import { useFundFlow } from '../components/account/useFundFlow'
+import { useSellGuide } from '../components/account/useSellGuide'
+import { useSellLimit } from '../components/account/useSellLimit'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
 
 // 자금 흐름 탭에서 서버 값이 아닌 데이터를 보여줄 때의 안내 문구
@@ -63,6 +65,8 @@ export function AccountPage() {
 
   const [calcOpen, setCalcOpen] = useState(false)
   // 자금 흐름 탭에 들어왔을 때만 서버 값을 받아옴(실패하면 시연 데이터로 보임)
+  const { state: sellLimit, retry: retrySellLimit } = useSellLimit()
+  const { state: sellGuide, retry: retrySellGuide } = useSellGuide()
   const fundFlow = useFundFlow(RD.ACCOUNT_STATE === 'opened' && hash === '#flow')
 
   // 끼루 AI 상담 창 — 내용은 AppLayout의 챗봇 버튼에 넘기고, 이 페이지를 떠나면 비움
@@ -273,8 +277,8 @@ export function AccountPage() {
         <div className={styles.status}>
           <div className={styles.colLeft}>
             <AccountSummaryBox className={styles.summary} onCopy={copyAcct} onApply={(k) => (k === 'sell' ? openSell() : openApply(k))} />
-            <AccountLimitBox className={styles.limit} onApply={openSell} />
-            <AccountTaxBox className={styles.tax} onOpenCalc={openCalc} />
+            <AccountLimitBox className={styles.limit} onApply={openSell} limit={sellLimit} onRetryLimit={retrySellLimit} />
+            <AccountTaxBox className={styles.tax} onOpenCalc={openCalc} guide={sellGuide} onRetryGuide={retrySellGuide} />
             <AccountHoldBox className={styles.hold} onHistory={goWithdraw} />
             <AccountDocsBox className={styles.docs} issued={issued} onIssue={issue} onReissue={reissue} />
           </div>
@@ -327,6 +331,7 @@ export function AccountPage() {
       )}
       {sellOpen && (
         <SellModal
+          remainingLimit={sellLimit.status === 'live' ? sellLimit.data.remainingLimit : null}
           onClose={() => setSellOpen(false)}
           onGoHist={() => goHist('sells')}
           onSubmit={(sells, settle) => {

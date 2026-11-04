@@ -21,7 +21,7 @@ const STATUS_LABEL: Record<ProfileAccount['status'], string> = {
   CLOSURE_REQUESTED: '해지 신청',
   CLOSED: '해지'
 }
-const maskNo = (no: string) => (no.length > 6 ? no.slice(0, 4) + '****' + no.slice(-2) : no)
+const maskNo = (no: string | null) => (no == null ? '-' : no.length > 6 ? no.slice(0, 4) + '****' + no.slice(-2) : no)
 
 // 계좌 — 서버 프로필의 account 값. 계좌 없음이면 개설 안내만. 연결 일반계좌는 서버가 아직 안 줘서 목업
 export function MyInfoAccountBox({ className, onToast, account, loaded }: Props) {

@@ -53,7 +53,8 @@ export interface HomeTodo extends TopBarTodo {
   level: 'warn' | 'caution' | 'info'
 }
 
-export function homeTodos(onToast: (msg: string) => void): HomeTodo[] {
+// remainingLimit: 서버 남은 매도 한도(원). 못 받았으면 null → 그 안내는 뺀다
+export function homeTodos(onToast: (msg: string) => void, remainingLimit: number | null): HomeTodo[] {
   const C = RD.C, biz = F.today(), be = F.bandEnd(biz), dl = F.days(biz, be)
   const bandPct = Math.round(F.band(biz).rate * 100) + '%', urgent = dl <= C.URGENT_DAYS
   const wd = F.addYears(C.SOLD.date, C.HOLD_YEARS)
@@ -65,7 +66,7 @@ export function homeTodos(onToast: (msg: string) => void): HomeTodo[] {
     l === 'warn' ? ['경고', URGENT_TAG] : l === 'caution' ? ['주의', 'var(--color-orange)'] : ['안내', undefined]
   const rows: Omit<HomeTodo, 'tag' | 'tagColor'>[] = [
     { level: urgent ? 'warn' : 'caution', title: urgent ? '마감까지 ' + dl + '일' : bandPct + ' 구간 마감까지 ' + dl + '일', desc: kdate(be) + '까지 매도한 분에 공제율 ' + bandPct + '가 적용돼요', link: '매도 ›', to: '#', onClick: go('매도 화면으로 이동해요') },
-    { level: 'info', title: '남은 매도 한도 ' + F.man(F.remaining()) + ' 원', desc: '전 증권사 합산 기준이에요', link: '내 계좌 ›', to: '/account' },
+    ...(remainingLimit == null ? [] : [{ level: 'info' as const, title: '남은 매도 한도 ' + F.man(remainingLimit) + ' 원', desc: '전 증권사 합산 기준이에요', link: '내 계좌 ›', to: '/account' }]),
     { level: 'info', title: kdate(C.SOLD.date) + ' 정산분 ' + F.man(C.SOLD.amount) + ' 원', desc: kdate(wd, true) + '부터 인출할 수 있어요', link: '자금 환류 ›', to: '#', onClick: go('자금 환류 화면으로 이동해요') }
   ]
   return rows.map((t) => {

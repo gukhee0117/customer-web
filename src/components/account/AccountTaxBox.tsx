@@ -1,15 +1,19 @@
 import '../../styles/tokens.css'
+import { F } from '../../lib/calc'
 import { Box } from '../common/Box'
 import { taxValues } from './accountTaxData'
+import type { SellGuideState } from './useSellGuide'
 import styles from './AccountTaxBox.module.css'
 
 interface AccountTaxBoxProps {
   className?: string
   onOpenCalc: () => void
+  guide: SellGuideState // 서버 매도 가이드("남은 한도까지 팔면 감면" 한 줄만 이 값을 쓴다)
+  onRetryGuide: () => void
 }
 
 // 세액 박스(data-box="tax") — 예상 감면액·RIA가 없었다면·최종 납부 예상 세액. 혜택 취소·조정비율 문구는 상태에 따라
-export function AccountTaxBox({ className, onOpenCalc }: AccountTaxBoxProps) {
+export function AccountTaxBox({ className, onOpenCalc, guide, onRetryGuide }: AccountTaxBoxProps) {
   const t = taxValues()
 
   return (
@@ -44,8 +48,19 @@ export function AccountTaxBox({ className, onOpenCalc }: AccountTaxBoxProps) {
         </div>
         <div className={styles.row}>
           <span className={styles.key}>남은 한도까지 팔면 감면</span>
-          <span className={styles.val}>₩{t.guide}</span>
+          <span className={styles.val}>
+            {guide.status === 'loading' && '계산 중…'}
+            {guide.status === 'none' && '한도 없음'}
+            {guide.status === 'error' && (
+              <>
+                불러오지 못했어요{' '}
+                <button type="button" className={styles.link} onClick={onRetryGuide}>다시 시도</button>
+              </>
+            )}
+            {guide.status === 'live' && (guide.data.summary ? '₩' + F.won(guide.data.summary.estimatedReliefEffect) : '추천할 종목이 없어요')}
+          </span>
         </div>
+        {guide.status === 'live' && !guide.data.summary && guide.data.warnings.length > 0 && <div className={styles.adj}>{guide.data.warnings.join(' · ')}</div>}
         {t.adjOn && <div className={styles.adj}>{t.adjMsg}</div>}
       </div>
     </Box>

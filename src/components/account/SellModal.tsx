@@ -29,6 +29,7 @@ import type { AddedSell, AddedSettle } from './accountSellData'
 import styles from './SellModal.module.css'
 
 interface SellModalProps {
+  remainingLimit: number | null // 서버 남은 매도 한도(원). 못 받았으면 null
   onClose: () => void
   onGoHist: () => void // 완료 화면의 '내역 보기' → 매도 내역 탭
   onSubmit: (sells: AddedSell[], settle: AddedSettle) => void
@@ -58,7 +59,7 @@ function CheckIcon({ size }: { size: number }) {
 }
 
 // 매도 신청 창(원본 modal sell) — 열릴 때마다 처음 상태로 시작(부모에서 열 때 새로 그림)
-export function SellModal({ onClose, onGoHist, onSubmit }: SellModalProps) {
+export function SellModal({ remainingLimit, onClose, onGoHist, onSubmit }: SellModalProps) {
   const [step, setStep] = useState(0)
   const [sellQ, setSellQ] = useState<Record<string, number>>({})
   const [agree, setAgree] = useState(false)
@@ -71,7 +72,7 @@ export function SellModal({ onClose, onGoHist, onSubmit }: SellModalProps) {
 
   const rows = sellRowsView(sellQ)
   const picked = rows.filter((r) => r.on)
-  const sum = sellSum(rows)
+  const sum = sellSum(rows, remainingLimit)
   const plan = planView(kkEx)
   const nextOn = step === 0 ? sum.total > 0 : step === 1 ? agree : true
 
