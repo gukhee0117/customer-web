@@ -121,9 +121,18 @@ export function AccountPage() {
   const [addedSettle, setAddedSettle] = useState<AddedSettle[]>([])
   const [issued, setIssued] = useState<IssueRecord[]>([])
   // 발급 기록은 서버 기록(서버는 같은 종류를 한 번만 발급해 같은 서류가 두 줄이 되지 않는다)
-  const loadIssued = () => listDocuments().then((list) => setIssued(issuedRecords(list))).catch(() => {})
+  const issuedReq = useRef(0)
+  const loadIssued = () => {
+    const req = ++issuedReq.current
+    return listDocuments()
+      .then((list) => req === issuedReq.current && setIssued(issuedRecords(list)))
+      .catch(() => {})
+  }
   useEffect(() => {
     void loadIssued()
+    return () => {
+      issuedReq.current = -1 // 화면을 떠나면 늦게 온 응답을 버린다
+    }
   }, [])
 
   // 거래·신청 내역 탭 — 주소 끝(#deposits 등)이 탭 이름이면 그 탭을 연다(원본 onHash). 자금 흐름 화면에 다녀와도 유지

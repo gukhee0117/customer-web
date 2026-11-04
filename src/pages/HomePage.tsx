@@ -19,6 +19,8 @@ import { RETURNS_DATA as RD, demo } from '../data/returns'
 import type { DemoSettings } from '../data/returns'
 import { useAppShell } from '../layouts/appShell'
 import { F } from '../lib/calc'
+import { getProfile } from '../api/profile'
+import type { Profile } from '../api/profile'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
 
 
@@ -33,6 +35,10 @@ export function HomePage() {
   const [bot, setBot] = useState<HomeBotMsg[]>(() => [botGreeting()])
   const [aClosed, setAClosed] = useState<string | null>(null)
   const [welcome, setWelcome] = useState(hash === '#new')
+  const [prof, setProf] = useState<Profile | null>(null) // 서버 프로필(이름·계좌). 못 받으면 null → 이름 '-'·계좌는 목업
+  useEffect(() => {
+    getProfile().then(setProf).catch(() => {})
+  }, [])
 
   const assess = demo().assess || 'ok'
   const profLabel = RD.PROFILES[RD.CUSTOMER.profile].label
@@ -95,7 +101,7 @@ export function HomePage() {
     <>
       {welcome && (
         <div className={styles.welcome} role="status">
-          {RD.CUSTOMER.name} 님, 가입을 환영해요
+          {prof?.name ?? '-'} 님, 가입을 환영해요
         </div>
       )}
       <div className={styles.page}>
@@ -107,7 +113,7 @@ export function HomePage() {
           </div>
         </div>
         <div className={styles.colSide}>
-          <HomeProfileBox className={styles.prof} />
+          <HomeProfileBox className={styles.prof} name={prof?.name} account={prof?.account} />
           <HomeBriefBox className={styles.tax} />
           <HomeChatBox className={styles.chat} />
         </div>

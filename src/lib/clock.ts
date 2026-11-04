@@ -1,4 +1,5 @@
 import { apiClient } from '../api/client'
+import type { ApiResponse } from '../api/client'
 import { MOCK_BUSINESS_TODAY } from '../data/businessDate'
 
 // 서버 업무일 — 관리자가 옮길 수 있는 업무시계의 날짜. 받기 전이거나 서버가 꺼져 있으면 목업 값을 쓴다
@@ -10,7 +11,7 @@ export const getBusinessToday = (): string => serverToday ?? MOCK_BUSINESS_TODAY
 // 서버 업무일을 받아 둔다. 실패하면 이전 값을 그대로 둔다. 화면에 쓰이던 날짜와 달라졌으면 true
 export async function syncBusinessToday(): Promise<boolean> {
   try {
-    const res = await apiClient.get<{ data: string }>('/api/customer/business-date', { timeout: 2000 })
+    const res = await apiClient.get<ApiResponse<string>>('/api/customer/business-date', { timeout: 2000 })
     const today = res.data.data
     if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) return false
     const changed = getBusinessToday() !== today // 화면에 실제로 쓰이던 값과 비교(첫 호출이 실패해 목업을 쓰던 경우 포함)
