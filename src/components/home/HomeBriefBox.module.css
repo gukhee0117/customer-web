@@ -361,7 +361,18 @@
   overflow-wrap: anywhere;
   font-variant-numeric: tabular-nums;
 }
-.reliefLabel { color: var(--color-gold-dark); }
+.reliefLabel {
+  left: 33%;
+  width: 34%;
+  bottom: 4%;
+  text-align: center;
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-gold-dark);
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
 .zeroTax {
   text-align: center;
   font-size: var(--font-size-12);

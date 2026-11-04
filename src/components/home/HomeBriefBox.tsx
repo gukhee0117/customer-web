@@ -257,7 +257,7 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
           <>
             <div className={styles.chartLabels}>
               <div><div className={styles.barCaption}>일반 과세 세액</div>{formatWon(scenario.generalTax)}</div>
-              <div className={styles.reliefLabel}><div className={styles.barCaption}>감면액</div>{formatWon(scenario.reliefAmount)}</div>
+              <div aria-hidden="true" />
               <div><div className={styles.barCaption}>RIA 세액</div>{formatWon(scenario.riaTax)}</div>
             </div>
             {scenario.generalTax === 0 && scenario.riaTax === 0 && (
@@ -266,6 +266,7 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
             <div className={styles.plot}>
               <div className={styles.barGeneral} style={{ height: generalHeight }} />
               <div className={styles.barRia} style={{ height: riaHeight }} />
+              <div className={styles.reliefLabel}><div className={styles.barCaption}>감면액</div>{formatWon(scenario.reliefAmount)}</div>
             </div>
             <div className={styles.axis}>
               <span className={styles.axisGeneral}>일반 과세</span>
