@@ -157,16 +157,16 @@ export function InvestPkgDetail({ className, pkg, risk, onRecheck, onBuy, onAdd,
           <span className={styles.k}>평가금액</span>
           <span className={styles.valRow}>
             <b className={styles.val}>₩{F.won(pkg.val)}</b>
-            <span className={styles.cost}>원금 ₩{F.won(pkg.cost)}</span>
+            <span className={styles.cost}>{pkg.unpriced > 0 ? '현재가 없는 ' + pkg.unpriced + '종목 제외' : '원금 ₩' + F.won(pkg.cost)}</span>
           </span>
         </div>
         <div className={cx(styles.sum, styles.sumLeft)}>
           <span className={styles.k}>평가손익</span>
-          <b className={cx(styles.v, styles[toneOf(pkg.pnl)])}>{signedWon(pkg.pnl)}</b>
+          <b className={cx(styles.v, pkg.unpriced === 0 && styles[toneOf(pkg.pnl)])}>{pkg.unpriced > 0 ? '-' : signedWon(pkg.pnl)}</b>
         </div>
         <div className={cx(styles.sum, styles.sumRet)}>
           <span className={styles.k}>수익률</span>
-          <b className={cx(styles.v, styles[toneOf(pkg.pnl)])}>{F.pct(pkg.ret)}</b>
+          <b className={cx(styles.v, pkg.unpriced === 0 && styles[toneOf(pkg.pnl)])}>{pkg.unpriced > 0 ? '-' : F.pct(pkg.ret)}</b>
         </div>
         <div className={cx(styles.sum, styles.sumLeft, styles.sumToday)}>
           <span className={styles.k}>오늘 손익</span>
@@ -176,7 +176,7 @@ export function InvestPkgDetail({ className, pkg, risk, onRecheck, onBuy, onAdd,
         </div>
       </div>
 
-      {pkg.unpriced > 0 && <div className={styles.unpriced}>현재가를 받지 못한 보유 종목이 {pkg.unpriced}개 있어요. 그 종목은 평가금액과 손익에 들어가지 않았어요.</div>}
+      {pkg.unpriced > 0 && <div className={styles.unpriced}>현재가를 받지 못한 보유 종목이 {pkg.unpriced}개 있어요. 그 종목은 평가금액에 들어가지 않았고, 평가손익과 수익률은 확인할 수 없어요.</div>}
 
       <div className={styles.risk}>
         {noItems && <div className={styles.empty}>담은 종목이 없어요</div>}
