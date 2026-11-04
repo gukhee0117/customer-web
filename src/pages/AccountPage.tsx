@@ -27,7 +27,7 @@ import type { AddedSell, AddedSettle } from '../components/account/accountSellDa
 import { isHistTab } from '../components/account/accountHistData'
 import type { HistTab } from '../components/account/accountHistData'
 import styles from '../components/account/AccountLayout.module.css'
-import { FlowAllocBox, FlowCutBox, FlowMonthlyBox, FlowStepsBox } from '../components/account/AccountFlowBoxes'
+import { FlowAllocBox, FlowCutBox, FlowMainColumn, FlowStepsBox } from '../components/account/AccountFlowBoxes'
 import { useStream } from '../api/useChatStream'
 import { Tabs } from '../components/common/Tabs'
 import { Toast } from '../components/common/Toast'
@@ -338,7 +338,7 @@ export function AccountPage() {
           )}
           <FlowStepsBox live={fundFlow} />
           <div className={styles.flowGrid}>
-            <FlowMonthlyBox monthly={fundFlow.monthly} />
+            <FlowMainColumn live={fundFlow} />
             <div className={styles.flowSide}>
               <FlowAllocBox allocation={fundFlow.allocation} />
               <FlowCutBox summary={fundFlow.summary} relief={fundFlow.relief} />

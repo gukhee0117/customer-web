@@ -1,145 +1,286 @@
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
 import '../../styles/tokens.css'
-import type { FundFlowAllocation, FundFlowMonthly, FundFlowRelief, FundFlowSummary } from '../../api/fundFlow'
+import type { FundFlowAllocation, FundFlowRelief, FundFlowSummary } from '../../api/fundFlow'
 import { Box } from '../common/Box'
 import { cx } from '../common/cx'
-import { MONTH_SERIES, allocValues, cutVsInvest, flowSteps, monthlyFlow } from './accountFlowData'
-import type { FlowLive } from './accountFlowData'
+import { compositionView, cutVsInvest, scheduleView, summaryCard, transactionGroups } from './accountFlowData'
+import type { FlowLive, TxMonth } from './accountFlowData'
+import { useWithdrawSchedule } from './useWithdrawSchedule'
 import styles from './AccountFlowBoxes.module.css'
 
 const toneClass = (t: 'up' | 'down' | 'flat') => (t === 'up' ? styles.up : t === 'down' ? styles.down : styles.flat)
 
-// 돌아온 돈의 흐름(data-box="flow") — 다섯 단계와 화살표, 주문 가능 예수금 계산식
+// 돌아온 돈 요약(data-box="flow") — "지금 N%가 국내 주식에서 일하고 있어요", 100% 막대, 접히는 계산 설명
 export function FlowStepsBox({ className, live }: { className?: string; live?: FlowLive }) {
-  const { steps, cash, formula, headline } = flowSteps(live)
+  const v = summaryCard(live)
+  const [open, setOpen] = useState(false)
   return (
-    <Box data-box="flow" className={className} title="돌아온 돈의 흐름">
-      <div className={styles.scroll}>
-        <div className={styles.steps}>
-          {steps.map((f, i) => (
-            <Fragment key={f.name}>
-              <div className={styles.step}>
-                <span className={styles.stepName}>{f.name}</span>
-                <b className={styles.stepAmt}>{f.amt}</b>
-                <span className={cx(styles.stepNote, toneClass(f.noteTone))}>{f.note}</span>
-              </div>
-              {i < steps.length - 1 && <span className={styles.arrow}>→</span>}
-            </Fragment>
+    <Box data-box="flow" className={className} title="돌아온 돈 요약" actions={<span className={styles.basis}>{v.basis}</span>}>
+      <div className={styles.sum}>
+        <p className={styles.sumHead}>
+          지금 <b className={styles.sumPct}>{v.pct}%</b>가 국내 주식에서 일하고 있어요
+        </p>
+        <div className={styles.stack} role="img" aria-label={'자금 구성: ' + v.segs.map((x) => x.label + ' ' + x.pct).join(', ')}>
+          {v.segs.map((x) => (
+            <span key={x.key} className={styles.stackSeg} style={{ flexGrow: x.grow, background: x.color }} />
           ))}
         </div>
+        <ul className={styles.legend}>
+          {v.segs.map((x) => (
+            <li key={x.key} className={styles.legendItem}>
+              <span className={styles.swatchSm} style={{ background: x.color }} />
+              <span>{x.label}</span>
+              <b className={styles.legendAmt}>₩{x.amt}</b>
+              <span className={styles.flat}>{x.pct}</span>
+            </li>
+          ))}
+        </ul>
+        {v.investedNone && <div className={styles.convHint}>예수금 ₩{v.cash}이 아직 국내에 투자되지 않았어요</div>}
       </div>
-      {headline && (
-        <div className={styles.formula}>
-          <b className={styles.bold}>{headline}</b>
+      <button type="button" className={styles.fold} aria-expanded={open} aria-controls="flow-calc" onClick={() => setOpen((x) => !x)}>
+        계산 자세히 보기 <span aria-hidden="true">{open ? '▴' : '▾'}</span>
+      </button>
+      {open && (
+        <div id="flow-calc">
+          <div className={styles.scroll}>
+            <div className={styles.steps}>
+              {v.steps.map((f, i) => (
+                <Fragment key={f.name}>
+                  <div className={styles.step}>
+                    <span className={styles.stepName}>{f.name}</span>
+                    <b className={styles.stepAmt}>{f.amt}</b>
+                    <span className={cx(styles.stepNote, toneClass(f.noteTone))}>{f.note}</span>
+                  </div>
+                  {i < v.steps.length - 1 && <span className={styles.arrow}>→</span>}
+                </Fragment>
+              ))}
+            </div>
+          </div>
+          {/* 서버 값은 account.amount(계좌 예수금)이라 주문 가능 금액을 보장하지 않는다. 시연 데이터만 원래 문구 유지 */}
+          <div className={styles.formula}>
+            {v.cashLabel} <b className={styles.bold}>₩{v.cash}</b> <span className={styles.formulaTxt}>= {v.cashFormula}</span>
+          </div>
+          <div className={styles.formula}>
+            국내 주식에서 일하는 비율 <b className={styles.bold}>{v.pct}%</b> <span className={styles.formulaTxt}>= {v.formula}</span>
+          </div>
         </div>
       )}
-      <div className={styles.formula}>
-        {/* 서버 값은 account.amount(계좌 예수금)이라 주문 가능 금액을 보장하지 않는다. 시연 데이터만 원래 문구 유지 */}
-        {live?.summary ? '계좌 예수금' : '주문 가능 예수금'} <b className={styles.bold}>₩{cash}</b> <span className={styles.formulaTxt}>= {formula}</span>
-      </div>
     </Box>
   )
 }
 
-// 월별 흐름(data-box="monthly") — 위 막대 그래프, 아래 월별 표
-export function FlowMonthlyBox({ className, monthly }: { className?: string; monthly?: FundFlowMonthly | null }) {
-  const months = monthlyFlow(monthly)
-  const cols = cx(styles.row, styles.tableCols)
-  // 월 수만큼 칸을 나눈다(시연 데이터는 2개월, 서버 값은 3월~현재월)
-  const colTemplate = { gridTemplateColumns: 'repeat(' + months.length + ', minmax(0, 1fr))' }
-  const legend = (
-    <div className={styles.legend}>
-      {MONTH_SERIES.map((g) => (
-        <span key={g.key} className={styles.legendItem}>
-          <span className={styles.swatch} style={{ background: g.color }} />
-          {g.label}
-        </span>
-      ))}
-    </div>
-  )
-  // 서버가 월별을 빈 배열로 준 경우(실제 데이터) — 시연 데이터로 바꾸지 않고 빈 상태를 그린다
-  if (months.length === 0) {
-    return (
-      <Box data-box="monthly" className={className} title="월별 흐름" actions={legend}>
-        <p className={styles.empty}>아직 집계된 월별 자금 흐름이 없어요. 거래가 쌓이면 여기에 보여드려요.</p>
-      </Box>
-    )
-  }
+// 인출 가능 일정(data-box="schedule") — 숫자 3칸 + 납입일별 1년 타임라인(간트)
+const SCHEDULE_FIRST = 5
+const SCHEDULE_MAX = 6 // 이보다 많으면 최근 5개만 먼저 보인다
+
+function FlowScheduleBox() {
+  const state = useWithdrawSchedule(true)
+  const v = scheduleView(state)
+  const [showAll, setShowAll] = useState(false)
+  const many = v.rows.length > SCHEDULE_MAX
+  const shown = many && !showAll ? v.rows.slice(-SCHEDULE_FIRST) : v.rows
   return (
-    <Box data-box="monthly" className={className} title="월별 흐름" actions={legend}>
-      <div className={styles.chart}>
-        <div className={styles.plot} style={colTemplate}>
-          {months.map((m) => (
-            <div key={m.label} className={styles.group}>
-              {m.bars.map((b, i) => (
-                <div key={i} className={styles.bar} style={{ height: b.h, background: b.color }} title={b.title}>
-                  {b.v && <span className={styles.barVal}>{b.v}</span>}
+    <Box data-box="schedule" title="인출 가능 일정">
+      <p className={styles.schedSub}>납입일부터 1년이 지나야 세제 혜택을 유지한 채 인출할 수 있어요</p>
+      {v.mode === 'notOpened' && <p className={styles.empty}>계좌 개설이 완료되면 인출 일정을 볼 수 있어요</p>}
+      {v.mode === 'loading' && <p className={styles.empty}>불러오는 중이에요</p>}
+      {v.mode === 'ready' && (
+        <>
+          <div className={styles.stats}>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>지금 인출 가능 금액</span>
+              <b className={styles.statValue}>{v.now}</b>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>다음 인출 가능일</span>
+              <b className={styles.statValue}>
+                {v.nextDate}
+                {v.dday && <span className={styles.dday}>{v.dday}</span>}
+              </b>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.statLabel}>1년 유지 중인 납입금</span>
+              <b className={styles.statValue}>{v.holding}</b>
+            </div>
+          </div>
+          {v.rows.length > 0 && (
+            <div className={styles.gantt} role="group" aria-label="납입일별 1년 인출 가능 일정">
+              <div className={cx(styles.gRow, styles.gAxis)}>
+                <span />
+                <div className={styles.gTrack}>
+                  {v.ticks.map((t) => (
+                    <span key={t.label} className={styles.gTick} style={{ left: t.pct + '%' }}>
+                      {t.label}
+                    </span>
+                  ))}
+                  <span className={styles.gTodayLabel} style={{ left: v.todayPct + '%' }}>
+                    업무일 {v.today.slice(5)}
+                  </span>
+                </div>
+              </div>
+              {shown.map((r) => (
+                <div key={r.key} className={styles.gRow}>
+                  <div className={styles.gLabel}>
+                    <span>{r.label}</span>
+                    <b>{r.amt}</b>
+                    {r.withdrawn && <span>{r.withdrawn}</span>}
+                  </div>
+                  <div className={styles.gTrack}>
+                    <span className={styles.gBar} style={{ left: r.startPct + '%', width: r.widthPct + '%' }}>
+                      <span className={styles.gFill} style={{ width: r.fillPct + '%' }} />
+                    </span>
+                    <span className={styles.gEnd} style={{ left: r.startPct + r.widthPct + '%' }}>
+                      {r.endLabel}
+                      {r.fullyWithdrawn ? <span className={styles.gBadge}>전액 인출</span> : r.matured && <span className={styles.gBadge}>인출 가능</span>}
+                    </span>
+                    <span className={styles.gToday} style={{ left: v.todayPct + '%' }} aria-hidden="true" />
+                  </div>
                 </div>
               ))}
             </div>
-          ))}
-        </div>
-        <div className={styles.axis} style={colTemplate}>
-          {months.map((m) => (
-            <span key={m.label}>{m.label}</span>
-          ))}
-        </div>
-      </div>
-      <div className={cx(cols, styles.thead)}>
-        <span>월</span>
-        <span className={styles.right}>원화 유입</span>
-        <span className={styles.right}>국내 매수</span>
-        <span className={styles.right}>국내 매도</span>
-        <span className={styles.right}>인출</span>
-      </div>
-      {months.map((m, i) => (
-        <div key={m.label} className={cx(cols, styles.body, i < months.length - 1 && styles.line)}>
-          <span>{m.label}</span>
-          <span className={styles.right}>{m.inflow}</span>
-          <span className={styles.right}>{m.buy}</span>
-          <span className={styles.right}>{m.sell}</span>
-          <span className={styles.right}>{m.out}</span>
-        </div>
-      ))}
+          )}
+          {many && (
+            <button type="button" className={styles.more} onClick={() => setShowAll((x) => !x)}>
+              {showAll ? '접기' : '더 보기 (' + (v.rows.length - SCHEDULE_FIRST) + '건)'}
+            </button>
+          )}
+          <p className={styles.schedFoot}>1년 전에 인출하면 감면세액이 추징돼요</p>
+        </>
+      )}
     </Box>
   )
 }
 
-// 어디에 운용하고 있나(data-box="alloc") — 도넛, 항목별 금액·비율, 업종 상위 3
-export function FlowAllocBox({ className, allocation }: { className?: string; allocation?: FundFlowAllocation | null }) {
-  const a = allocValues(allocation)
+// 자금 이동 내역(data-box="transactions") — 열 맞춤 표. 월 머리줄 소계, 최신순, 처음엔 최근 3개월만
+const BADGE: Record<string, string> = { KRW_CONFIRMED: styles.badgeKrw, DOMESTIC_BUY: styles.badgeBuy, DOMESTIC_SELL: styles.badgeSell, WITHDRAWAL: styles.badgeOut }
+
+function TxMonthBlock({ month, open, onToggle }: { month: TxMonth; open: string[]; onToggle: (key: string) => void }) {
   return (
-    <Box data-box="alloc" className={className} title="어디에 운용하고 있나" actions={<span className={styles.basis}>{a.basis}</span>}>
-      <div className={styles.allocTop}>
-        <div className={styles.donut} style={{ background: a.donut }}>
-          <div className={styles.donutHole}>
-            합계
-            <br />
-            <b className={styles.donutTot}>{a.total}</b>
+    <>
+      <div className={styles.txMonth}>
+        <b>{month.label}</b>
+        {month.summary && <span>· {month.summary}</span>}
+      </div>
+      {month.items.map((t) => {
+        const expandable = t.details.length > 0
+        const isOpen = open.includes(t.key)
+        const cells = (
+          <>
+            <span className={styles.txDate}>{t.date}</span>
+            <span className={cx(styles.txBadge, BADGE[t.type])}>{t.label}</span>
+            <span className={styles.txItems} title={t.items}>
+              {t.items}
+              {expandable && (
+                <span className={styles.chev} aria-hidden="true">
+                  {isOpen ? '▴' : '▾'}
+                </span>
+              )}
+            </span>
+            <b className={styles.txAmt}>{t.amt}</b>
+            <span className={styles.txBal}>{t.cashAfter}</span>
+          </>
+        )
+        return (
+          <div key={t.key} className={styles.txItem}>
+            {expandable ? (
+              <button type="button" className={cx(styles.txRow, styles.txCols)} aria-expanded={isOpen} onClick={() => onToggle(t.key)}>
+                {cells}
+              </button>
+            ) : (
+              <div className={cx(styles.txRow, styles.txCols)}>{cells}</div>
+            )}
+            {isOpen && (
+              <ul className={styles.txDetail}>
+                {t.details.map((d) => (
+                  <li key={d.name} className={styles.txDetailRow}>
+                    <span className={styles.txDetailName}>{d.name}</span>
+                    <span>{d.qty}</span>
+                    <span className={styles.right}>₩{d.px}</span>
+                    <span className={styles.right}>₩{d.amt}</span>
+                    <span className={cx(styles.right, styles.flat)}>수수료 ₩{d.fee}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        </div>
-        <div className={styles.allocList}>
-          {a.items.map((x, i) => (
-            <div key={x.label} className={cx(styles.allocRow, i < a.items.length - 1 && styles.line)}>
-              <span className={styles.swatchSm} style={{ background: x.color }} />
-              <span className={styles.nowrap}>{x.label}</span>
-              <span className={cx(styles.amt, styles.nowrap)}>{x.amt}</span>
-              <b className={styles.pct}>{x.pct}</b>
-            </div>
+        )
+      })}
+    </>
+  )
+}
+
+function FlowTransactionsBox({ live }: { live?: FlowLive }) {
+  const g = transactionGroups(live)
+  const [showOlder, setShowOlder] = useState(false)
+  const [open, setOpen] = useState<string[]>([])
+  const toggle = (key: string) => setOpen((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
+  const empty = g.recent.length === 0 && g.older.length === 0
+  return (
+    <Box data-box="transactions" title="자금 이동 내역" actions={<span className={styles.basis}>예수금 변동 기준 · 최신순</span>}>
+      {empty ? (
+        <p className={styles.empty}>아직 자금 이동 내역이 없어요. 거래가 생기면 여기에 보여드려요.</p>
+      ) : (
+        <div className={styles.tx}>
+          <div className={cx(styles.txCols, styles.txHead)}>
+            <span>날짜</span>
+            <span>구분</span>
+            <span>종목 내역</span>
+            <span className={styles.right}>금액</span>
+            <span className={styles.right}>거래 후 예수금</span>
+          </div>
+          {g.recent.map((m) => (
+            <TxMonthBlock key={m.key} month={m} open={open} onToggle={toggle} />
           ))}
+          {showOlder && g.older.map((m) => <TxMonthBlock key={m.key} month={m} open={open} onToggle={toggle} />)}
         </div>
-      </div>
-      <div className={styles.sectors}>
-        <div className={styles.sectorHead}>업종 상위 3</div>
-        {a.sectors.map((x) => (
-          <div key={x.n} className={styles.sectorRow}>
-            <span className={styles.rank}>{x.n}</span>
-            <span>{x.label}</span>
-            <span className={styles.amt}>{x.amt}</span>
-            <b className={styles.pct}>{x.pct}</b>
+      )}
+      {g.olderCount > 0 && (
+        <button type="button" className={styles.more} onClick={() => setShowOlder((x) => !x)}>
+          {showOlder ? '이전 내역 접기' : '이전 내역 더 보기 (' + g.olderCount + '건)'}
+        </button>
+      )}
+    </Box>
+  )
+}
+
+// 왼쪽 열: 인출 가능 일정 → 자금 이동 내역
+export function FlowMainColumn({ live }: { live?: FlowLive }) {
+  return (
+    <div className={styles.mainCol}>
+      <FlowScheduleBox />
+      <FlowTransactionsBox live={live} />
+    </div>
+  )
+}
+
+// 국내 투자 구성(data-box="alloc") — 도넛, 업종 상위 3 + 기타 업종 + ETF·펀드 (예수금은 뺀다)
+export function FlowAllocBox({ className, allocation }: { className?: string; allocation?: FundFlowAllocation | null }) {
+  const a = compositionView(allocation)
+  return (
+    <Box data-box="alloc" className={className} title="국내 투자 구성" actions={<span className={styles.basis}>{a.basis}</span>}>
+      {a.empty ? (
+        <p className={styles.empty}>국내 주식을 사면 업종별 비중이 여기에 나와요</p>
+      ) : (
+        <div className={styles.allocTop}>
+          <div className={styles.donut} style={{ background: a.donut }}>
+            <div className={styles.donutHole}>
+              투자
+              <br />
+              <b className={styles.donutTot}>{a.total}</b>
+            </div>
           </div>
-        ))}
-      </div>
+          <div className={styles.allocList}>
+            {a.items.map((x, i) => (
+              <div key={x.label} className={cx(styles.allocRow, i < a.items.length - 1 && styles.line)}>
+                <span className={styles.swatchSm} style={{ background: x.color }} />
+                <span className={styles.nowrap}>{x.label}</span>
+                <span className={cx(styles.amt, styles.nowrap)}>{x.amt}</span>
+                <b className={styles.pct}>{x.pct}</b>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </Box>
   )
 }
