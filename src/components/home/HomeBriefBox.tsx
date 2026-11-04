@@ -271,17 +271,19 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
                 <div key={`taxGuideLine:${chartMotionKey}`} className={cx(styles.taxGuideLine, styles.chartAnnotation)} style={{ bottom: generalHeight }} aria-hidden="true" />
               )}
               <div className={styles.barGeneral} style={{ height: generalHeight }} />
-              <div className={styles.barRia} style={{ height: riaHeight }} />
-              <div className={styles.barRelief} style={{ height: confirmedHeight, bottom: riaHeight }}>
+              <div className={cx(styles.barRia, scenario.riaTax > 0 && scenario.reliefAmount === 0 && styles.stackTop)} style={{ height: riaHeight }} />
+              <div className={cx(styles.barRelief, confirmedSegment > 0 && projectedSegment === 0 && styles.stackTop)} style={{ height: confirmedHeight, bottom: riaHeight }}>
                 {confirmedLabelInside && <span className={styles.segmentText}>확정 감면액<br />{formatWon(confirmedSegment)}</span>}
               </div>
-              <div className={cx(styles.barProjected, styles.expectedRelief)} style={{ height: projectedHeight, bottom: `${((scenario.riaTax + confirmedSegment) / maxTax) * 100}%` }}>
+              <div className={cx(styles.barProjected, styles.expectedRelief, projectedSegment > 0 && styles.stackTop)} style={{ height: projectedHeight, bottom: `${((scenario.riaTax + confirmedSegment) / maxTax) * 100}%` }}>
                 {projectedLabelInside && <span className={styles.segmentText}>추가 예상 감면액<br />{formatWon(projectedSegment)}</span>}
               </div>
               {scenario.reliefAmount > 0 && (
                 <div key={`reliefBracket:${chartMotionKey}`} className={cx(styles.reliefBracket, styles.chartAnnotation)} style={{ bottom: riaHeight, height: reliefHeight }} aria-hidden="true" />
               )}
-              <div key={`reliefLabel:${chartMotionKey}`} className={cx(styles.reliefLabel, styles.chartAnnotation)} style={{ bottom: `${reliefLabelPosition}%` }}><div className={styles.barCaption}>총 감면액</div>−{formatWon(scenario.reliefAmount)}</div>
+              {scenario.reliefAmount > 0 && (
+                <div key={`reliefLabel:${chartMotionKey}`} className={cx(styles.reliefLabel, styles.chartAnnotation)} style={{ bottom: `${reliefLabelPosition}%` }}><div className={styles.barCaption}>총 감면액</div>−{formatWon(scenario.reliefAmount)}</div>
+              )}
             </div>
             <div className={styles.axis}>
               <span className={styles.axisGeneral}>일반 과세</span>
@@ -290,7 +292,7 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
             <div className={styles.chartLegend}>
               <span><i className={styles.taxSwatch} aria-hidden="true" />감면 후 납부세액 {formatWon(scenario.riaTax)}</span>
               <span><i className={styles.reliefSwatch} aria-hidden="true" />확정 감면액 {formatWon(confirmedSegment)}</span>
-              {useExpected && <span><i className={cx(styles.reliefSwatch, styles.expectedRelief)} aria-hidden="true" />추가 예상 감면액 {formatWon(projectedSegment)}</span>}
+              {useExpected && projectedSegment > 0 && <span><i className={cx(styles.reliefSwatch, styles.expectedRelief)} aria-hidden="true" />추가 예상 감면액 {formatWon(projectedSegment)}</span>}
             </div>
             <div className={styles.zeroTax} role="status">
               <span className={cx(styles.zeroNote, (guide || scenario.generalTax !== 0 || scenario.riaTax !== 0) && styles.hiddenNote)} aria-hidden={guide || scenario.generalTax !== 0 || scenario.riaTax !== 0}>

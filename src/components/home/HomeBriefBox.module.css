@@ -470,3 +470,6 @@
   .plot { --chart-motion-duration: 0ms; }
   .chartAnnotation { animation: none; }
 }
+
+/* 쌓인 막대 중 높이가 있는 맨 위 구간에만 둥근 모서리를 적용한다. */
+.stackTop { border-radius: var(--radius-2) var(--radius-2) 0 0; }
