@@ -6,6 +6,9 @@ export type ServerState<T> = { status: 'loading' } | { status: 'live'; data: T }
 
 const LOADING = { status: 'loading' } as const
 
+// 계좌가 없거나 개설 전·집계 전이라 서버가 "해당 없음"으로 주는 오류 코드 — error가 아니라 none으로 본다
+export const NO_DATA_CODES = ['ACCOUNT_NOT_FOUND', 'ACCOUNT_STATE_NOT_ALLOWED', 'TAX_SNAPSHOT_NOT_FOUND']
+
 // 서버 값을 마운트 때 한 번 받고 retry로 다시 받는다. fetcher는 모듈 안에 있는 고정 함수여야 한다.
 // noDataCodes: 오류 응답의 code가 이 중 하나면 error가 아니라 none으로 본다
 export function useServerData<T>(fetcher: () => Promise<T>, noDataCodes: string[] = []): { state: ServerState<T>; retry: () => void } {

@@ -20,10 +20,10 @@ import { AccountStateBox } from '../components/account/AccountStateBox'
 import { AccountSummaryBox } from '../components/account/AccountSummaryBox'
 import { FOOT_FLOW, FOOT_STATUS, PAGE_TABS } from '../components/account/accountData'
 import type { PageKey } from '../components/account/accountData'
-import type { AddedIn, AddedOut, ApplyKind } from '../components/account/accountApplyData'
+import type { ApplyKind } from '../components/account/accountApplyData'
 import type { SubmittedInboundResult } from '../components/account/ApplyModal'
 import { moreTitle } from '../components/account/accountSellData'
-import type { AddedSell, AddedSettle } from '../components/account/accountSellData'
+import type { SellSubmitResult } from '../components/account/accountSellData'
 import { isHistTab } from '../components/account/accountHistData'
 import type { HistTab } from '../components/account/accountHistData'
 import styles from '../components/account/AccountLayout.module.css'
@@ -32,15 +32,17 @@ import { useStream } from '../api/useChatStream'
 import { Tabs } from '../components/common/Tabs'
 import { Toast } from '../components/common/Toast'
 import { useToast } from '../components/common/useToast'
-import { RETURNS_DATA as RD, demo } from '../data/returns'
+import { RETURNS_DATA as RD } from '../data/returns'
 import type { DemoSettings } from '../data/returns'
 import { useAppShell } from '../layouts/appShell'
 import { F } from '../lib/calc'
 import { useFundFlow } from '../components/account/useFundFlow'
-import { accountViewState, getProfile } from '../api/profile'
-import { getCustomerAssetBriefing, getCustomerTaxBriefing } from '../api/briefing'
+import { getProfile } from '../api/profile'
+import { getAssetHoldings, getCustomerAssetBriefing, getCustomerTaxBriefing } from '../api/briefing'
 import { getWithdrawalAvailability } from '../api/withdrawalAvailability'
-import { useServerData } from '../components/account/useServerData'
+import { getGeneralAccounts, getWithdrawalHistory } from '../api/withdrawal'
+import { getInboundHistory } from '../api/inbound'
+import { NO_DATA_CODES, useServerData } from '../components/account/useServerData'
 import { useSellGuide } from '../components/account/useSellGuide'
 import { useSellLimit } from '../components/account/useSellLimit'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
@@ -72,17 +74,15 @@ export function AccountPage() {
   const { state: sellLimit, retry: retrySellLimit } = useSellLimit()
   const { state: sellGuide, retry: retrySellGuide } = useSellGuide()
   // 서버 값: 계좌(프로필)·세액·자산·인출 가능 금액. 박스마다 따로 받아 느린 것이 다른 박스를 막지 않는다
-  const NO_DATA = ['ACCOUNT_NOT_FOUND', 'ACCOUNT_STATE_NOT_ALLOWED', 'TAX_SNAPSHOT_NOT_FOUND']
   const { state: profileState } = useServerData(getProfile)
-  const { state: taxState, retry: retryTax } = useServerData(getCustomerTaxBriefing, NO_DATA)
-  const { state: assetState, retry: retryAssets } = useServerData(getCustomerAssetBriefing, NO_DATA)
-  const { state: availState, retry: retryAvail } = useServerData(getWithdrawalAvailability, NO_DATA)
-  const account = profileState.status === 'live' ? profileState.data.account : undefined // 계좌 없음 null, 받는 중·실패 undefined
-  // 화면이 시연 설정의 계좌 상태로 갈리므로, 서버 계좌 상태가 오면 그 값으로 맞춘다(투자성향 상태를 서버로 맞추는 것과 같은 방식)
-  const serverAcctState = account === undefined ? null : account === null ? 'none' : accountViewState(account.status)
-  useEffect(() => {
-    if (serverAcctState && demo().account !== serverAcctState) RD.setDemo({ account: serverAcctState })
-  }, [serverAcctState])
+  const { state: taxState, retry: retryTax } = useServerData(getCustomerTaxBriefing, NO_DATA_CODES)
+  const { state: assetState, retry: retryAssets } = useServerData(getCustomerAssetBriefing, NO_DATA_CODES)
+  const { state: availState, retry: retryAvail } = useServerData(getWithdrawalAvailability, NO_DATA_CODES)
+  const { state: holdingsState, retry: retryHoldings } = useServerData(getAssetHoldings, NO_DATA_CODES)
+  const { state: linkedState, retry: retryLinked } = useServerData(getGeneralAccounts)
+  const { state: inboundState, retry: retryInbounds } = useServerData(getInboundHistory)
+  const { state: withdrawalState, retry: retryWithdrawals } = useServerData(getWithdrawalHistory)
+  const account = profileState.status === 'live' ? profileState.data.account : undefined // 받는 중·실패면 undefined
   const fundFlow = useFundFlow(RD.ACCOUNT_STATE === 'opened' && hash === '#flow')
 
   // 끼루 AI 상담 창 — AppLayout 공유 스트림 사용, 페이지 이동 시 대화 이력 유지
@@ -150,12 +150,9 @@ export function AccountPage() {
   const canOpenAcct = () => RD.ACCOUNT_STATE !== 'opened' && RD.ACCOUNT_STATE !== 'reviewing'
   const [applyKind, setApplyKind] = useState<ApplyKind | null>(() => (hash === '#open' && canOpenAcct() ? 'open' : null))
   // 접수한 신청 — 거래·신청 내역 해당 탭 맨 위에 '심사 중' 줄로 보임
-  const [addedIn, setAddedIn] = useState<AddedIn[]>([])
-  const [addedOut, setAddedOut] = useState<AddedOut[]>([])
   // 매도 신청 창 — 접수한 매도는 매도 내역·정산 상태 맨 위에 '심사 중' 줄로 보임
   const [sellOpen, setSellOpen] = useState(false)
-  const [addedSell, setAddedSell] = useState<AddedSell[]>([])
-  const [addedSettle, setAddedSettle] = useState<AddedSettle[]>([])
+  const [histVersion, setHistVersion] = useState(0) // 매도 접수 뒤 내역 박스를 새로 받게 remount
   const [issued, setIssued] = useState<IssueRecord[]>([])
   // 발급 기록은 서버 기록(서버는 같은 종류를 한 번만 발급해 같은 서류가 두 줄이 되지 않는다)
   const issuedReq = useRef(0)
@@ -235,8 +232,12 @@ export function AccountPage() {
   }
 
   const copyAcct = () => {
+    if (!account?.accountNo) {
+      showToast('계좌번호를 불러온 뒤에 복사할 수 있어요')
+      return
+    }
     try {
-      navigator.clipboard.writeText(account?.accountNo ?? RD.ACCOUNT.no)
+      navigator.clipboard.writeText(account.accountNo)
     } catch {
       // 클립보드를 못 쓰는 환경에서도 안내는 보여 준다(원본과 동일)
     }
@@ -329,20 +330,20 @@ export function AccountPage() {
       <h1 className={styles.srOnly}>내 계좌</h1>
       {opened && <Tabs variant="page" ariaLabel="내 계좌 화면" items={PAGE_TABS} value={page} onChange={setPage} />}
 
-      {!opened && <AccountStateBox onOpen={() => openApply('open')} onCancel={cancelOpen} appliedAt={account?.appliedAt} />}
+      {!opened && <AccountStateBox onOpen={() => openApply('open')} onCancel={cancelOpen} />}
 
       {opened && page === 'status' && (
         <div className={styles.status}>
           <div className={styles.colLeft}>
-            <AccountSummaryBox className={styles.summary} onCopy={copyAcct} account={account} assets={assetState} onRetryAssets={retryAssets} onApply={(k) => (k === 'sell' ? openSell() : openApply(k))} />
+            <AccountSummaryBox className={styles.summary} onCopy={copyAcct} account={account} assets={assetState} linked={linkedState} onRetry={() => { if (assetState.status === 'error') retryAssets(); if (linkedState.status === 'error') retryLinked() }} onApply={(k) => (k === 'sell' ? openSell() : openApply(k))} />
             <AccountLimitBox className={styles.limit} onApply={openSell} limit={sellLimit} onRetryLimit={retrySellLimit} />
             <AccountTaxBox className={styles.tax} onOpenCalc={openCalc} tax={taxState} onRetryTax={retryTax} guide={sellGuide} onRetryGuide={retrySellGuide} />
             <AccountHoldBox className={styles.hold} onHistory={goWithdraw} avail={availState} onRetry={retryAvail} />
             <AccountDocsBox className={styles.docs} issued={issued} onIssue={issue} onReissue={reissue} />
           </div>
           <div className={styles.colRight}>
-            <AccountBalanceBox className={styles.balance} onSell={openSell} />
-            <AccountHistBox className={styles.hist} tab={histTab} onTab={pickHistTab} onApplyIn={() => openApply('in')} onApplyOut={() => openApply('out')} addedIn={addedIn} addedOut={addedOut} addedSell={addedSell} addedSettle={addedSettle} />
+            <AccountBalanceBox className={styles.balance} onSell={openSell} holdings={holdingsState} onRetryHoldings={retryHoldings} guide={sellGuide} onRetryGuide={retrySellGuide} />
+            <AccountHistBox key={histVersion} className={styles.hist} tab={histTab} onTab={pickHistTab} onApplyIn={() => openApply('in')} onApplyOut={() => openApply('out')} inbounds={inboundState} onRetryInbounds={retryInbounds} withdrawals={withdrawalState} onRetryWithdrawals={retryWithdrawals} avail={availState} onRetryAvail={retryAvail} />
           </div>
         </div>
       )}
@@ -374,14 +375,11 @@ export function AccountPage() {
           onClose={() => setApplyKind(null)}
           onGoHist={goHist}
           onSubmitIn={(results: SubmittedInboundResult[]) => {
-            const rows: AddedIn[] = results
-              .filter((r) => r.status === 'ok')
-              .map((r) => ({ t: r.ticker, req: r.requestedQty ?? r.approvedQty ?? 0, base: r.approvedQty ?? 0, now: r.approvedQty ?? 0 }))
-            if (rows.length > 0) setAddedIn((prev) => [...rows, ...prev])
+            if (results.some((r) => r.status === 'ok')) retryInbounds()
             addAlert('입고 신청 · ' + moreTitle(results.map((r) => ({ t: r.ticker }))), 'deposits')
           }}
           onSubmitOut={(amt) => {
-            setAddedOut((prev) => [{ amt }, ...prev])
+            retryWithdrawals()
             addAlert('인출 신청 · ₩' + F.won(amt), 'withdraw')
           }}
           onFinishOpen={finishOpen}
@@ -389,13 +387,19 @@ export function AccountPage() {
       )}
       {sellOpen && (
         <SellModal
+          guide={sellGuide}
+          onRetryGuide={retrySellGuide}
           remainingLimit={sellLimit.status === 'live' ? sellLimit.data.remainingLimit : null}
           onClose={() => setSellOpen(false)}
           onGoHist={() => goHist('sells')}
-          onSubmit={(sells, settle) => {
-            setAddedSell((prev) => [...sells, ...prev])
-            setAddedSettle((prev) => [settle, ...prev])
-            addAlert('매도 신청 · ' + settle.title, 'sells')
+          onSubmitted={(results: SellSubmitResult[]) => {
+            // 체결·거부가 한도·추천·예수금·내역에 반영되게 서버 값을 다시 받는다
+            retrySellLimit()
+            retrySellGuide()
+            retryAssets()
+            setHistVersion((n) => n + 1)
+            const done = results.filter((r) => r.status === 'EXECUTED').map((r) => ({ t: r.t }))
+            if (done.length > 0) addAlert('매도 신청 · ' + moreTitle(done), 'sells')
           }}
         />
       )}
