@@ -84,6 +84,14 @@ function FlowScheduleBox() {
       <p className={styles.schedSub}>납입일부터 1년이 지나야 세제 혜택을 유지한 채 인출할 수 있어요</p>
       {v.mode === 'notOpened' && <p className={styles.empty}>계좌 개설이 완료되면 인출 일정을 볼 수 있어요</p>}
       {v.mode === 'loading' && <p className={styles.empty}>불러오는 중이에요</p>}
+      {v.mode === 'error' && (
+        <p className={styles.empty}>
+          인출 일정을 불러오지 못했어요{' '}
+          <button type="button" className={styles.retry} onClick={state.retry}>
+            다시 시도
+          </button>
+        </p>
+      )}
       {v.mode === 'ready' && (
         <>
           <div className={styles.stats}>

@@ -591,3 +591,13 @@ button.txRow:hover {
   color: var(--color-navy);
   cursor: pointer;
 }
+
+.retry {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-navy);
+  text-decoration: underline;
+  cursor: pointer;
+}

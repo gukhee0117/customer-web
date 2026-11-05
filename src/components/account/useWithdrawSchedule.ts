@@ -15,11 +15,20 @@ export interface WithdrawScheduleState {
 }
 
 const status = (err: unknown) => (isAxiosError(err) ? err.response?.status : undefined)
+const errorCode = (err: unknown) => (isAxiosError(err) ? (err.response?.data as { code?: string } | undefined)?.code : undefined)
+
+// 계좌가 없거나 OPENED가 아니어서 availability가 거절하는 경우만 "미개설"로 본다(서버가 주는 에러 코드 기준)
+const NOT_OPENED_CODES = ['ACCOUNT_NOT_FOUND', 'ACCOUNT_STATUS_NOT_WITHDRAWABLE', 'ACCOUNT_STATE_NOT_ALLOWED']
 
 // 인출 가능 일정 카드 전용 데이터. 자금 흐름의 다른 박스와 따로 받아서, availability가 오류여도 이 카드만 안내 문구로 바뀌고 나머지는 그대로 보인다.
 // 숫자 세 칸(지금 인출 가능·1년 유지 중·다음 인출 가능일)은 인출 신청 화면과 같은 availability 값을 그대로 쓴다.
-export function useWithdrawSchedule(enabled: boolean): WithdrawScheduleState {
+export function useWithdrawSchedule(enabled: boolean): WithdrawScheduleState & { retry: () => void } {
   const [state, setState] = useState<WithdrawScheduleState | null>(null)
+  const [tries, setTries] = useState(0)
+  const retry = () => {
+    setState(null)
+    setTries((n) => n + 1)
+  }
 
   useEffect(() => {
     if (!enabled) return
@@ -36,8 +45,11 @@ export function useWithdrawSchedule(enabled: boolean): WithdrawScheduleState {
         return
       }
       if (av.status === 'rejected') {
-        // availability는 개설된 계좌가 아니면 오류를 낸다 → 이 카드만 "계좌 개설이 완료되면…" 안내
-        setState({ source: status(av.reason) === 401 ? 'demo' : 'notOpened', ...none })
+        // 개설된 계좌가 아니면 availability가 계좌 상태 코드로 거절한다 → 이 카드만 "계좌 개설이 완료되면…" 안내
+        // 그 밖의 실패(500·타임아웃·네트워크 단절 등)는 error로 두어 다시 시도할 수 있게 한다
+        const code = errorCode(av.reason)
+        const source = status(av.reason) === 401 ? 'demo' : code && NOT_OPENED_CODES.includes(code) ? 'notOpened' : 'error'
+        setState({ source, ...none })
         return
       }
       setState({ source: 'live', schedule: sch.value, availability: av.value })
@@ -45,8 +57,8 @@ export function useWithdrawSchedule(enabled: boolean): WithdrawScheduleState {
     return () => {
       alive = false
     }
-  }, [enabled])
+  }, [enabled, tries])
 
-  if (!enabled) return { source: 'loading', schedule: null, availability: null }
-  return state ?? { source: 'loading', schedule: null, availability: null }
+  if (!enabled) return { source: 'loading', schedule: null, availability: null, retry }
+  return { ...(state ?? { source: 'loading', schedule: null, availability: null }), retry }
 }

@@ -169,7 +169,7 @@ export interface ScheduleRow {
 }
 
 export interface ScheduleView {
-  mode: 'loading' | 'notOpened' | 'ready'
+  mode: 'loading' | 'notOpened' | 'error' | 'ready'
   now: string // 지금 인출 가능 금액 (없으면 '-')
   nextDate: string // 다음 인출 가능일 (없으면 '-')
   dday: string // "D-123" / "" / "인출 가능"
@@ -234,6 +234,8 @@ function buildRows(lots: LotInput[], today: string) {
 export function scheduleView(st: WithdrawScheduleState): ScheduleView {
   if (st.source === 'loading') return EMPTY_SCHEDULE
   if (st.source === 'notOpened') return { ...EMPTY_SCHEDULE, mode: 'notOpened' }
+  // 조회 실패는 시연 값으로 대신하지 않는다(실제 금액처럼 보이면 안 됨)
+  if (st.source === 'error') return { ...EMPTY_SCHEDULE, mode: 'error' }
   if (st.source === 'live' && st.schedule && st.availability) {
     const today = st.schedule.businessDate
     const av = st.availability
