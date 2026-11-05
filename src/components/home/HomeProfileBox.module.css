@@ -221,3 +221,15 @@
   background: var(--color-navy-dark);
   text-decoration: none;
 }
+
+.limitRetry {
+  all: unset;
+  cursor: pointer;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-navy);
+}
+
+.limitRetry:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 2px;
+}

@@ -1,3 +1,4 @@
+import type { CustomerTaxBasis, TaxBasisBand } from '../../api/briefing'
 import type { DocType } from '../../api/documents'
 import { RETURNS_DATA as RD } from '../../data/returns'
 import { F } from '../../lib/calc'
@@ -90,31 +91,41 @@ export interface CalcRow {
   last: boolean
 }
 
-// 세액 계산 근거 창의 5단계 + 예상 범위
-export function calcRows(): CalcRow[] {
-  const C = RD.C
-  const biz = C.BUSINESS_DATE
-  const adj = currentAdj()
+// 구간 이름 — 월 경계면 '6~7월', 아니면 날짜
+function bandLabel(b: TaxBasisBand): string {
+  const next = new Date(b.validTo)
+  next.setDate(next.getDate() + 1)
+  if (b.validFrom.endsWith('-01') && next.getDate() === 1) return Number(b.validFrom.slice(5, 7)) + '~' + Number(b.validTo.slice(5, 7)) + '월'
+  return F.short(b.validFrom) + '~' + F.short(b.validTo)
+}
+
+const pctTxt = (r: number): string => Math.round(r * 100) + '%'
+
+// 세액 계산 근거 창 — 서버 계산 값을 5단계 + 절감액 표로. 혜택 취소면 일반 과세 안내만
+export function basisRows(b: CustomerTaxBasis): { notice: string | null; rows: CalcRow[] } {
   const won = F.won
-  const t0 = F.tax(0, biz, adj)
-  const tG = F.tax(F.plan({ biz }).gain, biz, adj)
-  const rate = F.band(C.SOLD.filled).rate
-  const pct = Math.round(rate * 100)
-  const wSell = C.SOLD.amount * rate
-  const wGain = C.SOLD.gain * rate
-  const otherBuy = Math.round((1 - adj) * wSell)
-  const ded = Math.round(wGain * adj)
-  const base = Math.max(0, C.SOLD.gain - C.BASIC_DEDUCTION - ded)
-  const sb = F.band(C.SOLD.filled)
-  const rows: [string, string[], string][] = [
-    ['구간 가중치 적용', [F.short(C.SOLD.filled) + ' 매도 체결 → ' + sb.from + '~' + sb.to + '월 구간'], pct + '%'],
-    ['RIA 매도 가중합산', ['매도 ' + won(C.SOLD.amount) + ' × ' + pct + '% = ' + won(wSell), '양도소득 가중 ' + won(C.SOLD.gain) + ' × ' + pct + '% = ' + won(wGain)], won(wSell)],
-    ['다른 계좌 해외주식 순매수 가중합산', [otherBuy ? '다른 계좌 순매수 가중 합계' : '다른 계좌의 해외주식 순매수가 없어요'], won(otherBuy) + '원'],
-    ['조정비율', ['1 − ' + won(otherBuy) + ' ÷ ' + won(wSell) + ' = ' + adj.toFixed(2)], adj.toFixed(2)],
-    ['최종 공제액과 세액', ['공제 ' + won(wGain) + ' × ' + adj.toFixed(2) + ' = ' + won(ded), '과세표준 (' + won(C.SOLD.gain) + ' − ' + won(C.BASIC_DEDUCTION) + ' − ' + won(ded) + ') = ' + won(base) + ' × 22% = ' + won(t0.ria)], won(t0.ria) + '원'],
-    ['예상 범위', ['남은 보유 종목(' + C.HOLDINGS.map((h) => h.t).join('·') + ')의 주가와 환율을 과거 변동성으로 1,000번 시뮬레이션 → 10번 중 8번 들어가는 범위'], rng(tG.cut, RANGE_CUT)]
-  ]
-  return rows.map(([name, f, value], i) => ({ n: i + 1, name, formula: f.join(' · '), value, last: i === rows.length - 1 }))
+  const done = (rows: [string, string[], string][]) => rows.map(([name, f, value], i): CalcRow => ({ n: i + 1, name, formula: f.join(' · '), value, last: i === rows.length - 1 }))
+  if (b.reliefExcluded || b.benefit === 'IMPOSSIBLE') {
+    return { notice: '이 계좌는 세제 혜택이 취소돼 일반 과세로 계산해요', rows: done([['일반 세액', ['(총 양도소득 ' + won(b.totalGain) + ' − 기본공제 ' + won(b.basicDeduction) + ') × 22%'], won(b.generalTax) + '원']]) }
+  }
+  const weighted = (r: TaxBasisBand) => bandLabel(r) + ' ' + pctTxt(r.weightRate)
+  const noExternal = b.bands.every((x) => x.externalNetBuy === 0)
+  const base = Math.max(0, b.totalGain - b.basicDeduction - b.finalDeduction)
+  return {
+    notice: null,
+    rows: done([
+      ['구간 가중치 적용', b.bands.map(weighted), b.bands.length + '개 구간'],
+      ['RIA 매도 가중합산', [...b.bands.map((x) => bandLabel(x) + ' 매도 ' + won(x.sellAmount) + ' × ' + pctTxt(x.weightRate)), '양도소득 가중 합 ' + won(b.preAdjustDeduction)], won(b.weightedSell)],
+      [
+        '다른 계좌 해외주식 순매수 가중합산',
+        noExternal ? ['다른 계좌의 해외주식 순매수가 없어요'] : b.bands.map((x) => bandLabel(x) + ' 순매수 ' + won(x.externalNetBuy) + ' × ' + pctTxt(x.weightRate)),
+        won(b.weightedNetPurchase) + '원'
+      ],
+      ['조정비율', ['1 − ' + won(b.weightedNetPurchase) + ' ÷ ' + won(b.weightedSell) + ' = ' + (b.adjustRatio * 100).toFixed(2) + '%'], (b.adjustRatio * 100).toFixed(2) + '%'],
+      ['최종 공제액과 세액', ['공제 ' + won(b.preAdjustDeduction) + ' × ' + (b.adjustRatio * 100).toFixed(2) + '% = ' + won(b.finalDeduction), '과세표준 (' + won(b.totalGain) + ' − ' + won(b.basicDeduction) + ' − ' + won(b.finalDeduction) + ') = ' + won(base) + ' × 22% = ' + won(b.finalTax)], won(b.finalTax) + '원'],
+      ['절감액', ['일반 과세 ' + won(b.generalTax) + ' − RIA 세액 ' + won(b.finalTax)], won(b.reliefAmount) + '원']
+    ])
+  }
 }
 
 export interface HoldValues {

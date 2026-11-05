@@ -1,38 +1,42 @@
 import { Link } from 'react-router-dom'
 import '../../styles/tokens.css'
-import type { ProfileAccount } from '../../api/profile'
+import { profileKeyOf } from '../../api/investor'
+import { formatAccountNo } from '../../api/profile'
+import type { Profile } from '../../api/profile'
 import { RETURNS_DATA as RD, demo } from '../../data/returns'
 import { F } from '../../lib/calc'
 import { Box } from '../common/Box'
 import { assetUrl } from '../common/assetUrl'
+import type { SellLimitState } from '../account/useSellLimit'
 import { Toast } from '../common/Toast'
 import { useToast } from '../common/useToast'
 import styles from './HomeProfileBox.module.css'
 
-const STATE_OF: Record<ProfileAccount['status'], 'opened' | 'reviewing' | 'rejected' | 'none'> = {
-  OPENED: 'opened',
-  APPLIED: 'reviewing',
-  REJECTED: 'rejected',
-  CLOSURE_REQUESTED: 'opened',
-  CLOSED: 'none'
+// 프로필·계좌 박스. 이름·성향·진단일·유효기간·계좌번호는 서버 프로필 값(받기 전·실패하면 '-'). 계좌 상태 화면은 개설·정상만 쓴다. 진단 상태(미진단·만료)는 demo().assess를 따른다
+interface Props {
+  className?: string
+  prof: Profile | null
+  limit: SellLimitState // 서버 매도 한도(한도 영역만 로딩·실패 처리)
+  onRetryLimit: () => void
 }
 
-// 프로필·계좌 박스. 이름·계좌는 서버 프로필 값(받기 전·실패하면 이름 '-', 계좌는 시연 설정의 목업). 진단 상태(demo().assess)는 원본 조건 그대로 따른다
-// 남은 매도 한도·진단일은 서버가 아직 안 줘서 목업
-export function HomeProfileBox({ className, name, account }: { className?: string; name: string | undefined; account: ProfileAccount | null | undefined }) {
+export function HomeProfileBox({ className, prof, limit, onRetryLimit }: Props) {
+  const name = prof?.name
+  const account = prof?.account
   const { message: toast, showToast } = useToast()
   const biz = F.today()
-  const profile = RD.PROFILES[RD.CUSTOMER.profile]
-  const acct = account === undefined ? RD.ACCOUNT_STATE : account === null ? 'none' : STATE_OF[account.status]
-  const acctNo = account ? (account.accountNo.length > 6 ? account.accountNo.slice(0, 4) + '****' + account.accountNo.slice(-2) : account.accountNo) : RD.ACCOUNT.no
+  const profile = RD.PROFILES[prof?.assessed ? profileKeyOf(prof.investorType) : RD.CUSTOMER.profile]
+  const acct = RD.ACCOUNT_STATE
+  const accountNo = account?.accountNo
+  const acctNo = formatAccountNo(accountNo)
   const assess = demo().assess || 'ok'
-  const pfLeft = F.days(biz, RD.ASSESSMENT.validUntil) // 진단 유효기간 남은 날
-  const rem = F.remaining()
-  const remainPct = (rem / RD.C.SELL_LIMIT) * 100 + '%'
+  const assessedDate = prof?.assessedAt?.slice(0, 10)
+  const pfLeft = prof?.expiresAt ? F.days(biz, F.addDays(prof.expiresAt.slice(0, 10), -1)) : 999 // 진단 유효기간 남은 날(만료일 전날까지 유효)
+  const usedPct = limit.status === 'live' && limit.data.limitAmount > 0 ? (limit.data.usedAmount / limit.data.limitAmount) * 100 + '%' : '0%'
 
   const copyAcct = () => {
     try {
-      navigator.clipboard.writeText(account?.accountNo ?? RD.ACCOUNT.no)
+      navigator.clipboard.writeText(accountNo ?? '')
     } catch {
       // 클립보드를 못 쓰는 환경에서도 안내는 보여 준다(원본과 동일)
     }
@@ -53,15 +57,8 @@ export function HomeProfileBox({ className, name, account }: { className?: strin
           </div>
           {assess !== 'none' ? (
             <div className={styles.assessLine}>
-              진단일 {F.dot(RD.ASSESSMENT.date)}
-              {assess === 'soon' && (
-                <>
-                  {' '}
-                  {/* TODO: 백엔드 연결 시 실제 진단 만료일로 계산 (원본은 D-23 고정 문구) */}
-                  <span className={styles.reassessBadge}>재진단 D-23</span>
-                </>
-              )}
-              {pfLeft <= 90 && (
+              진단일 {assessedDate ? F.dot(assessedDate) : '-'}
+              {pfLeft >= 0 && pfLeft <= 90 && (
                 <>
                   {' '}
                   <span className={styles.soon}>유효기간 D-{pfLeft}</span>
@@ -96,13 +93,23 @@ export function HomeProfileBox({ className, name, account }: { className?: strin
           </div>
           <div className={styles.limit} title="전 증권사 합산 기준">
             <div className={styles.limitRow}>
-              <span className={styles.limitLabel}>남은 매도 한도</span>
-              <span>
-                <span className={styles.limitLabel}>5,000만 원 중</span> <b className={styles.limitRemain}>{F.man(rem)} 원 남음</b>
-              </span>
+              <span className={styles.limitLabel}>사용한 매도 한도</span>
+              {limit.status === 'live' && (
+                <span>
+                  <span className={styles.limitLabel}>{F.man(limit.data.limitAmount)} 원 중</span> <b className={styles.limitRemain}>{F.man(limit.data.usedAmount)} 원 사용</b>
+                </span>
+              )}
+              {limit.status === 'loading' && <span className={styles.limitLabel}>-</span>}
+              {limit.status === 'none' && <span className={styles.limitLabel}>한도 없음</span>}
+              {limit.status === 'error' && (
+                <span className={styles.limitLabel}>
+                  불러오지 못했어요{' '}
+                  <button type="button" className={styles.limitRetry} onClick={onRetryLimit}>다시 시도</button>
+                </span>
+              )}
             </div>
             <div className={styles.bar}>
-              <div className={styles.barFill} style={{ width: remainPct }} />
+              <div className={styles.barFill} style={{ width: usedPct }} />
             </div>
           </div>
         </div>

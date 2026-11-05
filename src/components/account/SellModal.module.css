@@ -146,8 +146,6 @@
 .cb:focus-visible,
 .stepBtn:focus-visible,
 .fill:focus-visible,
-.resetPlan:focus-visible,
-.kkSend:focus-visible,
 .agree:focus-visible,
 .back:focus-visible,
 .next:focus-visible,
@@ -413,12 +411,6 @@
   margin-top: var(--space-2);
 }
 
-.planRange {
-  font-size: var(--font-size-12);
-  color: var(--color-gray-600);
-  padding-bottom: var(--space-10);
-  border-bottom: 1px solid var(--color-line-soft);
-}
 
 .planBtns {
   display: flex;
@@ -447,88 +439,15 @@
   background: var(--color-navy-dark);
 }
 
-.resetPlan {
-  all: unset;
-  cursor: pointer;
-  font-size: var(--font-size-13);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-navy);
-  white-space: nowrap;
-}
 
-.kkForm {
-  margin-top: var(--space-12);
-  display: flex;
-  gap: var(--space-8);
-  align-items: center;
-}
 
-.kkInput {
-  flex: 1;
-  min-width: 0;
-  height: 36px;
-  box-sizing: border-box;
-  border: 1px solid var(--color-line-strong);
-  border-radius: var(--radius-6);
-  padding: 0 var(--space-10);
-  font-family: inherit;
-  font-size: var(--font-size-14);
-  color: var(--color-ink);
-  background: var(--color-surface);
-  outline: none;
-}
 
-.kkSend {
-  all: unset;
-  cursor: pointer;
-  flex: none;
-  height: 36px;
-  padding: 0 var(--space-12);
-  border-radius: var(--radius-6);
-  border: 1px solid var(--color-navy);
-  box-sizing: border-box;
-  color: var(--color-navy);
-  font-size: var(--font-size-13);
-  font-weight: var(--font-weight-bold);
-  display: flex;
-  align-items: center;
-}
 
-.kkSend:hover {
-  background: var(--color-chip-navy-strong);
-}
 
-.kkReply {
-  margin-top: var(--space-10);
-  display: flex;
-  gap: var(--space-8);
-  align-items: flex-start;
-}
 
-.kkFace {
-  width: 24px;
-  height: 24px;
-  display: block;
-  flex: none;
-}
 
-.kkBody {
-  min-width: 0;
-}
 
-.kkBubble {
-  background: var(--color-surface-hover);
-  border-radius: var(--radius-8);
-  padding: var(--space-8) var(--space-12);
-  font-size: var(--font-size-13);
-  line-height: 1.6;
-}
 
-.kkNote {
-  margin-top: var(--space-4);
-  font-size: var(--font-size-11);
-  color: var(--color-sub);
-}
 
 .planFoot {
   margin: var(--space-12) 0 0;
@@ -601,10 +520,6 @@
   font-weight: var(--font-weight-bold);
 }
 
-.sumSave {
-  color: var(--color-gold-text);
-  font-weight: var(--font-weight-extrabold);
-}
 
 .overMsg {
   font-size: var(--font-size-12);

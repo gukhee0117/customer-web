@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import { useLocation } from 'react-router-dom'
 import { Toast } from '../components/common/Toast'
 import { useToast } from '../components/common/useToast'
+import { useSellLimit } from '../components/account/useSellLimit'
 import { HomeAssessModal } from '../components/home/HomeAssessModal'
 import { HomeBriefBox } from '../components/home/HomeBriefBox'
 import { HomeChatBox } from '../components/home/HomeChatBox'
@@ -47,6 +48,8 @@ export function HomePage() {
   }, []) // intentional: mount only
   const [aClosed, setAClosed] = useState<string | null>(null)
   const [welcome, setWelcome] = useState(hash === '#new')
+  const { state: limit, retry: retryLimit } = useSellLimit()
+  const remainingLimit = limit.status === 'live' ? limit.data.remainingLimit : null
   const [prof, setProf] = useState<Profile | null>(null) // 서버 프로필(이름·계좌). 못 받으면 null → 이름 '-'·계좌는 목업
   useEffect(() => {
     getProfile().then(setProf).catch(() => {})
@@ -63,12 +66,12 @@ export function HomePage() {
   }, [welcome])
 
   // 상단 종 알림: 오늘 확인할 일 + 안 읽은 알림 수(info 아닌 것)
-  const todos = homeTodos(showToast)
+  const todos = homeTodos(showToast, remainingLimit)
   const todoKey = todos.map((t) => t.title + t.desc).join('|')
   useEffect(() => {
-    const list = homeTodos(showToast)
+    const list = homeTodos(showToast, remainingLimit)
     shell.setTopBar({ todos: list, todoDate: F.short(F.today()), todoAlert: list.filter((t) => t.level !== 'info').length, profLabel })
-  }, [todoKey, profLabel, shell, showToast])
+  }, [todoKey, profLabel, shell, showToast, remainingLimit])
 
   const ask = useCallback((q: string) => { send(q) }, [send])
   // 페이지 이탈 시 진행 중인 스트리밍 취소
@@ -113,7 +116,7 @@ export function HomePage() {
           </div>
         </div>
         <div className={styles.colSide}>
-          <HomeProfileBox className={styles.prof} name={prof?.name} account={prof?.account} />
+          <HomeProfileBox className={styles.prof} prof={prof} limit={limit} onRetryLimit={retryLimit} />
           <HomeBriefBox className={styles.tax} />
           <HomeChatBox className={styles.chat} />
         </div>

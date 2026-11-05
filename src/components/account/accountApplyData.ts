@@ -157,14 +157,3 @@ export function limitBar(total: number): { navy: string; red: string } {
   const scale = Math.max(total, MAX_LIMIT)
   return { navy: ((Math.min(total, MAX_LIMIT) / scale) * 100).toFixed(2) + '%', red: ((Math.max(0, total - MAX_LIMIT) / scale) * 100).toFixed(2) + '%' }
 }
-
-// ---- 접수 후 내역 새 줄 ----
-export interface AddedIn {
-  t: string
-  req: number
-  base: number
-  now: number
-}
-export interface AddedOut {
-  amt: number
-}

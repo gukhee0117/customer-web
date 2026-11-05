@@ -1,9 +1,4 @@
-.range {
-  padding-left: var(--space-16);
-  font-size: var(--font-size-12);
-  color: var(--color-sub);
-  white-space: nowrap;
-}
+
 
 .scroll {
   overflow-x: auto;
@@ -13,9 +8,6 @@
   min-width: 680px;
 }
 
-.table900 {
-  min-width: 900px;
-}
 
 /* ---- 공통 줄 ---- */
 .row {
@@ -30,7 +22,7 @@
 }
 
 .sellCols {
-  grid-template-columns: 72px minmax(160px, 2fr) 0.6fr 1fr 1fr 0.8fr 0.8fr;
+  grid-template-columns: 72px minmax(160px, 2fr) 0.6fr 1fr 0.8fr;
 }
 
 .stCols {
@@ -43,11 +35,11 @@
 }
 
 .reqCols {
-  grid-template-columns: 72px 1fr minmax(0, 1.6fr) 90px;
+  grid-template-columns: 72px 1fr minmax(0, 1.6fr) 90px 24px;
 }
 
 .domCols {
-  grid-template-columns: 48px minmax(190px, 2fr) 40px 56px 72px 72px 96px minmax(96px, 1fr) 72px;
+  grid-template-columns: 56px minmax(160px, 2fr) 48px 64px 88px 112px;
 }
 
 .thead {
@@ -191,19 +183,7 @@
   transform: rotate(180deg);
 }
 
-.rejRow {
-  padding: 0 var(--space-16) var(--space-10) 100px;
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-12);
-  font-size: var(--font-size-13);
-  line-height: 1.5;
-}
 
-.rejMsg {
-  color: var(--color-red);
-  min-width: 0;
-}
 
 .linkBtn {
   all: unset;
@@ -368,29 +348,9 @@
   color: var(--color-sub);
 }
 
-.pkg {
-  font-size: var(--font-size-13);
-  color: var(--color-ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
-.domStatus {
-  font-size: var(--font-size-13);
-  white-space: nowrap;
-}
 
-.domStatusRej {
-  font-weight: var(--font-weight-bold);
-  color: var(--color-red);
-}
 
-.domRejMsg {
-  padding: 0 var(--space-16) var(--space-10) 84px;
-  font-size: var(--font-size-12);
-  color: var(--color-red);
-}
 
 .domSum {
   height: 40px;
@@ -447,10 +407,6 @@
   padding: 0 var(--space-16) var(--space-12);
   font-size: var(--font-size-12);
   color: var(--color-orange);
-}
-
-.pkg.faint {
-  color: var(--color-muted);
 }
 
 .reqTo {
