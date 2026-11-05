@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import '../../styles/tokens.css'
 import { RETURNS_DATA as RD } from '../../data/returns'
@@ -8,11 +8,11 @@ import { KkiruAvatar } from '../common/KkiruAvatar'
 import { StockIcon } from '../common/StockIcon'
 import { Tabs } from '../common/Tabs'
 import { cx } from '../common/cx'
-import { KR_ALL, RECENT_LIMIT } from './communityData'
-import { ddGroups, hotRows } from './communityLogic'
-import { myProfile } from './communityPosts'
+import { getPopularPosts } from '../../api/community'
+import { GEN, GEN_NAME, RECENT_LIMIT } from './communityData'
+import { stockName, useStocks } from './stocksContext'
+import { ddGroups, type HotRowView } from './communityLogic'
 import { PubDialog } from './CommunityDialogs'
-import { CommunityNickForm } from './CommunityNickForm'
 import { CommunityStockPick } from './CommunityStockPick'
 import styles from './CommunityRight.module.css'
 
@@ -25,12 +25,12 @@ interface CommunityRightProps {
   code: string // 지금 보는 종목(목록에서 선택 표시)
   nick: string
   pubOn: boolean
+  myPf: string // 내 성향(아바타)
   myPostN: number
   myRepN: number
   watch: string[]
   recent: string[]
   onSelect: (code: string) => void
-  onNick: (nick: string) => void
   onPub: (on: boolean) => void // 성향 공개 켜기/끄기(토스트는 쓰는 쪽)
   onWatchAdd: (code: string) => void
   onWatchRemove: (code: string) => void
@@ -43,8 +43,7 @@ interface CommunityRightProps {
 }
 
 // 오른쪽 열: 내 프로필 카드(닉네임·성향·글/답글 수·성향 공개) + 관심 / 최근 본 종목 + 인기글 + 운영 정책 문구
-export function CommunityRight({ code, nick, pubOn, myPostN, myRepN, watch, recent, onSelect, onNick, onPub, onWatchAdd, onWatchRemove, onRecentRemove, onGoMine, fixed, onHotThread, onHotMore, onToast }: CommunityRightProps) {
-  const [nkEdit, setNkEdit] = useState(false)
+export function CommunityRight({ code, nick, pubOn, myPf, myPostN, myRepN, watch, recent, onSelect, onPub, onWatchAdd, onWatchRemove, onRecentRemove, onGoMine, fixed, onHotThread, onHotMore, onToast }: CommunityRightProps) {
   const [pd, setPd] = useState<{ agree: boolean } | null>(null)
   const [wTab, setWTab] = useState<WatchTab>('watch')
   const [ddOpen, setDdOpen] = useState(false)
@@ -53,10 +52,21 @@ export function CommunityRight({ code, nick, pubOn, myPostN, myRepN, watch, rece
   const watchRef = useRef<HTMLDivElement>(null)
   const ddInputRef = useRef<HTMLInputElement>(null)
 
-  const myPf = myProfile(pubOn)
+  const stocks = useStocks()
   const myPl = myPf === 'private' ? '비공개' : (RD.PROFILES[myPf]?.label ?? '')
-  const hot = useMemo(() => hotRows(), [])
-  const recentRows = recent.filter((c) => KR_ALL[c]).slice(0, RECENT_LIMIT)
+  // 인기글 박스: 서버 인기글(전체 종목). 받기 전·실패·빈 목록은 안내 한 줄
+  const [hot, setHot] = useState<{ rows: HotRowView[]; status: 'loading' | 'live' | 'error' }>({ rows: [], status: 'loading' })
+  const [hotTries, setHotTries] = useState(0)
+  useEffect(() => {
+    let alive = true
+    getPopularPosts({ size: 14 }).then(
+      (page) => alive && setHot({ status: 'live', rows: page.items.map((p) => ({ id: String(p.id), code: p.ticker ?? GEN, title: p.content.split('\n')[0], meta: (p.ticker ? stockName(stocks, p.ticker) : GEN_NAME) + ' · 좋아요 ' + p.likeCount + ' · 답글 ' + p.commentCount })) }),
+      () => alive && setHot({ rows: [], status: 'error' })
+    )
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hotTries])
+  const recentRows = recent.filter((c) => stocks.stock(c)).slice(0, RECENT_LIMIT)
 
   const closeDd = () => {
     setDdOpen(false)
@@ -80,16 +90,12 @@ export function CommunityRight({ code, nick, pubOn, myPostN, myRepN, watch, rece
     setWTab(key)
     closeDd()
   }
-  const saveNick = (v: string) => {
-    onNick(v)
-    setNkEdit(false)
-  }
   const togglePub = () => {
     if (pubOn) onPub(false)
     else setPd({ agree: false })
   }
 
-  const groups = ddOpen ? ddGroups(ddQ, recent, false) : []
+  const groups = ddOpen ? ddGroups(ddQ, recent, stocks, false) : []
   const flat = groups.flatMap((g) => g.items)
   const ddKey = (e: KeyboardEvent) => {
     const n = flat.length
@@ -130,17 +136,19 @@ export function CommunityRight({ code, nick, pubOn, myPostN, myRepN, watch, rece
   }, [ddOpen])
 
   const row = (c: string, removeLabel: string, onRemove: () => void, roundLast: boolean, last: boolean) => {
-    const chg = RD.PX[c][1]
+    const s = stocks.stock(c)
+    const q = stocks.quote(c)
+    if (!s) return null
     return (
       <div key={c} className={styles.item}>
         <button type="button" className={cx(styles.go, c === code && styles.on, roundLast && last && styles.lastWatch)} onClick={() => onSelect(c)}>
-          <StockIcon color={KR_ALL[c][1]} initial={KR_ALL[c][2]} size={20} />
+          <StockIcon color={s.color} initial={s.ini} size={20} code={s.code} />
           <span className={styles.nm}>
-            <span className={styles.nmText}>{RD.SN[c]}</span> <span className={styles.cd}>{c}</span>
+            <span className={styles.nmText}>{s.name}</span> <span className={styles.cd}>{c}</span>
           </span>
           <span className={styles.px}>
-            <span className={styles.pxText}>{F.won(RD.PX[c][0])}</span>
-            <span className={cx(styles.chg, tone(chg))}>{F.pct(chg)}</span>
+            <span className={styles.pxText}>{q.price == null ? (q.pending ? '…' : '확인 불가') : F.won(q.price)}</span>
+            {q.rate != null && <span className={cx(styles.chg, tone(q.rate))}>{F.pct(q.rate)}</span>}
           </span>
         </button>
         <button type="button" className={styles.rm} aria-label={removeLabel} onClick={(e) => { e.stopPropagation(); onRemove() }}>
@@ -162,7 +170,6 @@ export function CommunityRight({ code, nick, pubOn, myPostN, myRepN, watch, rece
             <div className={styles.nameRow}>
               <span className={cx(styles.name, !nick && styles.nameNone)}>{nick || '닉네임 없음'}</span>
               <span className={styles.pl}>{myPl}</span>
-              {nick && !nkEdit && <button type="button" className={styles.edit} onClick={() => setNkEdit(true)}>수정</button>}
             </div>
             <a href="?tab=mine" className={styles.mine} onClick={(e) => { e.preventDefault(); onGoMine() }}>글 {myPostN} · 답글 {myRepN}</a>
           </div>
@@ -172,7 +179,6 @@ export function CommunityRight({ code, nick, pubOn, myPostN, myRepN, watch, rece
           </button>
         </div>
         <div className={styles.pubHint}>기본은 비공개예요. 공개하면 내 글에 성향 이름이 보여요.</div>
-        {nick && nkEdit && <CommunityNickForm bare first={false} initial={nick} onSave={saveNick} onCancel={() => setNkEdit(false)} />}
       </Box>
 
       <div ref={watchRef} className={styles.watch}>
@@ -183,12 +189,12 @@ export function CommunityRight({ code, nick, pubOn, myPostN, myRepN, watch, rece
           {wTab === 'watch' ? (
             <>
               {!watch.length && <div className={styles.emptyRow}>별을 눌러 관심 종목을 추가할 수 있어요</div>}
-              {watch.map((c, i) => row(c, RD.SN[c] + ' 관심 해제', () => onWatchRemove(c), true, i === watch.length - 1))}
+              {watch.map((c, i) => row(c, stockName(stocks, c) + ' 관심 해제', () => onWatchRemove(c), true, i === watch.length - 1))}
             </>
           ) : (
             <>
               {!recent.length && <div className={styles.emptyRow}>아직 본 종목이 없어요</div>}
-              {recentRows.map((c) => row(c, RD.SN[c] + ' 최근 본 목록에서 지우기', () => onRecentRemove(c), false, false))}
+              {recentRows.map((c) => row(c, stockName(stocks, c) + ' 최근 본 목록에서 지우기', () => onRecentRemove(c), false, false))}
             </>
           )}
         </Box>
@@ -222,7 +228,10 @@ export function CommunityRight({ code, nick, pubOn, myPostN, myRepN, watch, rece
         actions={<button type="button" className={styles.more} onClick={onHotMore}>더보기 ›</button>}
       >
         <div className={cx(styles.hotList, fixed && styles.hotListFixed)}>
-          {hot.map((t) => (
+          {hot.status === 'loading' && <div className={styles.emptyRow}>불러오는 중이에요</div>}
+          {hot.status === 'error' && <div className={styles.emptyRow}>인기글을 불러오지 못했어요 <button type="button" className={styles.more} onClick={() => { setHot({ rows: [], status: 'loading' }); setHotTries((n) => n + 1) }}>다시 시도</button></div>}
+          {hot.status === 'live' && !hot.rows.length && <div className={styles.emptyRow}>아직 인기글이 없어요</div>}
+          {hot.rows.map((t) => (
             <a key={t.id} href={'?stock=' + t.code + '&thread=' + t.id} className={styles.hotRow} onClick={(e) => { e.preventDefault(); onHotThread(t.code, t.id) }}>
               <span className={styles.hotRowTitle}>{t.title}</span>
               <span className={styles.hotRowMeta}>{t.meta}</span>
