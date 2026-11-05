@@ -218,7 +218,7 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
     : 50
   const confirmedLabelInside = confirmedSegment / maxTax >= 0.2
   const projectedLabelInside = projectedSegment / maxTax >= 0.2
-  const chartMotionKey = `${guide}:${maxTax}:${scenario.generalTax}:${scenario.riaTax}:${scenario.reliefAmount}`
+  const chartMotionKey = `${guide}:${maxTax}:${scenario.generalTax}:${scenario.riaTax}:${scenario.reliefAmount}:${confirmedSegment}:${projectedSegment}`
   const expectedMessage = expectedState.status === 'loading' ? '계산 중…' : '확인 불가'
 
   return (
@@ -291,9 +291,9 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
               <div aria-hidden="true" />
               <div><div className={styles.barCaption}>감면 후 납부세액</div>{formatWon(scenario.riaTax)}</div>
             </div>
-            <div className={styles.plot}>
+            <div key={chartMotionKey} className={styles.plot}>
               {scenario.generalTax > 0 && (
-                <div key={`taxGuideLine:${chartMotionKey}`} className={cx(styles.taxGuideLine, styles.chartAnnotation)} style={{ bottom: generalHeight }} aria-hidden="true" />
+                <div key={`taxGuideLine:${chartMotionKey}`} className={styles.taxGuideLine} style={{ bottom: generalHeight }} aria-hidden="true" />
               )}
               <div className={styles.barGeneral} style={{ height: generalHeight }} />
               <div className={cx(styles.barRia, scenario.riaTax > 0 && scenario.reliefAmount === 0 && styles.stackTop)} style={{ height: riaHeight }} />
@@ -304,7 +304,7 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
                 {projectedLabelInside && <span className={styles.segmentText}>추가 예상 감면액<br />{formatWon(projectedSegment)}</span>}
               </div>
               {scenario.reliefAmount > 0 && (
-                <div key={`reliefBracket:${chartMotionKey}`} className={cx(styles.reliefBracket, styles.chartAnnotation)} style={{ bottom: riaHeight, height: reliefHeight }} aria-hidden="true" />
+                <div key={`reliefBracket:${chartMotionKey}`} className={styles.reliefBracket} style={{ bottom: riaHeight, height: reliefHeight }} aria-hidden="true" />
               )}
               {scenario.reliefAmount > 0 && (
                 <div key={`reliefLabel:${chartMotionKey}`} className={cx(styles.reliefLabel, styles.chartAnnotation)} style={{ bottom: `${reliefLabelPosition}%` }}><div className={styles.barCaption}>총 감면액</div>−{formatWon(scenario.reliefAmount)}</div>
