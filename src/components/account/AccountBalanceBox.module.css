@@ -73,6 +73,37 @@
 .stock {
   min-width: 0;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  white-space: nowrap;
+  font-size: var(--font-size-13);
+}
+
+.sub {
+  font-size: var(--font-size-12);
+  color: var(--color-sub);
+}
+
+.state {
+  padding: var(--space-24) var(--space-16);
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  font-size: var(--font-size-13);
+  color: var(--color-sub);
+}
+
+.retry {
+  all: unset;
+  cursor: pointer;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-navy);
+}
+
+.retry:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 2px;
 }
 
 .strong {
@@ -93,17 +124,6 @@
 
 .sellLess {
   color: var(--color-navy);
-}
-
-.px {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  line-height: 1.2;
-}
-
-.chg {
-  font-size: var(--font-size-12);
 }
 
 .risk {

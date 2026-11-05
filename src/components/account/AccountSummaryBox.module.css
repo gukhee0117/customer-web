@@ -157,3 +157,15 @@
 .primary:hover {
   background: var(--color-navy-dark);
 }
+
+.retry {
+  all: unset;
+  cursor: pointer;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-navy);
+}
+
+.retry:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 2px;
+}
