@@ -1,49 +1,53 @@
-import { RETURNS_DATA as RD } from '../../data/returns'
 import { F } from '../../lib/calc'
+import type { SellGuide, SellGuideProduct } from '../../api/sellGuide'
 
-// 매도 신청 창의 문구와 숫자 — 원본 renderVals의 sRows·sum·plan·kk 계산 그대로(값은 src/data·src/lib에서)
+// 매도 신청 창의 문구와 숫자 — 보유 종목·추천 안은 서버 매도 가이드(sell-guide)
 
 export const SELL_STEPS = ['매도 선택', '확인', '완료']
 
-// 절세액 예상 범위 배수 — 원본 account 화면 안의 예시 값(주가·환율 1,000번 시뮬레이션, 10번 중 8번)
-// TODO: 백엔드 연결 시 시뮬레이션 결과로 교체
-const RANGE_SAVE: [number, number] = [0.85, 1.14]
+const NA = '확인 불가' // 시세·환율을 못 받으면 서버가 null을 준다(0이 아니라 "모름")
 
-const rng = (v: number, r: [number, number]): string => F.man(v * r[0]) + '~' + F.man(v * r[1]) + ' 원'
-// 1,234만 5천 → '1,234만 5천'
-const manK = (n: number): string => {
-  const m = Math.floor(n / 1e4)
-  const k = Math.round((n - m * 1e4) / 1e3)
-  return (m ? m.toLocaleString('ko-KR') + '만' : '') + (k ? ' ' + k + '천' : '')
-}
 const manW = (n: number): string => (n >= 1e4 ? F.man(n) + ' 원' : F.won(n) + '원')
 
 // ---- 왼쪽: 보유 해외주식 표 ----
 export interface SellRowView {
+  id: number // foreignProductId
   t: string
   name: string
-  qty: number // 보유
+  qty: number // 보유(lot 합)
   q: number // 매도 수량
-  amtN: number
+  amtN: number | null // 시세가 없으면 null
   amt: string
   rate: string
-  gain: number
+  gain: number | null
   on: boolean
 }
 
-// sellQ: 종목 → 매도 수량. 차익률 높은 순
-export function sellRowsView(sellQ: Record<string, number>): SellRowView[] {
-  return RD.C.HOLDINGS.slice()
-    .sort((x, y) => y.rate - x.rate)
-    .map((h) => {
-      const q = Math.min(h.qty, Math.max(0, sellQ[h.t] || 0))
-      const amtN = q * h.price
-      return { t: h.t, name: h.name, qty: h.qty, q, amtN, amt: F.won(amtN), rate: Math.round(h.rate * 100) + '%', gain: Math.round(amtN * h.rate), on: q > 0 }
-    })
+const holdingQty = (p: SellGuideProduct): number => p.lots.reduce((a, l) => a + l.availableQty, 0)
+
+// sellQ: foreignProductId → 매도 수량. 서버가 준 순서(추천 먼저, 차익률 높은 순) 그대로
+export function sellRowsView(products: SellGuideProduct[], sellQ: Record<number, number>): SellRowView[] {
+  return products.map((p) => {
+    const qty = holdingQty(p)
+    const q = Math.min(qty, Math.max(0, sellQ[p.foreignProductId] || 0))
+    const amtN = p.currentPriceKrw == null ? null : q * p.currentPriceKrw
+    const rate = p.effectiveGainRate
+    return {
+      id: p.foreignProductId,
+      t: p.ticker,
+      name: p.productName,
+      qty,
+      q,
+      amtN,
+      amt: amtN == null ? NA : F.won(amtN),
+      rate: rate == null ? NA : Math.round(rate * 100) + '%',
+      gain: amtN == null || rate == null ? null : Math.round(amtN * rate),
+      on: q > 0
+    }
+  })
 }
 
 export const clampQty = (v: number, max: number): number => Math.max(0, Math.min(max, v))
-export const holdingQty = (t: string): number => RD.C.HOLDINGS.find((h) => h.t === t)?.qty ?? 0
 
 // ---- 아래 합산 줄 ----
 export interface SellSum {
@@ -51,8 +55,6 @@ export interface SellSum {
   totalTxt: string
   left: string
   gain: string
-  ded: string
-  save: string
   over: boolean
   overMsg: string
   navyW: string
@@ -61,77 +63,61 @@ export interface SellSum {
   foreign: string
 }
 
-// limit: 서버 남은 매도 한도(원). 못 받았으면 null — 한도 안내만 비우고 합계는 그대로 계산한다
-export function sellSum(rows: SellRowView[], limit: number | null): SellSum {
-  const C = RD.C
-  const biz = C.BUSINESS_DATE
+// limit: 서버 남은 매도 한도(원). 못 받았으면 null — 한도 안내만 비운다.
+// 선택한 종목 중 시세를 모르는 것이 있으면 합계·차익은 '확인 불가'(아는 것만 더하면 작게 보인다)
+export function sellSum(rows: SellRowView[], products: SellGuideProduct[], limit: number | null, periodLabel: string | null): SellSum {
+  const picked = rows.filter((r) => r.on)
+  const unknown = picked.some((r) => r.amtN == null)
+  const total = picked.reduce((a, r) => a + (r.amtN ?? 0), 0)
+  const gainUnknown = picked.some((r) => r.gain == null)
+  const gain = picked.reduce((a, r) => a + (r.gain ?? 0), 0)
   const cap = limit ?? 0
-  const bRate = F.band(biz).rate
-  const bEnd = F.bandEnd(biz)
-  const tb = F.tax(0, biz)
-  const total = rows.reduce((a, r) => a + r.amtN, 0)
-  const gain = rows.reduce((a, r) => a + r.gain, 0)
-  const over = limit == null ? 0 : Math.max(0, total - cap)
-  const ded = Math.round(gain * (total ? Math.min(1, cap / total) : 0) * bRate)
-  const g = C.SOLD.gain + gain
-  const save =
-    Math.round(Math.max(0, g - C.BASIC_DEDUCTION) * C.TAX_RATE) - Math.round(Math.max(0, g - C.BASIC_DEDUCTION - tb.ded - ded) * C.TAX_RATE) - tb.cut
+  const over = limit == null || unknown ? 0 : Math.max(0, total - cap)
   const scale = Math.max(total, cap) || 1
+  const priced = products.every((p) => p.currentPriceKrw != null)
+  const foreign = priced ? '₩' + F.won(products.reduce((a, p) => a + holdingQty(p) * (p.currentPriceKrw ?? 0), 0)) : NA
   return {
     total,
-    totalTxt: F.won(total),
-    left: limit == null ? '-' : F.won(Math.max(0, cap - total)),
-    gain: F.won(gain),
-    ded: F.won(ded),
-    save: F.won(Math.max(0, save)),
+    totalTxt: unknown ? NA : '₩' + F.won(total), // 금액이면 ₩ 포함, 모르면 '확인 불가'
+    left: limit == null || unknown ? '-' : '₩' + F.won(Math.max(0, cap - total)),
+    gain: gainUnknown ? NA : '₩' + F.won(gain),
     over: over > 0,
-    overMsg: '한도를 ' + manW(over) + ' 넘었어요. 넘은 금액은 일반 해외주식처럼 과세돼요',
+    overMsg: '한도를 ' + manW(over) + ' 넘었어요. 넘은 금액은 거부될 수 있어요',
     navyW: ((Math.min(total, cap) / scale) * 100).toFixed(2) + '%',
     redW: ((over / scale) * 100).toFixed(2) + '%',
-    head: (limit == null ? '남은 한도를 확인할 수 없어요' : '남은 한도 ' + F.man(limit) + ' 원') + ' · 지금 ' + Math.round(bRate * 100) + '% 구간 · ' + +bEnd.slice(5, 7) + '/' + +bEnd.slice(8) + ' 마감(D-' + F.days(biz, bEnd) + ')',
-    foreign: F.won(RD.ASSETS.foreignHeld)
+    head: (limit == null ? '남은 한도를 확인할 수 없어요' : '남은 한도 ' + F.man(limit) + ' 원') + (periodLabel ? ' · ' + periodLabel : ''),
+    foreign
   }
 }
 
-// ---- 오른쪽: 한도를 꽉 채운 안 ----
+// ---- 오른쪽: 한도를 꽉 채운 안(서버 추천) ----
 export interface PlanView {
-  rows: { n: number; t: string; qty: number; amt: string; rate: string; partial: boolean }[]
+  rows: { n: number; id: number; t: string; qty: number; amt: string; rate: string; partial: boolean }[]
   total: string
   ded: string
   save: string
-  range: string
-  qtys: Record<string, number> // 이 안으로 채우기: 종목 → 수량
+  qtys: Record<number, number> // 이 안으로 채우기: foreignProductId → 수량
 }
 
-export function planView(exclude: string[] | null): PlanView {
-  const biz = RD.C.BUSINESS_DATE
-  const gp = exclude ? F.plan({ biz, exclude }) : F.plan({ biz })
+// 추천 종목이 없으면 rows가 비고 합계는 '-'
+export function planView(guide: SellGuide): PlanView {
+  const rec = guide.products.filter((p) => p.recommendedQty > 0)
+  const s = guide.summary
   return {
-    rows: gp.rows.map((r, i) => ({ n: i + 1, t: r.t, qty: r.qty, amt: F.man(r.amount), rate: Math.round(r.rate * 100) + '%', partial: r.partial })),
-    total: F.man(gp.total),
-    ded: F.man(gp.ded),
-    save: exclude ? manK(gp.save) : F.man(gp.save),
-    range: rng(gp.save, RANGE_SAVE),
-    qtys: Object.fromEntries(RD.C.HOLDINGS.map((h) => [h.t, gp.rows.find((r) => r.t === h.t)?.qty ?? 0]))
+    rows: rec.map((p, i) => ({
+      n: i + 1,
+      id: p.foreignProductId,
+      t: p.ticker,
+      qty: p.recommendedQty,
+      amt: F.man(p.expectedSellAmount),
+      rate: p.effectiveGainRate == null ? NA : Math.round(p.effectiveGainRate * 100) + '%',
+      partial: p.recommendedQty < holdingQty(p)
+    })),
+    total: s ? F.man(s.totalRecommendedSellAmount) : '-',
+    ded: s ? F.man(s.totalWeightedGain) : '-',
+    save: s ? F.man(s.estimatedReliefEffect) : '-',
+    qtys: Object.fromEntries(rec.map((p) => [p.foreignProductId, p.recommendedQty]))
   }
-}
-
-// ---- 끼루 조건: 종목 이름·티커 + 빼기 말만 알아들음(계산은 F.plan) ----
-const KK_NAMES: Record<string, RegExp> = { TSLA: /TSLA|테슬라/i, AAPL: /AAPL|애플/i, NVDA: /NVDA|엔비디아/i, MSFT: /MSFT|마이크로소프트|마소/i }
-const KK_VERB = /남기|빼|제외|말고|안 팔|팔지/
-
-export function kkParse(q: string): string[] | null {
-  const ex = Object.keys(KK_NAMES).filter((k) => KK_NAMES[k].test(q))
-  return KK_VERB.test(q) && ex.length ? ex : null
-}
-
-export const KK_PLACEHOLDER = '예: NVDA는 남기고 싶어'
-export const KK_FAIL = '조건을 알아듣지 못했어요. "NVDA는 남기고 싶어"처럼 남기고 싶은 종목을 말해 주세요.'
-
-export function kkReply(ex: string[]): string {
-  const p = F.plan({ biz: RD.C.BUSINESS_DATE, exclude: ex })
-  const nm = ex.join('·')
-  return nm + (/[LMNR]$/.test(nm) ? '을' : '를') + ' 빼고 다시 계산했어요. ' + p.rows.map((r) => r.t + ' ' + r.qty + '주').join(' + ') + '로 ' + F.man(p.total) + ' 원을 쓰면 예상 공제 약 ' + F.man(p.ded) + ' 원, 예상 절세 약 ' + manK(p.save) + ' 원이에요.'
 }
 
 // ---- 완료 ----
@@ -141,14 +127,11 @@ export const SELL_FOOT_NOTE = '매도 여부와 시점은 고객님이 결정해
 
 export const moreTitle = (picked: { t: string }[]): string => picked[0].t + (picked.length > 1 ? ' 외 ' + (picked.length - 1) + '종목' : '')
 
-// ---- 접수 후 내역 새 줄 ----
-export interface AddedSell {
+// 종목별 제출 결과(한 종목이 실패해도 나머지는 계속 보낸다)
+export interface SellSubmitResult {
   t: string
-  name: string
   qty: number
-  amt: number
-}
-export interface AddedSettle {
-  title: string
-  amt: number
+  status: 'EXECUTED' | 'REJECTED' | 'FAILED'
+  amount: number | null
+  message: string | null // FAILED일 때 서버 문구
 }
