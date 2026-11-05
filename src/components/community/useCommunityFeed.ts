@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { apiErrorMessage } from '../../api/client'
-import { deleteComment, deletePost, editPost, getComments, getMyComments, getMyPosts, getPopularPosts, getPost, getPosts, likeComment, likePost, reportTarget, retryCommentKkiru, retryPostKkiru, unlikeComment, unlikePost, writeComment, writePost } from '../../api/community'
+import { deleteComment, deletePost, editPost, getComments, getCommentsThrough, getMyComments, getMyPosts, getPopularPosts, getPost, getPosts, likeComment, likePost, reportTarget, retryCommentKkiru, retryPostKkiru, unlikeComment, unlikePost, writeComment, writePost } from '../../api/community'
 import type { CommunityPage, CommunityPost, ReportReason } from '../../api/community'
 import { FEED_LIMIT, FRESH_MS, GEN, POST_MAX, REPLY_MAX } from './communityData'
 import { fromServerComment, fromServerPost, type FeedView, type MyReply, type Post, type Reply } from './communityPosts'
@@ -184,7 +184,7 @@ export function useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listR
   // 내가 쓴 답글 줄에서 그 글로 이동: 더 많이 보여 주고 답글을 펼치고 글을 찾아 스크롤 + 잠깐 강조
   const focusPost = (_targetCode: string, id: string) => {
     pinThread(id)
-    if (!cm[id]) loadReplies(id)
+    if (!cm[id] || cm[id].status === 'error') loadReplies(id)
     setRepOpen((o) => ({ ...o, [id]: true }))
     setReplyAt(null)
     setFlash({ id, on: true })
@@ -206,7 +206,10 @@ export function useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listR
     if (!Number.isInteger(n) || n <= 0) return
     if (cursor == null && !silent) setCm((m) => ({ ...m, [id]: { status: 'loading', items: [], next: null, more: false } }))
     else setCm((m) => (m[id] ? { ...m, [id]: { ...m[id], more: true } } : m))
-    getComments(n, { cursor, size: 20 }).then(
+    // 끼루 갱신처럼 조용히 다시 받을 때는 이미 불러온 개수까지 받아 더 본 댓글을 첫 쪽으로 줄이지 않는다
+    const loaded = silent && cursor == null ? cmRef.current[id]?.items.length ?? 0 : 0
+    const fetched = loaded > 20 ? getCommentsThrough(n, loaded) : getComments(n, { cursor, size: 20 })
+    fetched.then(
       (page) => setCm((m) => ({ ...m, [id]: { status: 'live', items: (cursor == null ? [] : m[id]?.items ?? []).concat(page.items.map(fromServerComment)), next: page.nextCursor, more: false } })),
       () => setCm((m) => (silent ? m : { ...m, [id]: cursor == null ? { status: 'error', items: [], next: null, more: false } : { ...(m[id] ?? { status: 'live', items: [], next: null }), more: false } }))
     )
@@ -216,7 +219,7 @@ export function useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listR
     if (c && c.next != null && !c.more) loadReplies(id, c.next)
   }
   const toggleRep = (id: string) => {
-    if (!repOpen[id] && !cm[id]) loadReplies(id)
+    if (!repOpen[id] && (!cm[id] || cm[id].status === 'error')) loadReplies(id)
     setRepOpen((o) => ({ ...o, [id]: !o[id] }))
     if (replyAt && replyAt.post === id) { setReplyAt(null); setReplyText('') }
   }

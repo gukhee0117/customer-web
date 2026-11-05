@@ -104,6 +104,19 @@ export const deletePost = (id: number) => send<void>('delete', `/posts/${id}`)
 export const retryPostKkiru = (id: number) => send<CommunityPost>('post', `/posts/${id}/kkiru/retry`)
 
 export const getComments = (postId: number, p: { cursor?: number; size?: number } = {}) => get<CommunityPage<CommunityComment>>(`/posts/${postId}/comments`, p)
+/** 첫 쪽부터 이어서 받아 count개 이상(또는 끝)까지 하나로 합친다. 이미 더 본 댓글을 조용히 다시 받을 때 쓴다. 쪽 크기는 서버 상한 50. */
+export async function getCommentsThrough(postId: number, count: number): Promise<CommunityPage<CommunityComment>> {
+  const items: CommunityComment[] = []
+  let cursor: number | undefined
+  let nextCursor: number | null
+  do {
+    const page = await getComments(postId, { cursor, size: 50 })
+    items.push(...page.items)
+    nextCursor = page.nextCursor
+    cursor = nextCursor ?? undefined
+  } while (nextCursor != null && items.length < count)
+  return { items, nextCursor }
+}
 export const writeComment = (postId: number, body: { content: string; replyToCommentId?: number }) => send<CommunityComment>('post', `/posts/${postId}/comments`, body)
 export const deleteComment = (id: number) => send<void>('delete', `/comments/${id}`)
 export const retryCommentKkiru = (id: number) => send<CommunityComment>('post', `/comments/${id}/kkiru/retry`)
