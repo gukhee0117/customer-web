@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import '../../styles/tokens.css'
 import { profileKeyOf } from '../../api/investor'
-import { accountViewState, maskAccountNo } from '../../api/profile'
+import { formatAccountNo } from '../../api/profile'
 import type { Profile } from '../../api/profile'
 import { RETURNS_DATA as RD, demo } from '../../data/returns'
 import { F } from '../../lib/calc'
@@ -12,7 +12,7 @@ import { Toast } from '../common/Toast'
 import { useToast } from '../common/useToast'
 import styles from './HomeProfileBox.module.css'
 
-// 프로필·계좌 박스. 이름·성향·진단일·유효기간·계좌는 서버 프로필 값(받기 전·실패하면 이름·진단일 '-', 계좌는 시연 설정의 목업). 진단 상태(미진단·만료)는 demo().assess를 따른다
+// 프로필·계좌 박스. 이름·성향·진단일·유효기간·계좌번호는 서버 프로필 값(받기 전·실패하면 '-'). 계좌 상태 화면은 개설·정상만 쓴다. 진단 상태(미진단·만료)는 demo().assess를 따른다
 interface Props {
   className?: string
   prof: Profile | null
@@ -26,9 +26,9 @@ export function HomeProfileBox({ className, prof, limit, onRetryLimit }: Props) 
   const { message: toast, showToast } = useToast()
   const biz = F.today()
   const profile = RD.PROFILES[prof?.assessed ? profileKeyOf(prof.investorType) : RD.CUSTOMER.profile]
-  const acct = account === undefined ? RD.ACCOUNT_STATE : account === null ? 'none' : accountViewState(account.status)
+  const acct = RD.ACCOUNT_STATE
   const accountNo = account?.accountNo
-  const acctNo = account ? maskAccountNo(accountNo ?? null) : RD.ACCOUNT.no
+  const acctNo = formatAccountNo(accountNo)
   const assess = demo().assess || 'ok'
   const assessedDate = prof?.assessedAt?.slice(0, 10)
   const pfLeft = prof?.expiresAt ? F.days(biz, F.addDays(prof.expiresAt.slice(0, 10), -1)) : 999 // 진단 유효기간 남은 날(만료일 전날까지 유효)
@@ -36,7 +36,7 @@ export function HomeProfileBox({ className, prof, limit, onRetryLimit }: Props) 
 
   const copyAcct = () => {
     try {
-      navigator.clipboard.writeText(account ? accountNo ?? '' : RD.ACCOUNT.no)
+      navigator.clipboard.writeText(accountNo ?? '')
     } catch {
       // 클립보드를 못 쓰는 환경에서도 안내는 보여 준다(원본과 동일)
     }

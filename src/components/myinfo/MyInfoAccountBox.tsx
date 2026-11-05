@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
-import { ACCOUNT_STATUS_LABEL, maskAccountNo } from '../../api/profile'
+import { ACCOUNT_STATUS_LABEL, formatAccountNo } from '../../api/profile'
 import type { ProfileAccount } from '../../api/profile'
-import { RETURNS_DATA as RD } from '../../data/returns'
+import { getGeneralAccounts } from '../../api/withdrawal'
 import { F } from '../../lib/calc'
+import { linkedAccountText } from '../account/linkedAccount'
+import { useServerData } from '../account/useServerData'
 import { Box } from '../common/Box'
 import { cx } from '../common/cx'
 import rows from './MyInfoRows.module.css'
@@ -15,8 +17,9 @@ interface Props {
   loaded: boolean
 }
 
-// 계좌 — 서버 프로필의 account 값. 계좌 없음이면 개설 안내만. 연결 일반계좌는 서버가 아직 안 줘서 목업
+// 계좌 — 서버 프로필의 account 값. 계좌 없음이면 개설 안내만. 연결 일반계좌는 서버 연결 계좌 목록
 export function MyInfoAccountBox({ className, onToast, account, loaded }: Props) {
+  const { state: linked, retry } = useServerData(getGeneralAccounts)
   const copy = () => {
     try {
       navigator.clipboard.writeText(account?.accountNo ?? '')
@@ -34,7 +37,7 @@ export function MyInfoAccountBox({ className, onToast, account, loaded }: Props)
         <div className={rows.grid}>
           <span className={rows.label}>RIA 계좌</span>
           <span className={cx(rows.value, rows.nowrap)}>
-            {`Returns RIA ${maskAccountNo(account.accountNo)}`}
+            {`Returns RIA ${formatAccountNo(account.accountNo)}`}
           </span>
           <span className={cx(rows.label, styles.copyCell)}>
             <button type="button" className={styles.copy} onClick={copy}>
@@ -47,10 +50,13 @@ export function MyInfoAccountBox({ className, onToast, account, loaded }: Props)
           <span className={cx(rows.value, rows.span2)}>{account.openedAt ? F.dot(account.openedAt.slice(0, 10)) : '-'}</span>
           <span className={cx(rows.label, rows.last)}>연결 일반계좌</span>
           <span className={styles.linked}>
-            <span className={rows.nowrap}>
-              {`${RD.LINKED.name} ${RD.LINKED.no}`}
-            </span>
-            <span className={styles.linkedNote}>{RD.LINKED.note || '입고·인출은 이 계좌로만'}</span>
+            <span className={rows.nowrap}>{linkedAccountText(linked)}</span>
+            {linked.status === 'error' && (
+              <button type="button" className={styles.copy} onClick={retry}>
+                다시 시도
+              </button>
+            )}
+            <span className={styles.linkedNote}>입고·인출은 이 계좌로만</span>
           </span>
         </div>
       ) : (

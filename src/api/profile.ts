@@ -25,10 +25,6 @@ export interface ProfileAccount {
   appliedAt: string
 }
 
-// 서버 계좌 상태 → 화면(시연 설정의 계좌 상태)이 쓰는 값. 해지 신청까지는 계좌가 살아 있어 정상 화면, 해지는 계좌 없음 화면
-export const accountViewState = (status: ProfileAccount['status']): 'opened' | 'reviewing' | 'rejected' | 'none' =>
-  ({ OPENED: 'opened', APPLIED: 'reviewing', REJECTED: 'rejected', CLOSURE_REQUESTED: 'opened', CLOSED: 'none' } as const)[status]
-
 export const ACCOUNT_STATUS_LABEL: Record<ProfileAccount['status'], string> = {
   APPLIED: '심사 중',
   OPENED: '정상',
@@ -37,8 +33,8 @@ export const ACCOUNT_STATUS_LABEL: Record<ProfileAccount['status'], string> = {
   CLOSED: '해지'
 }
 
-// 7319000024 → 7319****24. 개설 전이면 번호가 없어 '-'
-export const maskAccountNo = (no: string | null): string => (no == null ? '-' : no.length > 6 ? no.slice(0, 4) + '****' + no.slice(-2) : no)
+// 본인 계좌번호는 그대로 보여 준다. 개설 전이면 번호가 없어 '-'
+export const formatAccountNo = (no: string | null | undefined): string => no ?? '-'
 
 export async function getProfile(): Promise<Profile> {
   const res = await apiClient.get<ApiResponse<Profile>>('/api/customer/profile')
