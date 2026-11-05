@@ -1,10 +1,9 @@
 import '../../styles/tokens.css'
-import { RETURNS_DATA as RD } from '../../data/returns'
 import { F } from '../../lib/calc'
 import { Box } from '../common/Box'
 import { StockIcon } from '../common/StockIcon'
 import { cx } from '../common/cx'
-import { KR_ALL, RANK12 } from './communityData'
+import { useStocks } from './stocksContext'
 import styles from './CommunityTop10.module.css'
 
 interface CommunityTop10Props {
@@ -18,6 +17,8 @@ const tone = (n: number) => (n > 0 ? styles.up : n < 0 ? styles.down : styles.fl
 
 // 많이 이야기하는 종목 — 순위·종목·등락·글 수. 행을 누르면 선택만 바뀜(가운데 피드 연결은 C-2부터)
 export function CommunityTop10({ code, fixed, rowH, onSelect }: CommunityTop10Props) {
+  const stocks = useStocks()
+  const rows = stocks.rank.filter((r) => stocks.stock(r.ticker))
   return (
     <Box
       data-box="top10"
@@ -30,8 +31,21 @@ export function CommunityTop10({ code, fixed, rowH, onSelect }: CommunityTop10Pr
       }
     >
       <div className={cx(styles.list, fixed && styles.listFixed)}>
-        {RANK12.map(([c, posts], i) => {
-          const chg = RD.PX[c][1]
+        {stocks.status === 'loading' && <p className={styles.status}>불러오는 중이에요</p>}
+        {stocks.status === 'error' && (
+          <p className={styles.status}>
+            종목 순위를 불러오지 못했어요{' '}
+            <button type="button" className={styles.retry} onClick={stocks.retry}>
+              다시 시도
+            </button>
+          </p>
+        )}
+        {stocks.status === 'live' && rows.length === 0 && <p className={styles.status}>오늘 올라온 글이 아직 없어요</p>}
+        {rows.map((r, i) => {
+          const c = r.ticker
+          const s = stocks.stock(c)!
+          const qt = stocks.quote(c)
+          const chg = qt.rate
           const on = c === code
           return (
             <button
@@ -42,14 +56,14 @@ export function CommunityTop10({ code, fixed, rowH, onSelect }: CommunityTop10Pr
               aria-current={on ? 'true' : undefined}
               onClick={() => onSelect(c)}
             >
-              <span className={cx(styles.num, i < 3 && styles.numTop)}>{i + 1}</span>
-              <StockIcon color={KR_ALL[c][1]} initial={KR_ALL[c][2]} size={20} />
+              <span className={cx(styles.num, i < 3 && styles.numTop)}>{r.rank}</span>
+              <StockIcon color={s.color} initial={s.ini} size={20} code={s.code} />
               <span className={styles.name}>
-                <span className={styles.nameText}>{RD.SN[c]}</span> <span className={styles.code}>{c}</span>
+                <span className={styles.nameText}>{s.name}</span> <span className={styles.code}>{c}</span>
               </span>
               <span className={styles.right}>
-                <span className={cx(styles.chg, tone(chg))}>{F.pct(chg)}</span>
-                <span className={styles.posts}>글 {posts}</span>
+                <span className={cx(styles.chg, chg == null ? styles.flat : tone(chg))}>{chg == null ? (qt.pending ? '…' : '-') : F.pct(chg)}</span>
+                <span className={styles.posts}>글 {r.postCount}</span>
               </span>
             </button>
           )

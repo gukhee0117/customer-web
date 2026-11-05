@@ -2,19 +2,46 @@ import type { ReactNode } from 'react'
 import '../../styles/tokens.css'
 import { KkiruAvatar } from '../common/KkiruAvatar'
 import { StockLabel } from '../common/StockLabel'
-import { assetUrl } from '../common/assetUrl'
 import { cx } from '../common/cx'
-import { GEN, GEN_NAME, KIRU_LONG_CHARS, LONG_CHARS, LONG_LINES, POST_MAX } from './communityData'
-import { kiruAnswers, plOf, type KiruAnswer, type KiruState, type KiruStatus, type Post } from './communityPosts'
+import { GEN, GEN_NAME, LONG_CHARS, LONG_LINES, POST_MAX } from './communityData'
+import type { KkiruStatus } from '../../api/community'
+import { plOf, type Post } from './communityPosts'
 import styles from './CommunityPost.module.css'
 
-// 끼루 답변이 없을 때 글 아래에 한 줄로 보이는 안내: [문구, 링크 글자]
-// NO_SOURCE의 링크는 끼루 챗봇 창을 여는 것(onBot), FAILED의 링크는 다시 요청(onRetry)
-const KIRU_LINES: Record<Exclude<KiruStatus, 'ANSWERED'>, [string, string]> = {
+// 끼루 호출 상태 한 줄: [문구, 링크 글자]. 답한 경우(ANSWERED)는 답글에서 보게 안내
+// NO_SOURCE·FOLLOW_UP의 링크는 끼루 챗봇 창을 여는 것(onBot), FAILED의 링크는 다시 요청(onRetry)
+const KKIRU_LINES: Record<Exclude<KkiruStatus, 'ANSWERED'>, [string, string]> = {
   PENDING: ['끼루가 근거를 찾고 있어요...', ''],
   NO_SOURCE: ['확인된 자료가 없어 끼루가 답하지 않았어요 ·', '끼루 챗봇에서 물어보기 ›'],
   OUT_OF_SCOPE: ['끼루는 RIA 제도와 종목 정보만 안내해요', ''],
+  FOLLOW_UP: ['후속 질문은 끼루 챗봇에서 이어서 물어볼 수 있어요 ·', '끼루 챗봇에서 물어보기 ›'],
   FAILED: ['끼루 답변을 불러오지 못했어요 ·', '다시 요청']
+}
+
+interface KkiruLineProps {
+  status: KkiruStatus | null
+  mine: boolean // 실패는 쓴 사람에게만 보임
+  onRetry: () => void
+  onBot: () => void
+  onOpen: () => void // 답글(끼루 답변) 펼치기
+}
+
+export function KkiruLine({ status, mine, onRetry, onBot, onOpen }: KkiruLineProps) {
+  if (!status || (status === 'FAILED' && !mine)) return null
+  if (status === 'ANSWERED') {
+    return (
+      <div className={styles.kDone}>
+        끼루가 답했어요 · <button type="button" className={styles.kLink} onClick={onOpen}>답글에서 보기</button>
+      </div>
+    )
+  }
+  const [text, link] = KKIRU_LINES[status]
+  return (
+    <div className={styles.kLine}>
+      {text}
+      {link && <button type="button" className={styles.kLink} onClick={status === 'FAILED' ? onRetry : onBot}>{link}</button>}
+    </div>
+  )
 }
 
 export const Segs = ({ text, q }: { text: string; q: string }) => {
@@ -35,14 +62,12 @@ export const Segs = ({ text, q }: { text: string; q: string }) => {
 
 interface CommunityPostProps {
   p: Post
-  nick: string // 내 닉네임(내 글 표시용)
   pf: string // 작성자 성향(아바타)
   q: string // 검색어(일치 글자 강조). 검색 중이 아니면 빈 문자열
   multi: boolean // 여러 종목 글이 섞인 목록(내가 쓴 댓글·인기글 전체 종목)이면 종목 표시
   liked: boolean
+  likes: number // 좋아요 수(서버가 돌려준 값)
   expanded: boolean
-  kLiked: boolean
-  kExpanded: boolean
   menuOpen: boolean
   rn: number // 답글 수(내가 단 것 포함)
   repOpen: boolean
@@ -50,14 +75,14 @@ interface CommunityPostProps {
   flash: 'on' | 'fade' | null
   onLike: (id: string) => void
   onMore: (id: string) => void
-  onKiruMore: (id: string) => void
   onMenu: (id: string) => void
   onToggleRep: (id: string) => void
   onShare: (p: Post) => void
-  kiru: KiruState | null // 끼루 답변 상태(없으면 끼루 영역 없음)
+  kkiru: KkiruStatus | null // 끼루 호출 상태(없으면 끼루 영역 없음)
+  onOpenReplies: () => void // 끼루 답변을 보려고 답글 펼치기
   editing: boolean // 이 글을 수정 중
   editText: string
-  onRetry: (p: Post) => void // 끼루 답변 "다시 요청"
+  onRetry: () => void // 끼루 답변 "다시 요청"
   onBot: () => void // "끼루 챗봇에서 물어보기 ›"
   onEdit: (p: Post) => void
   onEditType: (v: string) => void
@@ -69,18 +94,11 @@ interface CommunityPostProps {
 }
 
 // 글 한 개: 아바타·닉네임·성향·시간 + "…" 메뉴 + 본문 + 좋아요/답글/공유 줄 + 끼루 답변
-export function CommunityPost({ p, nick, pf, q, multi, liked, expanded, kLiked, kExpanded, menuOpen, rn, repOpen, fresh, flash, onLike, onMore, onKiruMore, onMenu, onToggleRep, onShare, kiru, editing, editText, onRetry, onBot, onEdit, onEditType, onEditCancel, onEditSave, onDelete, onReport, children }: CommunityPostProps) {
+export function CommunityPost({ p, pf, q, multi, liked, likes, expanded, menuOpen, rn, repOpen, fresh, flash, onLike, onMore, onMenu, onToggleRep, onShare, kkiru, onOpenReplies, editing, editText, onRetry, onBot, onEdit, onEditType, onEditCancel, onEditSave, onDelete, onReport, children }: CommunityPostProps) {
   const lines = p.text.split('\n').length
   const long = p.text.length > LONG_CHARS || lines > LONG_LINES
   const exp = expanded || !!q
   const clamped = long && !exp
-
-  const ka = kiru && kiru.key ? kiruAnswers()[kiru.key] : null
-  const kAns = kiru && kiru.status === 'ANSWERED' && ka ? (ka as KiruAnswer) : null
-  const kLine = kiru && !kAns ? KIRU_LINES[kiru.status as Exclude<KiruStatus, 'ANSWERED'>] : null
-  const kOn = !!kiru && (kiru.status !== 'FAILED' || p.mine) // 실패는 쓴 사람에게만 보임
-  const kLong = !!kAns && kAns.text.length > KIRU_LONG_CHARS
-  const kClamped = kLong && !kExpanded
 
   return (
     <article
@@ -93,7 +111,7 @@ export function CommunityPost({ p, nick, pf, q, multi, liked, expanded, kLiked, 
         <KkiruAvatar profile={pf} size={28} />
         <div className={styles.body}>
           <div className={styles.head}>
-            <span className={styles.nick}>{p.mine ? nick + ' (나)' : p.nick}</span>
+            <span className={styles.nick}>{p.mine ? p.nick + ' (나)' : p.nick}</span>
             <span className={styles.meta}>{plOf(pf)}</span>
             <span className={styles.meta}>{p.time}</span>
             <span data-menu="1" className={styles.menuWrap}>
@@ -103,7 +121,7 @@ export function CommunityPost({ p, nick, pf, q, multi, liked, expanded, kLiked, 
                   {!p.mine && <button type="button" role="menuitem" className={styles.menuItem} onClick={onReport}>신고하기</button>}
                   {p.mine && (
                     <>
-                      <button type="button" role="menuitem" className={styles.menuItem} onClick={() => onEdit(p)}>수정</button>
+                      {p.editable && <button type="button" role="menuitem" className={styles.menuItem} onClick={() => onEdit(p)}>수정</button>}
                       <button type="button" role="menuitem" className={styles.menuItem} onClick={() => onDelete(p.id)}>삭제</button>
                     </>
                   )}
@@ -117,7 +135,6 @@ export function CommunityPost({ p, nick, pf, q, multi, liked, expanded, kLiked, 
                 <Segs text={p.text} q={q} />
               </div>
               {long && !q && <button type="button" className={styles.link} onClick={() => onMore(p.id)}>{expanded ? '접기' : '더보기'}</button>}
-              {kAns && <div className={styles.kDone}>끼루가 답했어요</div>}
             </>
           )}
           {editing && (
@@ -130,42 +147,13 @@ export function CommunityPost({ p, nick, pf, q, multi, liked, expanded, kLiked, 
             </div>
           )}
           <div className={styles.actions}>
-            <button type="button" className={cx(styles.act, liked && styles.actOn)} aria-pressed={liked} onClick={() => onLike(p.id)}>좋아요 {p.likes + (liked ? 1 : 0)}</button>
+            <button type="button" className={cx(styles.act, liked && styles.actOn)} aria-pressed={liked} onClick={() => onLike('p' + p.id)}>좋아요 {likes}</button>
             <button type="button" className={cx(styles.act, repOpen && styles.actOn)} aria-expanded={repOpen} onClick={() => onToggleRep(p.id)}>답글 {rn} {repOpen ? '∧' : '∨'}</button>
             <button type="button" className={styles.act} onClick={() => onShare(p)}>공유</button>
           </div>
-          {kOn && (
+          {kkiru && (
             <div className={styles.kiru}>
-              {kAns && (
-                <div className={styles.kAns}>
-                  <img className={styles.kFace} src={assetUrl('assets/kkiru/kkiru-ai-face.png')} alt="" />
-                  <div style={{ minWidth: 0 }}>
-                    <div className={styles.kHead}><b className={styles.kName}>끼루 AI</b><span className={styles.meta}>{kiru?.fresh ? '방금' : kAns.time}</span></div>
-                    <div className={styles.kText} style={kClamped ? { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 5 } : undefined}>{kAns.text}</div>
-                    {kLong && <button type="button" className={styles.link} onClick={() => onKiruMore(p.id)}>{kExpanded ? '접기' : '더보기'}</button>}
-                    <div className={styles.kSrc}>
-                      근거
-                      {kAns.src.map(([label, url]) => (
-                        <span key={label} style={{ display: 'contents' }}>
-                          <span className={styles.dot}>·</span>
-                          <a href={url} target="_blank" rel="noopener noreferrer">{label}</a>
-                        </span>
-                      ))}
-                    </div>
-                    <div className={styles.kNote}>끼루는 정보를 안내해요 · 교육용 프로젝트의 자체 분석 결과이며 수익을 보장하지 않아요</div>
-                    <div className={styles.kActions}>
-                      <button type="button" className={cx(styles.act, kLiked && styles.actOn)} aria-pressed={kLiked} onClick={() => onLike('k-' + p.id)}>좋아요 {kAns.likes + (kLiked ? 1 : 0)}</button>
-                      <button type="button" className={styles.act} onClick={onReport}>신고</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {kLine && (
-                <div className={styles.kLine}>
-                  {kLine[0]}
-                  {kLine[1] && <button type="button" className={styles.kLink} onClick={kiru!.status === 'FAILED' ? () => onRetry(p) : onBot}>{kLine[1]}</button>}
-                </div>
-              )}
+              <KkiruLine status={kkiru} mine={p.mine} onRetry={onRetry} onBot={onBot} onOpen={onOpenReplies} />
             </div>
           )}
           {children}

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import '../../styles/tokens.css'
 import { cx } from '../common/cx'
-import { REPORT_ETC, REPORT_MAX, REPORT_REASONS } from './communityData'
+import { REPORT_REASONS } from './communityData'
 import type { useCommunityFeed } from './useCommunityFeed'
 import styles from './CommunityDialogs.module.css'
 
@@ -30,19 +30,13 @@ export function CommunityDialogs({ feed }: { feed: Feed }) {
           <div className={styles.panel} role="dialog" aria-modal="true" aria-label="신고 사유">
             <h3 className={styles.title}>신고 사유를 골라 주세요</h3>
             <div role="radiogroup" className={styles.list}>
-              {REPORT_REASONS.map((label) => (
-                <button key={label} type="button" role="radio" aria-checked={report.reason === label} className={styles.opt} onClick={() => feed.pickReason(label)}>
-                  <span className={cx(styles.ring, report.reason === label && styles.ringOn)} />
+              {REPORT_REASONS.map(([reason, label]) => (
+                <button key={reason} type="button" role="radio" aria-checked={report.reason === reason} className={styles.opt} onClick={() => feed.pickReason(reason)}>
+                  <span className={cx(styles.ring, report.reason === reason && styles.ringOn)} />
                   {label}
                 </button>
               ))}
             </div>
-            {report.reason === REPORT_ETC && (
-              <div>
-                <input className={styles.etc} value={report.text} onChange={(e) => feed.typeReport(e.target.value)} maxLength={REPORT_MAX} placeholder="신고 사유를 적어 주세요" aria-label="기타 신고 사유" />
-                <div className={styles.etcCount}>{report.text.length}/{REPORT_MAX}</div>
-              </div>
-            )}
             <div className={styles.actions}>
               <button type="button" className={styles.cancel} onClick={feed.cancelReport}>취소</button>
               <button type="button" className={styles.ok} disabled={!report.reason} onClick={feed.submitReport}>신고</button>

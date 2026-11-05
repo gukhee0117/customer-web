@@ -96,7 +96,7 @@ export function InvestAddPanel({ pkg, add, names, onChange, onClose, onPick, onA
                 <div className={styles.addMain}>
                   <div className={styles.addLabel}>
                     <span className={styles.blkLabel}>
-                      <StockIcon color="var(--color-line-strong)" initial={c.name.slice(0, 1)} size={20} />
+                      <StockIcon color="var(--color-line-strong)" initial={c.name.slice(0, 1)} size={20} code={c.ticker} />
                       <b className={styles.blkName}>{c.name}</b>
                       <span className={styles.blkCode}>{c.ticker}</span>
                       <span className={styles.blkSector}>{c.type === 'FUND' ? '펀드·ETF' : (c.sectorName ?? '주식')}</span>

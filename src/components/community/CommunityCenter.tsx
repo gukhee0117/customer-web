@@ -1,25 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 import '../../styles/tokens.css'
-import { RETURNS_DATA as RD } from '../../data/returns'
 import { F } from '../../lib/calc'
 import { StockIcon } from '../common/StockIcon'
 import { Tabs } from '../common/Tabs'
 import { cx } from '../common/cx'
-import { DEFAULT_NICK, GEN, GEN_NAME, KR_ALL, composePlaceholder, kiruAskHint } from './communityData'
-import { ddGroups, priceAt } from './communityLogic'
+import { getPost } from '../../api/community'
+import { GEN, GEN_NAME, SEARCH_MAX, composePlaceholder, kiruAskHint } from './communityData'
+import { ddGroups } from './communityLogic'
+import { stockName, useStocks } from './stocksContext'
 import { myProfile, type Post } from './communityPosts'
 import { CommunityCompose } from './CommunityCompose'
 import { CommunityDialogs } from './CommunityDialogs'
 import { CommunityFeed } from './CommunityFeed'
-import { CommunityNickForm } from './CommunityNickForm'
 import { CommunityRight } from './CommunityRight'
 import { CommunityStockPick, SearchIcon } from './CommunityStockPick'
 import { useCommunityFeed, type FeedTab, type HotScope } from './useCommunityFeed'
+import type { MyCommunity } from './useMyCommunity'
 import { useAppShell } from '../../layouts/appShell'
 import styles from './CommunityCenter.module.css'
 
 export type { FeedTab, HotScope }
-const TABS: { key: FeedTab; label: string }[] = [{ key: 'live', label: '실시간' }, { key: 'hot', label: '인기글' }, { key: 'mine', label: '내가 쓴 댓글' }]
+const TABS: { key: FeedTab; label: string }[] = [{ key: 'live', label: '최신' }, { key: 'hot', label: '인기글' }, { key: 'mine', label: '내가 쓴 댓글' }]
 const SCOPES: [HotScope, string][] = [['stock', '이 종목'], ['all', '전체 종목']]
 
 const tone = (n: number) => (n > 0 ? styles.up : n < 0 ? styles.down : styles.flat)
@@ -35,8 +36,8 @@ interface CommunityCenterProps {
   onScope: (scope: HotScope) => void
   onStar: () => void
   fixed: boolean // 화면 고정이면 글 목록만 스크롤
-  nick: string // 내 닉네임(없으면 빈 문자열 → 닉네임 정하기가 보임)
-  onNick: (nick: string) => void
+  me: MyCommunity | null // 내 닉네임·성향·글/답글 수
+  onMeChanged: () => void
   pubOn: boolean
   onPub: (on: boolean) => void
   watch: string[]
@@ -48,9 +49,8 @@ interface CommunityCenterProps {
 }
 
 // 가운데 열(+ 같은 글 상태를 쓰는 오른쪽 열): 종목 정보 줄 + 종목 고르기 목록 + 탭·정렬 줄 + 글 검색 + 닉네임 정하기/글쓰기 창 + 글 목록(답글·수정·삭제·신고 포함)
-export function CommunityCenter({ code, recent, starred, tab, scope, onCode, onTab, onScope, onStar, fixed, nick, onNick, pubOn, onPub, watch, onWatchAdd, onWatchRemove, onRecentRemove, onToast, thread }: CommunityCenterProps) {
+export function CommunityCenter({ code, recent, starred, tab, scope, onCode, onTab, onScope, onStar, fixed, me, onMeChanged, pubOn, onPub, watch, onWatchAdd, onWatchRemove, onRecentRemove, onToast, thread }: CommunityCenterProps) {
   const shell = useAppShell()
-  const myNick = nick || DEFAULT_NICK // 닉네임이 비어 있어도 글·답글에는 기본 이름이 쓰임(원본)
   const [ddOpen, setDdOpen] = useState(false)
   const [ddQ, setDdQ] = useState('')
   const [ddHi, setDdHi] = useState(0)
@@ -73,19 +73,22 @@ export function CommunityCenter({ code, recent, starred, tab, scope, onCode, onT
     setQ('')
   }
 
-  const feed = useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listRef, feedRef, nick: myNick, thread, onToast, onPosted: () => { if (tab === 'hot') onTab('live', true) } })
+  const feed = useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listRef, feedRef, thread, onToast, onMyChanged: onMeChanged, onPosted: () => { if (tab === 'hot') onTab('live', true) } })
   const { menu, closeMenu, report, delId, cancelReport, cancelDelete } = feed
   const toTop = useRef(feed.toListTop)
   useEffect(() => { toTop.current = feed.toListTop })
   useEffect(() => { toTop.current(false) }, [code])
 
+  const myPf = myProfile(pubOn, me?.profile ?? 'private')
   const isGen = code === GEN
-  const name = isGen ? GEN_NAME : RD.SN[code]
+  const stocks = useStocks()
+  const info = stocks.stock(code)
+  const name = isGen ? GEN_NAME : stockName(stocks, code)
   const qOn = feed.qOn
   const view = feed.view
-  const px = RD.PX[code] || [0, 0]
+  const px = stocks.quote(code)
 
-  const groups = ddOpen ? ddGroups(ddQ, recent) : []
+  const groups = ddOpen ? ddGroups(ddQ, recent, stocks) : []
   const flat = groups.flatMap((g) => g.items)
 
   const closeDd = () => {
@@ -119,12 +122,10 @@ export function CommunityCenter({ code, recent, starred, tab, scope, onCode, onT
     onTab(key)
     closeSearch()
     feed.clearReply()
-    feed.resetLimit()
     feed.toListTop(false)
   }
   const changeScope = (key: HotScope) => {
     onScope(key)
-    feed.resetLimit()
   }
   // 글 링크 복사(원본: 주소 + ?stock=&thread=)
   const share = (p: Post) => {
@@ -136,7 +137,6 @@ export function CommunityCenter({ code, recent, starred, tab, scope, onCode, onT
   const goMine = () => {
     onTab('mine')
     closeSearch()
-    feed.resetLimit()
     feed.toListTop(true)
   }
   // 인기글 박스 "더보기 ›": 인기글 탭 + 전체 종목(주소는 그대로)
@@ -144,7 +144,6 @@ export function CommunityCenter({ code, recent, starred, tab, scope, onCode, onT
     onTab('hot', true)
     onScope('all')
     closeSearch()
-    feed.resetLimit()
     feed.toListTop(false)
   }
   // 내가 쓴 답글 줄에서 글로 이동(그 글의 답글도 같이 펼침)
@@ -154,6 +153,14 @@ export function CommunityCenter({ code, recent, starred, tab, scope, onCode, onT
     closeSearch()
     feed.focusPost(c, id)
     try { history.replaceState(null, '', '?stock=' + c + '&thread=' + id) } catch { /* 주소 갱신 실패는 무시 */ }
+  }
+
+  // 내가 쓴 답글 줄에서 그 글로 이동: 댓글에는 종목이 없어 글을 한 번 받아 종목을 알아낸 뒤 이동
+  const goReply = (postId: string) => {
+    getPost(Number(postId)).then(
+      (p) => goThread(p.ticker ?? GEN, postId),
+      () => onToast('글을 찾지 못했어요')
+    )
   }
 
   // 목록 밖을 누르거나 Esc: 목록 → 글 검색 순서로 닫음
@@ -212,7 +219,7 @@ export function CommunityCenter({ code, recent, starred, tab, scope, onCode, onT
     <section ref={feedRef} data-col="center" className={styles.center}>
       <div ref={headRef} className={styles.head}>
         <button type="button" className={styles.pick} aria-expanded={ddOpen} aria-haspopup="listbox" aria-label="종목 선택" onClick={openDd}>
-          <StockIcon color={isGen ? 'var(--color-navy)' : KR_ALL[code][1]} initial={isGen ? 'R' : KR_ALL[code][2]} size={24} />
+          <StockIcon color={isGen ? 'var(--color-navy)' : (info?.color ?? 'var(--color-gray-600)')} initial={isGen ? 'R' : (info?.ini ?? code.slice(0, 1))} size={24} code={isGen ? undefined : code} />
           <span className={styles.stockName}>{name}</span>
           <span className={styles.stockCode}>{isGen ? '' : code}</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cx(styles.chev, ddOpen && styles.chevOpen)}>
@@ -221,9 +228,8 @@ export function CommunityCenter({ code, recent, starred, tab, scope, onCode, onT
         </button>
         {!isGen && (
           <div className={styles.price}>
-            <span className={styles.px}>{F.won(px[0])}</span>
-            <span className={cx(styles.chg, tone(px[1]))}>{F.pct(px[1])}</span>
-            <span className={styles.at}>{priceAt()}</span>
+            <span className={styles.px}>{px.price == null ? (px.pending ? '시세 불러오는 중' : '시세 확인 불가') : '₩' + F.won(px.price)}</span>
+            {px.rate != null && <span className={cx(styles.chg, tone(px.rate))}>{F.pct(px.rate)}</span>}
           </div>
         )}
         <div className={styles.tools}>
@@ -278,6 +284,7 @@ export function CommunityCenter({ code, recent, starred, tab, scope, onCode, onT
               ref={qRef}
               className={styles.qInput}
               value={q}
+              maxLength={SEARCH_MAX}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); closeSearch() } }}
               placeholder={qPh}
@@ -291,21 +298,20 @@ export function CommunityCenter({ code, recent, starred, tab, scope, onCode, onT
           )}
         </div>
       )}
-      {!nick && <CommunityNickForm first onSave={onNick} />}
-      {nick && <CommunityCompose feed={feed} myPf={myProfile(pubOn)} placeholder={composePlaceholder(isGen, name)} hint={kiruAskHint(isGen)} />}
-      <CommunityFeed feed={feed} q={q} scope={scope} fixed={fixed} nick={myNick} pubOn={pubOn} listRef={listRef} onShare={share} onGoThread={goThread} onBot={() => shell.setBotOpen(true)} />
+      <CommunityCompose feed={feed} myPf={myPf} placeholder={composePlaceholder(isGen, name)} hint={kiruAskHint(isGen)} />
+      <CommunityFeed feed={feed} q={q} scope={scope} fixed={fixed} myPf={myPf} listRef={listRef} onShare={share} onGoReply={goReply} onBot={() => shell.setBotOpen(true)} />
       <CommunityDialogs feed={feed} />
     </section>
     <CommunityRight
       code={code}
-      nick={nick}
+      nick={me?.nick ?? ''}
       pubOn={pubOn}
-      myPostN={feed.myPostN}
-      myRepN={feed.myReps.length}
+      myPf={myPf}
+      myPostN={me?.postN ?? 0}
+      myRepN={me?.replyN ?? 0}
       watch={watch}
       recent={recent}
       onSelect={onCode}
-      onNick={onNick}
       onPub={onPub}
       onWatchAdd={onWatchAdd}
       onWatchRemove={onWatchRemove}

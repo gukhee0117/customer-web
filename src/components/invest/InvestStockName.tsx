@@ -13,7 +13,7 @@ export function InvestStockName({ code, name, size = 'sm' }: Props) {
   const label = name || code
   return (
     <span className={styles[size]}>
-      <StockIcon color="var(--color-navy)" initial={String(label)[0]} size={size === 'sm' ? 20 : 28} />
+      <StockIcon color="var(--color-navy)" initial={String(label)[0]} size={size === 'sm' ? 20 : 28} code={code} />
       <b className={styles.name}>{label}</b>
       <span className={styles.code}>{code}</span>
     </span>
