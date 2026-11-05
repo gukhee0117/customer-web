@@ -126,7 +126,7 @@ export function AccountBalanceBox({ className, onSell, holdings, onRetryHoldings
             {kr.rows.map((r) => (
               <div key={r.code} data-kr-row="1" className={cx(styles.row, styles.krCols, styles.body)}>
                 <span className={styles.stock}>
-                  <StockIcon color={`var(--stock-${r.code}, var(--color-muted))`} initial={r.name[0]} size={20} />
+                  <StockIcon color={`var(--stock-${r.code}, var(--color-muted))`} initial={r.name[0]} size={20} code={r.code} />
                   <b>{r.name}</b>
                   <span className={styles.sub}>{r.code}</span>
                 </span>
