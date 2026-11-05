@@ -1,33 +1,34 @@
 import '../../styles/tokens.css'
-import { RETURNS_DATA as RD } from '../../data/returns'
+import type { OrderFees } from '../../api/stockPackage'
 import { F } from '../../lib/calc'
-import { StockLabel } from '../common/StockLabel'
 import { cx } from '../common/cx'
-import { cleanInput, QUICK, quickInput, tradeCalc } from './investOrderLogic'
+import { cleanInput, QUICK, quickInput, ratePct, tradeCalc } from './investOrderLogic'
 import type { TradeCalc, TradeState } from './investOrderLogic'
-import { isSuitable } from './investHoldingData'
 import type { PkgView } from './investPkgLogic'
 import { toneOf } from './investPkgLogic'
 import { InvestSidePanel } from './InvestSidePanel'
+import { InvestStockName } from './InvestStockName'
 import styles from './InvestSidePanel.module.css'
 
 interface Props {
   trade: TradeState
   pkg: PkgView
   cash: number
+  fees: OrderFees
   onChange: (patch: Partial<TradeState>) => void
   onClose: () => void
   onSubmit: (calc: TradeCalc) => void
 }
 
-const NOTE = () => 'RIA 계좌의 국내주식 매매예요. 매도 대금은 RIA 계좌에 남고, 원금 인출 가능일(' + F.dot(RD.WITHDRAW.availableDate) + ')은 바뀌지 않아요.'
+const NOTE = () => 'RIA 계좌의 국내주식 매매예요. 매도 대금은 RIA 계좌에 남고, 원금 인출 가능일은 바뀌지 않아요.'
 
 // 오른쪽에서 열리는 매수·매도 주문 창. 값은 모두 tradeCalc(원본 계산 그대로)에서 온다
-export function InvestTradePanel({ trade, pkg, cash, onChange, onClose, onSubmit }: Props) {
-  const c = tradeCalc(trade, pkg, cash)
+export function InvestTradePanel({ trade, pkg, cash, fees, onChange, onClose, onSubmit }: Props) {
+  const c = tradeCalc(trade, pkg, cash, fees)
+  const item = pkg.items.find((i) => i.code === trade.code)
   const buy = c.buy
   const qtyMode = trade.qtyMode === 'qty'
-  const grade = F.meta(trade.code).grade
+  const grade = item?.grade ?? null
   const label = qtyMode ? '수량' : '금액'
   const acct = 'RIA 계좌 · ' + (buy ? '주문 가능 ₩' + F.won(cash) : '매도 가능 ' + c.sellable + '주')
 
@@ -35,11 +36,11 @@ export function InvestTradePanel({ trade, pkg, cash, onChange, onClose, onSubmit
     <InvestSidePanel label="주문" onClose={onClose}>
         <div className={styles.head}>
           <span className={styles.who}>
-            <StockLabel sym={trade.code} size="md" />
-            <span className={cx(styles.risk, !isSuitable(trade.code) && styles.warn)}>{grade == null ? '' : '위험 ' + grade + '등급 · ' + F.gradeName(grade)}</span>
+            <InvestStockName code={trade.code} name={item?.name} size="md" />
+            <span className={cx(styles.risk, item?.out === true && styles.warn)}>{grade == null ? '' : '위험 ' + grade + '등급 · ' + F.gradeName(grade)}</span>
           </span>
           <span className={styles.price}>
-            <b className={styles.px}>{F.won(c.price)}</b>
+            <b className={styles.px}>{c.price ? F.won(c.price) : '-'}</b>
             <span className={cx(styles.chg, styles[toneOf(c.chg)])}>{F.pct(c.chg)}</span>
           </span>
           <button type="button" className={styles.close} onClick={onClose} aria-label="닫기">
@@ -95,13 +96,13 @@ export function InvestTradePanel({ trade, pkg, cash, onChange, onClose, onSubmit
             </div>
             <div className={cx(styles.line, styles.lineGap)}>
               <span className={styles.k}>예상 수수료</span>
-              <span className={styles.rate}>0.015% · 예시</span>
+              <span className={styles.rate}>{ratePct(fees.commissionRatePercent)}</span>
               <span className={styles.v}>₩{F.won(c.fee)}</span>
             </div>
             {!buy && (
               <div className={styles.line}>
-                <span className={styles.k}>{RD.C.SELL_TAX_LABEL}</span>
-                <span className={cx(styles.rate, styles.rateTax)}>0.20%</span>
+                <span className={styles.k}>증권거래세</span>
+                <span className={cx(styles.rate, styles.rateTax)}>{item?.taxable ? ratePct(fees.securitiesTaxRatePercent) : '해당 없음'}</span>
                 <span className={styles.v}>₩{F.won(c.tax)}</span>
               </div>
             )}

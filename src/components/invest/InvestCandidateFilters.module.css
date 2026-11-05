@@ -1,0 +1,96 @@
+/* 직접 조건 고르기 */
+.box {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-6);
+  padding: var(--space-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+.boxTitle {
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-extrabold);
+  cursor: default;
+}
+
+.filterRow {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  gap: var(--space-8);
+  align-items: start;
+  font-size: var(--font-size-13);
+}
+
+.filterK {
+  padding-top: var(--space-6);
+  color: var(--color-sub);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+}
+
+.chip {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 var(--space-10);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-6);
+  font-size: var(--font-size-12);
+  color: var(--color-ink);
+  display: flex;
+  align-items: center;
+}
+
+.chip:hover {
+  border-color: var(--color-navy);
+}
+
+.chipOn {
+  background: var(--color-chip-navy);
+  border-color: var(--color-navy);
+  color: var(--color-navy);
+  font-weight: var(--font-weight-bold);
+}
+
+.inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+}
+
+.select {
+  height: 32px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-6);
+  padding: 0 var(--space-8);
+  font-family: inherit;
+  font-size: var(--font-size-13);
+  color: var(--color-ink);
+  background: var(--color-surface);
+}
+
+.searchInput {
+  height: 32px;
+  min-width: 0;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-6);
+  padding: 0 var(--space-10);
+  font-family: inherit;
+  font-size: var(--font-size-13);
+  outline: 0;
+  color: var(--color-ink);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  font-size: var(--font-size-13);
+}

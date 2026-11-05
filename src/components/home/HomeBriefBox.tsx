@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { subscribeAssetEvents, type AssetConnection } from '../../api/assetEvents'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/authState'
@@ -48,22 +49,40 @@ async function load<T>(request: () => Promise<T>): Promise<RequestState<T>> {
 function useBriefingRequest<T>(request: () => Promise<T>, onSessionExpired: () => void) {
   const [state, setState] = useState<RequestState<T>>({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
+  const running = useRef(false)
+  const pending = useRef(false)
   const retry = useCallback(() => {
+    pending.current = false
     setState({ status: 'loading' })
+    setAttempt((value) => value + 1)
+  }, [])
+  const refresh = useCallback(() => {
+    if (running.current) {
+      pending.current = true
+      return
+    }
     setAttempt((value) => value + 1)
   }, [])
 
   useEffect(() => {
     let active = true
+    running.current = true
     void load(request).then((result) => {
-      if (active) setState(result)
+      if (active) setState((previous) => previous.status === 'success' && result.status === 'error' ? previous : result)
     }).catch(() => {
       if (active) onSessionExpired()
+    }).finally(() => {
+      if (!active) return
+      running.current = false
+      if (pending.current) {
+        pending.current = false
+        setAttempt((value) => value + 1)
+      }
     })
-    return () => { active = false }
+    return () => { active = false; running.current = false }
   }, [request, attempt, onSessionExpired])
 
-  return [state, retry] as const
+  return [state, retry, refresh] as const
 }
 
 // 끼루 브리핑은 고객별 백엔드 계산 결과를 표시한다.
@@ -82,11 +101,17 @@ export function HomeBriefBox({ className }: { className?: string }) {
   }, [logout, navigate, location.pathname])
   const [taxState, retryTax] = useBriefingRequest(getCustomerTaxBriefing, onSessionExpired)
   const [expectedState, retryExpected] = useBriefingRequest(getCustomerExpectedTaxBriefing, onSessionExpired)
-  const [assetState, retryAsset] = useBriefingRequest(getCustomerAssetBriefing, onSessionExpired)
+  const [assetState, retryAsset, refreshAsset] = useBriefingRequest(getCustomerAssetBriefing, onSessionExpired)
   const [taxH, setTaxH] = useState(0)
   const bodyRef = useRef<HTMLDivElement>(null)
   const noAccount = [taxState, expectedState, assetState].some((state) => state.status === 'not-found')
   const cur: Tab = noAccount ? 'tax' : tab
+  const [assetConnection, setAssetConnection] = useState<AssetConnection>('connecting')
+
+  useEffect(() => {
+    if (cur !== 'asset' || noAccount) return
+    return subscribeAssetEvents(refreshAsset, setAssetConnection)
+  }, [cur, noAccount, refreshAsset])
 
   useEffect(() => {
     const el = bodyRef.current
@@ -144,7 +169,7 @@ export function HomeBriefBox({ className }: { className?: string }) {
         </div>
       )}
       {!noAccount && cur === 'asset' && (
-        <AssetTab state={assetState} minHeight={taxH} onRetry={retryAsset} />
+        <AssetTab state={assetState} minHeight={taxH} onRetry={retryAsset} connection={assetConnection} />
       )}
     </Box>
   )
@@ -193,7 +218,7 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
     : 50
   const confirmedLabelInside = confirmedSegment / maxTax >= 0.2
   const projectedLabelInside = projectedSegment / maxTax >= 0.2
-  const chartMotionKey = `${guide}:${maxTax}:${scenario.generalTax}:${scenario.riaTax}:${scenario.reliefAmount}`
+  const chartMotionKey = `${guide}:${maxTax}:${scenario.generalTax}:${scenario.riaTax}:${scenario.reliefAmount}:${confirmedSegment}:${projectedSegment}`
   const expectedMessage = expectedState.status === 'loading' ? '계산 중…' : '확인 불가'
 
   return (
@@ -266,9 +291,9 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
               <div aria-hidden="true" />
               <div><div className={styles.barCaption}>감면 후 납부세액</div>{formatWon(scenario.riaTax)}</div>
             </div>
-            <div className={styles.plot}>
+            <div key={chartMotionKey} className={styles.plot}>
               {scenario.generalTax > 0 && (
-                <div key={`taxGuideLine:${chartMotionKey}`} className={cx(styles.taxGuideLine, styles.chartAnnotation)} style={{ bottom: generalHeight }} aria-hidden="true" />
+                <div key={`taxGuideLine:${chartMotionKey}`} className={styles.taxGuideLine} style={{ bottom: generalHeight }} aria-hidden="true" />
               )}
               <div className={styles.barGeneral} style={{ height: generalHeight }} />
               <div className={cx(styles.barRia, scenario.riaTax > 0 && scenario.reliefAmount === 0 && styles.stackTop)} style={{ height: riaHeight }} />
@@ -279,7 +304,7 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
                 {projectedLabelInside && <span className={styles.segmentText}>추가 예상 감면액<br />{formatWon(projectedSegment)}</span>}
               </div>
               {scenario.reliefAmount > 0 && (
-                <div key={`reliefBracket:${chartMotionKey}`} className={cx(styles.reliefBracket, styles.chartAnnotation)} style={{ bottom: riaHeight, height: reliefHeight }} aria-hidden="true" />
+                <div key={`reliefBracket:${chartMotionKey}`} className={styles.reliefBracket} style={{ bottom: riaHeight, height: reliefHeight }} aria-hidden="true" />
               )}
               {scenario.reliefAmount > 0 && (
                 <div key={`reliefLabel:${chartMotionKey}`} className={cx(styles.reliefLabel, styles.chartAnnotation)} style={{ bottom: `${reliefLabelPosition}%` }}><div className={styles.barCaption}>총 감면액</div>−{formatWon(scenario.reliefAmount)}</div>
@@ -345,12 +370,13 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
 }
 
 interface AssetTabProps {
+  connection: AssetConnection
   state: RequestState<CustomerAssetBriefing>
   minHeight: number
   onRetry: () => void
 }
 
-function AssetTab({ state, minHeight, onRetry }: AssetTabProps) {
+function AssetTab({ state, minHeight, onRetry, connection }: AssetTabProps) {
   if (state.status !== 'success') {
     return <RequestMessage status={state.status} onRetry={onRetry} />
   }
@@ -406,6 +432,9 @@ function AssetTab({ state, minHeight, onRetry }: AssetTabProps) {
         </div>
       </div>
 
+      <div className={styles.factSub} role="status">
+        {connection === 'reconnecting' ? '실시간 연결을 다시 시도하고 있어요. 마지막 조회 값을 표시해요.' : connection === 'connected' ? '자산 정보를 자동으로 갱신하고 있어요.' : '실시간 연결 중이에요.'}
+      </div>
       <div className={styles.assetFoot}>
         {valuationUnavailable
           ? '현재가를 확인할 수 없어 평가액과 손익을 표시하지 않았어요.'

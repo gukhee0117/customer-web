@@ -10,6 +10,9 @@ export interface UnsuitState {
   codes: string[] // 확인이 필요한 종목(성향 밖이고 아직 확인하지 않은 것)
   agree: boolean
   then: () => void // "계속" 뒤에 이어갈 동작
+  // 서버 값으로 열 때: 종목 이름·등급과 내 투자성향 글자(없으면 화면 예시 값을 씀)
+  items?: { code: string; name: string; grade: number | null }[]
+  mine?: string
 }
 
 interface Props {
@@ -21,7 +24,7 @@ interface Props {
 
 export function InvestUnsuitDialog({ state: u, onToggle, onCancel, onOk }: Props) {
   const prof = RD.CUSTOMER.profile
-  const mine = (RD.PROFILES[prof]?.label ?? '') + ' · ' + F.allowedLabel(prof)
+  const mine = u.mine ?? (RD.PROFILES[prof]?.label ?? '') + ' · ' + F.allowedLabel(prof)
 
   return createPortal(
     <div className={styles.backdrop}>
@@ -33,11 +36,13 @@ export function InvestUnsuitDialog({ state: u, onToggle, onCancel, onOk }: Props
             <b className={styles.v}>{mine}</b>
           </div>
           {u.codes.map((c) => {
-            const g = F.meta(c).grade
+            const given = u.items?.find((i) => i.code === c)
+            const g = given ? given.grade : F.meta(c).grade
+            const name = given ? given.name : RD.SN[c] || c
             return (
               <div key={c} className={cx(styles.row, styles.rowItem)}>
                 <span className={styles.k}>이 상품</span>
-                <b className={cx(styles.v, styles.warn)}>{(RD.SN[c] || c) + ' · ' + g + '등급 ' + F.gradeName(g as number)}</b>
+                <b className={cx(styles.v, styles.warn)}>{name + ' · ' + g + '등급 ' + F.gradeName(g as number)}</b>
               </div>
             )
           })}

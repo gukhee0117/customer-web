@@ -46,3 +46,22 @@
     display: contents;
   }
 }
+
+.stateBox {
+  margin-top: var(--space-16);
+  padding: var(--space-24) var(--space-16);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-8);
+  background: var(--color-surface);
+  color: var(--color-sub);
+  font-size: var(--font-size-14);
+  text-align: center;
+}
+
+.stateRetry {
+  all: unset;
+  cursor: pointer;
+  color: var(--color-navy);
+  font-weight: var(--font-weight-bold);
+  text-decoration: underline;
+}

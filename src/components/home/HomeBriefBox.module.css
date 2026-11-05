@@ -120,7 +120,7 @@
 }
 
 .plot {
-  --chart-motion-duration: 300ms;
+  --chart-motion-duration: 600ms;
   position: relative;
   height: 150px;
   flex: none;
@@ -458,7 +458,21 @@
   transition: bottom var(--chart-motion-duration) ease, height var(--chart-motion-duration) ease;
 }
 
-/* 막대 이동이 끝난 뒤에만 구간 안내를 표시한다. */
+/* 막대와 감면 구분선은 같은 기준선에서 함께 올라온다. */
+.barGeneral, .barRia, .barRelief, .barProjected, .reliefBracket {
+  animation: riseChartBar var(--chart-motion-duration) ease both;
+}
+.taxGuideLine {
+  animation: riseChartGuide var(--chart-motion-duration) ease both;
+}
+@keyframes riseChartBar {
+  from { height: 0; bottom: 0; }
+}
+@keyframes riseChartGuide {
+  from { bottom: 0; }
+}
+
+/* 금액 문구는 막대가 올라온 뒤 표시해 움직이는 동안 겹치지 않게 한다. */
 .chartAnnotation {
   animation: showChartAnnotation 120ms ease var(--chart-motion-duration) both;
 }
@@ -468,7 +482,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .plot { --chart-motion-duration: 0ms; }
-  .chartAnnotation { animation: none; }
+  .barGeneral, .barRia, .barRelief, .barProjected, .reliefBracket, .taxGuideLine, .chartAnnotation { animation: none; }
 }
 
 /* 쌓인 막대 중 높이가 있는 맨 위 구간에만 둥근 모서리를 적용한다. */

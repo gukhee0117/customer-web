@@ -358,3 +358,36 @@
     border-top: 1px solid var(--color-line-soft);
   }
 }
+
+.unpriced {
+  margin: 0 var(--space-16) var(--space-12);
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius-8);
+  background: var(--color-surface-sub);
+  font-size: var(--font-size-12);
+  color: var(--color-sub);
+}
+
+.chartNote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+  padding: var(--space-16);
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-8);
+  background: var(--color-surface);
+}
+
+.chartNoteTitle {
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink);
+}
+
+.chartNoteBody {
+  margin: 0;
+  font-size: var(--font-size-13);
+  color: var(--color-sub);
+  line-height: 1.5;
+}

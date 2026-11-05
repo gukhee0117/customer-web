@@ -27,7 +27,7 @@ import type { AddedSell, AddedSettle } from '../components/account/accountSellDa
 import { isHistTab } from '../components/account/accountHistData'
 import type { HistTab } from '../components/account/accountHistData'
 import styles from '../components/account/AccountLayout.module.css'
-import { FlowAllocBox, FlowCutBox, FlowMonthlyBox, FlowStepsBox } from '../components/account/AccountFlowBoxes'
+import { FlowAllocBox, FlowCutBox, FlowMainColumn, FlowStepsBox } from '../components/account/AccountFlowBoxes'
 import { useStream } from '../api/useChatStream'
 import { Tabs } from '../components/common/Tabs'
 import { Toast } from '../components/common/Toast'
@@ -87,7 +87,7 @@ export function AccountPage() {
 
   // 끼루 AI 상담 창 — AppLayout 공유 스트림 사용, 페이지 이동 시 대화 이력 유지
   const stream = useStream()
-  const { messages: bot, busy, send, cancel, addMessages } = stream
+  const { messages: bot, busy, send, cancel } = stream
   const streamRef = useRef(stream)
   streamRef.current = stream
   const greetingAdded = useRef(false)
@@ -358,7 +358,7 @@ export function AccountPage() {
           )}
           <FlowStepsBox live={fundFlow} />
           <div className={styles.flowGrid}>
-            <FlowMonthlyBox monthly={fundFlow.monthly} />
+            <FlowMainColumn live={fundFlow} />
             <div className={styles.flowSide}>
               <FlowAllocBox allocation={fundFlow.allocation} />
               <FlowCutBox summary={fundFlow.summary} relief={fundFlow.relief} />

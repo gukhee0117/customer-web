@@ -8,12 +8,11 @@ import { HomeBriefBox } from '../components/home/HomeBriefBox'
 import { HomeChatBox } from '../components/home/HomeChatBox'
 import { HomeDevPanel } from '../components/home/HomeDevPanel'
 import { HomePackageBox } from '../components/home/HomePackageBox'
-import { HomeRecBox } from '../components/home/HomeRecBox'
+import { HomeTendencyBox } from '../components/home/HomeTendencyBox'
 import { HomeNewsBox } from '../components/home/HomeNewsBox'
 import { HomeProfileBox } from '../components/home/HomeProfileBox'
-import { BOT_CHIPS, DEPOSIT_QUESTION, WELCOME_MS } from '../components/home/homeBotData'
+import { BOT_CHIPS, WELCOME_MS } from '../components/home/homeBotData'
 import { homeTodos } from '../components/home/homeBotLogic'
-import type { FullAskMsg } from '../components/home/homeBotLogic'
 import { DISCLAIMER } from '../components/home/homeChatData'
 import styles from '../components/home/HomeLayout.module.css'
 import { RETURNS_DATA as RD, demo } from '../data/returns'
@@ -24,7 +23,6 @@ import { getProfile } from '../api/profile'
 import type { Profile } from '../api/profile'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
 import { useStream } from '../api/useChatStream'
-import type { BotMessage } from '../components/common/ChatbotFab'
 
 
 // 홈 — 1~6번째 부분: 배치 + 박스 6개 + 아래 고지 + 상담 창·알림·성향 알림 창·환영 배너·시연 설정
@@ -36,8 +34,8 @@ export function HomePage() {
   const [, refresh] = useReducer((n: number) => n + 1, 0)
   const [hasPkg, setHasPkg] = useState(true)
   const stream = useStream()
-  const { messages: bot, busy, send, cancel, importMessages } = stream
   // 첫 마운트 시 대화가 비어 있으면 홈 인사말 추가 (페이지 이동 후 돌아오면 이력 유지)
+  const { messages: bot, busy, send, cancel } = stream
   const streamRef = useRef(stream)
   streamRef.current = stream
   const greetingAdded = useRef(false)
@@ -96,15 +94,6 @@ export function HomePage() {
     [shell]
   )
 
-  const openFullAsk = (conv: FullAskMsg[]) => {
-    importMessages(conv.map((m): BotMessage => ({ ...m })))
-    shell.setBotOpen(true)
-  }
-  const askDeposit = () => {
-    shell.setBotOpen(true)
-    ask(DEPOSIT_QUESTION)
-  }
-
   const changeDemo = (patch: Partial<DemoSettings>) => {
     if (patch.assess !== undefined) setAClosed(null)
     RD.setDemo(patch)
@@ -123,7 +112,7 @@ export function HomePage() {
           <HomeNewsBox className={styles.news} />
           <div className={styles.pair}>
             <HomePackageBox className={styles.pkg} hasPkg={hasPkg} />
-            <HomeRecBox className={styles.rec} onOpenFullAsk={openFullAsk} onAskDeposit={askDeposit} />
+            <HomeTendencyBox className={styles.rec} />
           </div>
         </div>
         <div className={styles.colSide}>
