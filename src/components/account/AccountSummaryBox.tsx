@@ -69,7 +69,7 @@ export function AccountSummaryBox({ className, onCopy, account, assets, linked, 
       </div>
       <div className={styles.rows}>
         <div className={styles.row}>
-          <span className={styles.label}>예수금(주문 가능)</span>
+          <span className={styles.label}>예수금</span>
           <span className={styles.value}>{money(live?.cashAmount)}</span>
         </div>
         <div className={styles.row}>
