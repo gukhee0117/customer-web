@@ -54,3 +54,40 @@ export async function submitWithdrawal(
 ): Promise<void> {
   await apiClient.post('/api/customer/withdrawals', req)
 }
+
+export interface WithdrawalHistoryItem {
+  withdrawalId: number
+  requestedAmount: number
+  destinationAccountNo: string
+  status: 'REQUESTED' | 'COMPLETED' | 'CANCELLED' | 'FAILED'
+  processedAt: string
+}
+
+export async function getWithdrawalHistory(): Promise<WithdrawalHistoryItem[]> {
+  const res = await apiClient.get<ApiResponse<WithdrawalHistoryItem[]>>('/api/customer/withdrawals')
+  return res.data.data
+}
+
+export interface WithdrawalAllocation {
+  allocationId: number
+  allocatedAmount: number
+  type: 'EARNINGS_ONLY' | 'MATURED_PRINCIPAL_INCLUDED' | 'IMMATURE_PRINCIPAL_INCLUDED'
+  finalAt: string | null
+  maturityAt: string | null
+  productName: string | null
+  ticker: string | null
+}
+
+export interface WithdrawalDetail {
+  withdrawalId: number
+  earningsAmount: number
+  maturedPrincipalAmount: number
+  immaturePrincipalAmount: number
+  earlyWithdrawal: boolean
+  allocations: WithdrawalAllocation[]
+}
+
+export async function getWithdrawalDetail(withdrawalId: number): Promise<WithdrawalDetail> {
+  const res = await apiClient.get<ApiResponse<WithdrawalDetail>>(`/api/customer/withdrawals/${withdrawalId}`)
+  return res.data.data
+}

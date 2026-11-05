@@ -71,3 +71,42 @@ export async function submitInbound(
   )
   return res.data.data
 }
+
+export interface InboundHistoryItem {
+  inboundId: number
+  foreignProductId: number
+  ticker: string
+  name: string
+  requestedQty: number
+  approvedQty: number
+  processedAt: string // 입고 처리 시각(신청 즉시 처리라 신청일과 같다)
+}
+
+// 최근 순. 100건까지만 받는다(서버 size 상한)
+export async function getInboundHistory(): Promise<InboundHistoryItem[]> {
+  const res = await apiClient.get<ApiResponse<{ content: InboundHistoryItem[] }>>('/api/customer/inbounds', { params: { page: 0, size: 100 } })
+  return res.data.data.content
+}
+
+export interface InboundDetailLot {
+  inboundDetailId: number
+  sourceBroker: string
+  approvedQty: number
+  currentQty: number
+  purchaseDate: string
+  purchasePrice: number
+  purchaseCurrency: string
+}
+
+export interface InboundDetail {
+  inboundId: number
+  requestedQty: number
+  approvedQty: number
+  processedAt: string
+  details: InboundDetailLot[]
+}
+
+export async function getInboundDetail(inboundId: number): Promise<InboundDetail> {
+  const res = await apiClient.get<ApiResponse<InboundDetail>>(`/api/customer/inbounds/${inboundId}`)
+  return res.data.data
+}
