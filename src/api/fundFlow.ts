@@ -62,6 +62,52 @@ export interface FundFlowAllocation {
   basis: string
 }
 
+export type FundFlowTransactionType = 'KRW_CONFIRMED' | 'DOMESTIC_SELL' | 'DOMESTIC_BUY' | 'WITHDRAWAL'
+
+export interface FundFlowTransactionDetail {
+  name: string
+  qty: number | null
+  amount: number | null
+  feeAmount: number | null
+  taxAmount: number | null
+}
+
+// 같은 날·같은 구분을 합친 한 줄. amount는 예수금 변동액(+입금/−출금), cashAfter는 그 거래까지 반영한 예수금
+export interface FundFlowTransactionItem {
+  date: string
+  type: FundFlowTransactionType
+  amount: number
+  cashAfter: number
+  title: string | null
+  details: FundFlowTransactionDetail[]
+}
+
+// items는 오래된 순
+export interface FundFlowTransactions {
+  asOfDate: string
+  hasAccount: boolean
+  items: FundFlowTransactionItem[]
+  basis: string
+}
+
+// 납입일(원화 환전 대금결제일)별 합계. lots는 납입일 오름차순, 인출 가능일 = 납입일 + 1년
+// matured는 서버가 업무시계로 판정한 값(프론트에서 다시 계산하지 않는다)
+export interface FundFlowWithdrawalLot {
+  paidDate: string
+  maturityDate: string
+  paidAmount: number
+  withdrawnAmount: number
+  remainingAmount: number
+  matured: boolean
+}
+
+export interface FundFlowWithdrawalSchedule {
+  businessDate: string
+  hasAccount: boolean
+  lots: FundFlowWithdrawalLot[]
+  basis: string
+}
+
 interface ApiResponse<T> {
   message: string
   data: T
@@ -76,3 +122,5 @@ export const fetchFundFlowSummary = () => get<FundFlowSummary>('summary')
 export const fetchFundFlowMonthly = () => get<FundFlowMonthly>('monthly')
 export const fetchFundFlowRelief = () => get<FundFlowRelief>('relief')
 export const fetchFundFlowAllocation = () => get<FundFlowAllocation>('allocation')
+export const fetchFundFlowTransactions = () => get<FundFlowTransactions>('transactions')
+export const fetchFundFlowWithdrawalSchedule = () => get<FundFlowWithdrawalSchedule>('withdrawal-schedule')
