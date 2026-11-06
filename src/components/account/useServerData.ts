@@ -19,12 +19,15 @@ export function useServerData<T>(
   const [tries, setTries] = useState(0)
   const [refreshes, setRefreshes] = useState(0)
   const quiet = useRef(false)
+  const lastTries = useRef(0)
   const [result, setResult] = useState<{ tries: number; state: ServerState<T> } | null>(null)
 
   useEffect(() => {
     let alive = true
-    const silent = quiet.current
+    // retry와 refresh가 한 번에 배치되면 사용자가 누른 retry의 실패는 숨기지 않는다
+    const silent = quiet.current && tries === lastTries.current
     quiet.current = false
+    lastTries.current = tries
     fetcher().then(
       (data) => alive && setResult({ tries, state: { status: 'live', data } }),
       (err: unknown) => {

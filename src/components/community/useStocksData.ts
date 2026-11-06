@@ -58,7 +58,7 @@ export function useStocksData(extra: string[]): StocksValue {
 
   useEffect(() => {
     if (!current || current.failed || !codeKey) return
-    // tick이 바뀌면 이 효과가 다시 돌아 5초마다 받는다. 이전 요청은 alive로 버려 늦게 온 응답이 새 값을 덮지 않는다
+    // tick이 바뀌면 이 효과가 다시 돌아 3초마다 받는다. 이전 요청은 alive로 버려 늦게 온 응답이 새 값을 덮지 않는다
     let alive = true
     const codes = codeKey.split(',')
     const chunks: string[][] = []
