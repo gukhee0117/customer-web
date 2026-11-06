@@ -10,7 +10,7 @@ import type { StockInfo, StockQuote, StocksValue } from './stocksContext'
 const RANK_SIZE = 12
 // 서버 시세 API는 종목을 한 번에 조회한다(Task 3 이후). 20개씩 나눠 동시에 받는다
 const QUOTE_CHUNK = 20
-const QUOTE_REFRESH_MS = 5000
+const QUOTE_REFRESH_MS = 3000
 export const DOMESTIC_CODE = /^[0-9A-Z]{6}$/
 
 // 목업에 색이 있던 종목은 그 색, 나머지는 중립 색 + 이름 첫 글자
