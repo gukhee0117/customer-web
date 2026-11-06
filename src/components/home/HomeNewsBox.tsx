@@ -12,6 +12,12 @@ import { useNewsStockQuotes } from './useNewsStockQuotes'
 import type { NewsSummaryQueue } from './NewsSummaryQueue'
 import styles from './HomeNewsBox.module.css'
 
+function formatPublishedAt(value: string) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime())
+    ? value.replace('T', ' ')
+    : date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+}
 
 function ArticleConversation({ customerId, article, summaries }: { customerId: number; article: Article; summaries: NewsSummaryQueue }) {
   const conversation = useNewsConversation(customerId, article, summaries)
@@ -28,7 +34,7 @@ function ArticleConversation({ customerId, article, summaries }: { customerId: n
   return <div className={styles.main}>
     <div className={styles.articleText}>
       <h3 className={styles.articleTitle}>{article.title}</h3>
-      <div className={styles.articleMeta}>{article.source} · {article.publishedAt.replace('T', ' ')}</div>
+      <div className={styles.articleMeta}>{article.source} · {formatPublishedAt(article.publishedAt)}</div>
       <div className={styles.headTag}>
         {article.demo ? '실제 보도가 아닌 직접 작성한 시연 기사' : '실제 뉴스 · 기사 내용을 바탕으로 AI가 설명해 드려요'}
         {!article.demo && article.url && /^https?:\/\//i.test(article.url) && <a className={styles.orig} href={article.url} target="_blank" rel="noopener noreferrer"> 원문 보기 ›</a>}
@@ -78,7 +84,7 @@ function PersonalNews({ customerId }: { customerId: number }) {
         </div>}
       <div className={styles.list}>{data?.articles.map(item => <button key={item.article.id} type="button" className={cx(styles.item, item.article.id === selected?.article.id && styles.itemOn)} onClick={() => setSelectedId(item.article.id)}>
         <div className={styles.itemTitle}>{item.article.title}</div>
-        <div className={styles.itemMeta}>{item.article.source} · {item.article.publishedAt.slice(0, 10)}</div>
+        <div className={styles.itemMeta}>{item.article.source} · {formatPublishedAt(item.article.publishedAt)}</div>
       </button>)}</div>
     </div>
   </>

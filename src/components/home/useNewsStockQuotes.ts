@@ -1,10 +1,10 @@
-import { useLayoutEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { fetchQuotes, type Quote } from '../../api/stockPackage'
 
 export function useNewsStockQuotes(tickers: string[]) {
   const key = JSON.stringify([...new Set(tickers)].sort())
   const [state, setState] = useState<{ key: string; quotes: Record<string, Quote>; pending: boolean } | null>(null)
-  useLayoutEffect(() => {
+  useEffect(() => {
     const requested: string[] = JSON.parse(key)
     const controller = new AbortController()
     let active = true

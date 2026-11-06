@@ -9,6 +9,7 @@ interface Job {
   promise: Promise<Answer>
   resolve: (answer: Answer) => void
   reject: (error: unknown) => void
+  settled: boolean
 }
 function keyOf(article: Article) { return JSON.stringify([article.id, article.version]) }
 function aborted() { return new DOMException('News request cancelled', 'AbortError') }
@@ -86,7 +87,10 @@ export class NewsSummaryQueue {
   dispose() {
     if (this.closed) return
     this.closed = true
-    for (const job of this.jobs.values()) { job.controller.abort(); job.reject(aborted()) }
+    for (const job of this.jobs.values()) {
+      job.controller.abort()
+      if (!job.settled) { job.settled = true; job.reject(aborted()) }
+    }
     this.jobs.clear(); this.active.clear(); this.pending = []; this.localCache?.clear()
   }
 
@@ -97,7 +101,7 @@ export class NewsSummaryQueue {
     let resolve!: (answer: Answer) => void
     let reject!: (error: unknown) => void
     const promise = new Promise<Answer>((yes, no) => { resolve = yes; reject = no })
-    const job = { key, article, controller: new AbortController(), promise, resolve, reject }
+    const job = { key, article, controller: new AbortController(), promise, resolve, reject, settled: false }
     this.jobs.set(key, job); this.pending.push(job)
     return job
   }
@@ -124,8 +128,10 @@ export class NewsSummaryQueue {
         if (answer.origin !== 'PREPARED' || answer.preparedReason !== 'LLM_UNAVAILABLE') {
           this.cache.set(job.key, { answer, expiresAt: this.now() + 10 * 60_000 })
         }
-        job.resolve(answer)
-      }).catch(error => job.reject(error)).finally(() => {
+        if (!job.settled) { job.settled = true; job.resolve(answer) }
+      }).catch(error => {
+        if (!job.settled) { job.settled = true; job.reject(error) }
+      }).finally(() => {
         this.active.delete(job)
         if (job.key === this.initialKey) this.initialKey = null
         if (this.jobs.get(job.key) === job) this.jobs.delete(job.key)

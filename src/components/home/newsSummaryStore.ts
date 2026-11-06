@@ -41,7 +41,11 @@ export class NewsSummaryStore {
         if (!valid()) return
         for (const [id, value] of this.entries) if (value.expiresAt <= now()) this.entries.delete(id)
         this.entries.delete(key)
-        while (this.entries.size >= 64) this.entries.delete(this.entries.keys().next().value!)
+        while (this.entries.size >= 64) {
+          const oldest = this.entries.keys().next().value
+          if (oldest === undefined) break
+          this.entries.delete(oldest)
+        }
         this.entries.set(key, entry)
       },
       delete: key => { if (valid()) this.entries.delete(key) },

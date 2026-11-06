@@ -39,5 +39,6 @@ export function answerLabel(answer: Answer): string {
     case 'LIVE_LLM': return 'AI가 지금 생성한 답변'
     case 'CACHED_LLM': return '이전에 AI가 생성한 답변'
     case 'PREPARED': return answer.preparedReason === 'POLICY_REFUSAL' ? '매매 조언 제한 안내' : answer.preparedReason === 'LLM_UNAVAILABLE' ? 'AI 연결 지연 · 준비된 대체 답변' : '시연용으로 준비한 설명'
+    default: return answer.origin
   }
 }

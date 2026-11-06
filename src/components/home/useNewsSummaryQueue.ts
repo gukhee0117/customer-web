@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { newsApi, type Briefing } from '../../api/news'
 import { NewsSummaryQueue } from './NewsSummaryQueue'
 import { newsSummaryStore, summaryScope, summaryArticleKey } from './newsSummaryStore'
@@ -8,7 +8,7 @@ export function useNewsSummaryQueue(customerId: number, data: Briefing | null) {
   const context = data?.customerId === customerId ? summaryScope(data) : null
   const scope = context && data ? JSON.stringify([context, data.articles.map(item => [item.article.id, item.article.version])]) : null
   const [owner, setOwner] = useState<{ scope: string; queue: NewsSummaryQueue } | null>(null)
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!scope || !context || !data) { setOwner(null); return }
     const articles = data.articles.map(item => item.article)
     const cache = newsSummaryStore.bind(context)

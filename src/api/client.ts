@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { newsSummaryStore } from '../components/home/newsSummaryStore'
+import { notifyNewsAuthExpired } from '../lib/newsSessionEvents'
 
 export interface ApiResponse<T> {
   message: string
@@ -36,7 +36,9 @@ apiClient.interceptors.request.use((config) => {
 })
 
 apiClient.interceptors.response.use(response => response, error => {
-  if (error.response?.status === 401) newsSummaryStore.clear()
+  if (error.response?.status === 401 && typeof window !== 'undefined') {
+    notifyNewsAuthExpired()
+  }
   return Promise.reject(error)
 })
 

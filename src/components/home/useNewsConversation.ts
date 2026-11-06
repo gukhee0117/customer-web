@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { newsApi, type Answer, type Article, type Message } from '../../api/news'
 import { apiErrorMessage } from '../../api/client'
 import { NewsRequestGate } from './newsRequestGate'
@@ -18,7 +18,7 @@ export function useNewsConversation(customerId: number, article: Article | null,
   const [attempt, setAttempt] = useState(0)
   const id = article?.id
   const version = article?.version
-  useLayoutEffect(() => {
+  useEffect(() => {
     setSummary(null); setTurns([]); setError(''); setPendingQuestion(false); setPendingText('')
     sending.current = false
     const summaries = summaryGate.current
@@ -38,9 +38,7 @@ export function useNewsConversation(customerId: number, article: Article | null,
       }).finally(() => { if (ticket.current()) setPendingSummary(false) })
     }
     return () => { summaries.cancel(); questions.cancel(); sending.current = false }
-    // The article is identified by immutable id/version, not object identity.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customerId, id, version, attempt, queue])
+  }, [customerId, article, id, version, attempt, queue])
 
   async function ask(value: string) {
     const question = value.trim()

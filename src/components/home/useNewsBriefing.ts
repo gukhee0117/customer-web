@@ -1,9 +1,10 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { newsApi, type Briefing } from '../../api/news'
 import { apiErrorMessage } from '../../api/client'
 import { NewsRequestGate } from './newsRequestGate'
 import { takePrefetchedBriefing } from './newsPrefetch'
 import { newsSummaryStore } from './newsSummaryStore'
+import { NEWS_CONTEXT_CHANGED } from '../../lib/newsSessionEvents'
 
 export function useNewsBriefing(customerId: number) {
   const gate = useRef(new NewsRequestGate())
@@ -28,18 +29,18 @@ export function useNewsBriefing(customerId: number) {
       if (ticket.current()) setError(apiErrorMessage(e, '뉴스 브리핑을 불러오지 못했어요.'))
     }).finally(() => { if (ticket.current()) setPending(false) })
   }, [customerId])
-  useLayoutEffect(() => {
+  useEffect(() => {
     load()
     const current = gate.current
     return () => current.cancel()
   }, [load])
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (typeof window === 'undefined') return
     const refresh = () => load()
     const focus = () => load(true)
-    window.addEventListener('news-context-changed', refresh)
+    window.addEventListener(NEWS_CONTEXT_CHANGED, refresh)
     window.addEventListener('focus', focus)
-    return () => { window.removeEventListener('news-context-changed', refresh); window.removeEventListener('focus', focus) }
+    return () => { window.removeEventListener(NEWS_CONTEXT_CHANGED, refresh); window.removeEventListener('focus', focus) }
   }, [load])
   return { data, pending, error, reload: () => load() }
 }

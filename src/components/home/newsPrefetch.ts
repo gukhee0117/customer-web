@@ -1,16 +1,24 @@
 import { newsApi, type Briefing } from '../../api/news'
+import { NEWS_AUTH_EXPIRED, notifyNewsContextChanged } from '../../lib/newsSessionEvents'
 import { newsSummaryStore, summaryScope } from './newsSummaryStore'
 import { NewsSummaryQueue } from './NewsSummaryQueue'
 
 let pending: { customerId: number; expiresAt: number; promise: Promise<Briefing>; controller: AbortController } | null = null
 let firstQueue: NewsSummaryQueue | null = null
 let firstScope = ''
-newsSummaryStore.onReset(() => { pending?.controller.abort(); pending = null; firstQueue?.dispose(); firstQueue = null })
+const initState = globalThis as typeof globalThis & { __mariaNewsSessionInitialized?: boolean }
+
+export function initNewsSession() {
+  if (initState.__mariaNewsSessionInitialized) return
+  initState.__mariaNewsSessionInitialized = true
+  newsSummaryStore.onReset(() => { pending?.controller.abort(); pending = null; firstQueue?.dispose(); firstQueue = null })
+  if (typeof window !== 'undefined') window.addEventListener(NEWS_AUTH_EXPIRED, resetNewsSession)
+}
 
 export function resetNewsSession() { newsSummaryStore.clear() }
 export function invalidateNewsPersonalization() {
   resetNewsSession()
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event('news-context-changed'))
+  notifyNewsContextChanged()
 }
 
 /** Runs after login/CSRF completion; login does not await news or LLM. */
@@ -41,11 +49,11 @@ export function prefetchNews(customerId: number) {
 export function takePrefetchedBriefing(customerId: number, signal?: AbortSignal): Promise<Briefing> | null {
   const owner = pending
   if (!owner || owner.customerId !== customerId || owner.expiresAt <= Date.now() || owner.controller.signal.aborted) return null
+  if (signal?.aborted) { owner.controller.abort(); return null }
   // Consume the list once; returning to Home always revalidates portfolio/profile.
   // Keep the owner until its request settles so the identity check above stays valid.
   owner.expiresAt = 0
   const cancel = () => owner.controller.abort()
-  if (signal?.aborted) cancel()
   signal?.addEventListener('abort', cancel, { once: true })
   return owner.promise.finally(() => signal?.removeEventListener('abort', cancel))
 }
