@@ -10,6 +10,7 @@ import { F } from '../lib/calc'
 import { useAppShell } from '../layouts/appShell'
 import { apiErrorMessage } from '../api/client'
 import { subscribeAssetEvents } from '../api/assetEvents'
+import { usePollTick } from '../components/common/usePollTick'
 import { createPackage, deletePackage, placeOrder, updatePackage } from '../api/stockPackage'
 import type { CandidateItem, OrderResult, SavePackageRequest } from '../api/stockPackage'
 import { InvestAssetsBox } from '../components/invest/InvestAssetsBox'
@@ -153,6 +154,11 @@ export function InvestPage() {
     editingRef.current = editing
   }, [editing])
   const reloadServer = server.reload
+  // 국내 보유가 없는 고객은 자산 이벤트가 오지 않으므로 패키지 시세는 주기로도 다시 받는다
+  const pollTick = usePollTick(3000)
+  useEffect(() => {
+    if (pollTick > 0 && !editingRef.current) reloadServer()
+  }, [pollTick, reloadServer])
   useEffect(
     () =>
       subscribeAssetEvents(
