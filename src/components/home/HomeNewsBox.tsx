@@ -15,7 +15,7 @@ import styles from './HomeNewsBox.module.css'
 
 function ArticleConversation({ customerId, article, summaries }: { customerId: number; article: Article; summaries: NewsSummaryQueue }) {
   const conversation = useNewsConversation(customerId, article, summaries)
-  const stockQuotes = useNewsStockQuotes(article.tickers)
+  const stockQuotes = useNewsStockQuotes(article.relatedStocks?.map(stock => stock.ticker) ?? [])
   const [input, setInput] = useState('')
   const conversationRef = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
@@ -62,16 +62,21 @@ function PersonalNews({ customerId }: { customerId: number }) {
   const { data, pending, error, reload } = useNewsBriefing(customerId)
   const summaries = useNewsSummaryQueue(customerId, data)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const selected = data?.articles.find(item => item.article.id === selectedId) ?? data?.articles[0]
+  const selected = selectedId ? data?.articles.find(item => item.article.id === selectedId) : undefined
   if (pending) return <p className={styles.main} role="status">보유 종목 뉴스를 불러오고 있어요…</p>
   if (error) return <div className={styles.main} role="alert">{error}<button type="button" onClick={reload}>다시 시도</button></div>
-  if (!selected) return <p className={styles.main}>보유한 국내주식과 관련된 뉴스가 없어요.</p>
+  if (!data?.articles.length) return <p className={styles.main}>{data?.themes?.length ? data.themes.join(', ') + ' 테마 관련 뉴스가 아직 없어요.' : '보유 종목에 등록된 테마가 없어 관련 뉴스를 찾지 못했어요.'}</p>
   if (!summaries) return <p className={styles.main} role="status">기사 요약을 준비하고 있어요…</p>
   return <>
+    {!!data?.themes?.length && <p className={styles.notice}>보유 종목 테마: {data.themes.join(', ')}</p>}
     {data?.personalizationStatus !== 'ACTIVE' && <p className={styles.notice}>투자성향이 미진단이거나 만료되어 균형 잡힌 관점으로 설명해 드려요.</p>}
     <div className={styles.cols}>
-      <ArticleConversation key={`${customerId}:${selected.article.id}:${selected.article.version}`} customerId={customerId} article={selected.article} summaries={summaries} />
-      <div className={styles.list}>{data?.articles.map(item => <button key={item.article.id} type="button" className={cx(styles.item, item.article.id === selected.article.id && styles.itemOn)} onClick={() => setSelectedId(item.article.id)}>
+      {selected ? <ArticleConversation key={`${customerId}:${selected.article.id}:${selected.article.version}`} customerId={customerId} article={selected.article} summaries={summaries} />
+        : <div className={styles.welcome}>
+          <h3>기사를 누르면 끼루가 요약해 드려요</h3>
+          <p>보유 종목의 테마와 관련된 뉴스를 골라 보세요.</p>
+        </div>}
+      <div className={styles.list}>{data?.articles.map(item => <button key={item.article.id} type="button" className={cx(styles.item, item.article.id === selected?.article.id && styles.itemOn)} onClick={() => setSelectedId(item.article.id)}>
         <div className={styles.itemTitle}>{item.article.title}</div>
         <div className={styles.itemMeta}>{item.article.source} · {item.article.publishedAt.slice(0, 10)}</div>
       </button>)}</div>

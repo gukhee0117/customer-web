@@ -412,3 +412,7 @@
 .waiting { margin: 0; color: var(--color-sub); font-size: var(--font-size-12); }
 .bubble { overflow-wrap: anywhere; }
 .conv > * { flex-shrink: 0; }
+
+.welcome { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 220px; padding: var(--space-16); text-align: center; color: var(--color-sub); }
+.welcome h3 { margin: 0 0 var(--space-8); font-size: var(--font-size-16); color: var(--color-navy); }
+.welcome p { margin: 0; font-size: var(--font-size-13); }

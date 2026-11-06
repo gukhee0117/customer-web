@@ -56,7 +56,7 @@ test('stock card renders database sector and signed daily change without stock i
     answer: { ...base, relatedStocks: [{ ticker: '000660', name: 'SK하이닉스', sectorName: '반도체' }] },
   }))
   assert.match(html, /반도체/); assert.match(html, /000660/); assert.match(html, /전일 대비 \+10.00%/)
-  assert.match(html, /class="chg up"/); assert.doesNotMatch(html, /stockMark/)
+  assert.match(html, /class="chg up"/); assert.doesNotMatch(html, /stockMark/); assert.match(html, /뉴스 관련 종목/); assert.doesNotMatch(html, /보유 테마 연관 종목/)
 })
 
 test('missing prices and sectors are explicit; loading does not block the summary', () => {

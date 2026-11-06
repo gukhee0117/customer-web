@@ -2,12 +2,12 @@ import { apiClient, type ApiResponse } from './client'
 
 export interface Article {
   id: string; version: string; title: string; demo: boolean; source: string
-  url: string | null; publishedAt: string; tickers: string[]; facts: string[]; risks: string[]
+  url: string | null; publishedAt: string; tickers: string[]; relatedStocks?: { ticker: string; name: string; sectorName?: string | null }[]; facts: string[]; risks: string[]
 }
 export interface Briefing {
   customerId: number; investorType: string; personalizationStatus: 'ACTIVE' | 'EXPIRED' | 'UNASSIGNED'
   contextVersion?: string; summaryVersion?: string; firstSummary?: Answer | null
-  selectionRuleVersion: string; articles: { article: Article; score: number }[]
+  selectionRuleVersion: string; articles: { article: Article; score: number }[]; themes?: string[]
 }
 export interface Answer {
   articleId: string; articleVersion: string; evidence: { facts: string[]; risks: string[] }
@@ -16,7 +16,11 @@ export interface Answer {
   points?: string[]; quote?: string | null; relatedStocks?: { ticker: string; name: string; sectorName?: string | null }[]
 }
 export interface Message { role: 'user' | 'assistant'; content: string }
+export interface StockThemes { ticker: string; name: string; sectorName: string | null; themes: string[] }
 export const newsApi = {
+  async themes(signal: AbortSignal) {
+    return (await apiClient.get<ApiResponse<StockThemes[]>>('/api/customer/news/themes', { signal })).data.data
+  },
   async briefing(signal: AbortSignal) {
     return (await apiClient.get<ApiResponse<Briefing>>('/api/customer/news/briefing', { signal })).data.data
   },

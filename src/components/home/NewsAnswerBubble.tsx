@@ -13,7 +13,8 @@ export function NewsAnswerBubble({ answer, summary = false, quotes = {}, quotesP
       {answer.points?.length ? <ul className={styles.sum}>{answer.points.map((point, i) => <li key={i}>{point}</li>)}</ul> : <div>{answer.explanation}</div>}
       {answer.quote && <div className={styles.quote}>기사 내용: ‘{answer.quote}’</div>}
       {summary && answer.evidence.risks.length > 0 && <div className={styles.quote}>함께 확인할 위험: {answer.evidence.risks.join(' ')}</div>}
-      {!!answer.relatedStocks?.length && <div className={styles.chips} aria-label="기사 관련 보유 종목">
+      {!!answer.relatedStocks?.length && <div className={styles.quote}>뉴스 관련 종목</div>}
+      {!!answer.relatedStocks?.length && <div className={styles.chips} aria-label="뉴스 관련 종목">
         {answer.relatedStocks.map(stock => {
           const change = newsStockChange(quotes[stock.ticker])
           return <span className={styles.chip} key={stock.ticker}>
