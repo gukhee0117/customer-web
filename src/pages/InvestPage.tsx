@@ -9,6 +9,7 @@ import type { DemoSettings } from '../data/returns'
 import { F } from '../lib/calc'
 import { useAppShell } from '../layouts/appShell'
 import { apiErrorMessage } from '../api/client'
+import { subscribeAssetEvents } from '../api/assetEvents'
 import { createPackage, deletePackage, placeOrder, updatePackage } from '../api/stockPackage'
 import type { CandidateItem, OrderResult, SavePackageRequest } from '../api/stockPackage'
 import { InvestAssetsBox } from '../components/invest/InvestAssetsBox'
@@ -143,6 +144,24 @@ export function InvestPage() {
       shell.setTopBar({})
     },
     [shell]
+  )
+
+  // 평가액이 바뀌면 서버가 알려 준다 — 주문·패키지 창을 열어 둔 동안에는 건너뛰어 입력을 방해하지 않는다
+  const editing = trade != null || bulk != null || nm != null || add != null || dlg != null || uf != null || chkDemo != null
+  const editingRef = useRef(editing)
+  useEffect(() => {
+    editingRef.current = editing
+  }, [editing])
+  const reloadServer = server.reload
+  useEffect(
+    () =>
+      subscribeAssetEvents(
+        () => {
+          if (!editingRef.current) reloadServer()
+        },
+        () => undefined
+      ),
+    [reloadServer]
   )
 
   const closePanel = () => {
