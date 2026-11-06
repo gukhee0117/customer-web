@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { newsSummaryStore } from '../components/home/newsSummaryStore'
 
 export interface ApiResponse<T> {
   message: string
@@ -32,6 +33,11 @@ apiClient.interceptors.request.use((config) => {
     if (token) config.headers.set('X-XSRF-TOKEN', token)
   }
   return config
+})
+
+apiClient.interceptors.response.use(response => response, error => {
+  if (error.response?.status === 401) newsSummaryStore.clear()
+  return Promise.reject(error)
 })
 
 // 서버 오류 응답({message, code})의 문구. 없으면 기본 문구

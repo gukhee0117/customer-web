@@ -271,7 +271,7 @@ export const fetchPackage = (id: number) => unwrap(apiClient.get<ApiResponse<Pac
 export const fetchAllHoldings = () => unwrap(apiClient.get<ApiResponse<PackageHolding[]>>(BASE + '/holdings', { timeout: 30000 }))
 export const fetchAllOrders = () => unwrap(apiClient.get<ApiResponse<OrderResult[]>>(BASE + '/orders'))
 export const fetchOrderFees = () => unwrap(apiClient.get<ApiResponse<OrderFees>>(BASE + '/order-fees'))
-export const fetchQuotes = (tickers: string[]) => unwrap(apiClient.get<ApiResponse<Quote[]>>(BASE + '/quotes', { params: { tickers: tickers.join(',') }, timeout: 30000 }))
+export const fetchQuotes = (tickers: string[], signal?: AbortSignal) => unwrap(apiClient.get<ApiResponse<Quote[]>>(BASE + '/quotes', { params: { tickers: tickers.join(',') }, signal, timeout: 30000 }))
 export const placeOrder = (packageId: number, req: OrderRequest) => unwrap(apiClient.post<ApiResponse<OrderResponse>>(BASE + '/' + packageId + '/orders', req, { timeout: 60000 }))
 export const createPackage = (req: SavePackageRequest) => unwrap(apiClient.post<ApiResponse<PackageDetail>>(BASE, req))
 export const updatePackage = (id: number, req: SavePackageRequest) => unwrap(apiClient.put<ApiResponse<PackageDetail>>(BASE + '/' + id, req))

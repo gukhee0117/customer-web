@@ -1,4 +1,5 @@
 import { RETURNS_DATA as RD } from '../data/returns'
+import { invalidateNewsPersonalization } from '../components/home/newsPrefetch'
 import type { ProfileKey } from '../data/returns'
 import { apiClient } from './client'
 import type { ApiResponse } from './client'
@@ -60,6 +61,7 @@ export async function fetchQuestions(): Promise<SurveyQuestion[]> {
 // 점수 계산·성향 판정·저장은 서버가 한다. 재진단도 같은 호출이다
 export async function submitAssessment(answers: SurveyAnswers): Promise<AssessmentResult> {
   const res = await apiClient.post<ApiResponse<AssessmentResult>>('/api/customer/investor-assessment', answers)
+  invalidateNewsPersonalization()
   return res.data.data
 }
 
