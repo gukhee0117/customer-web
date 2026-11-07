@@ -10,8 +10,8 @@ import styles from './InvestAssetsBox.module.css'
 
 const signedWon = (n: number) => sign(n) + '₩' + F.won(Math.abs(n))
 
-// 패키지 자산 박스 — 전체 패키지 합계. 합계는 홈·내 계좌와 같은 RD.PKG_HOLDINGS 기준
-export function InvestAssetsBox({ className, views, cash }: { className?: string; views: PkgView[]; cash: number }) {
+// 패키지 자산 박스 — 전체 패키지 합계. 합계는 서버 패키지 보유 기준
+export function InvestAssetsBox({ className, views, cash, accountNo }: { className?: string; views: PkgView[]; cash: number; accountNo: string }) {
   const t = totalsOf(views)
   const partial = t.unpriced > 0 // 현재가를 못 받은 종목이 있으면 손익·수익률은 확인 불가로 보인다
   const tone = (n: number) => styles[toneOf(n)]
@@ -23,7 +23,7 @@ export function InvestAssetsBox({ className, views, cash }: { className?: string
       head={
         <>
           <span className={styles.asOf}>{F.short(RD.C.BUSINESS_DATE)} 기준</span>
-          <span className={styles.acct}>Returns RIA {RD.ACCOUNT.no}</span>
+          <span className={styles.acct}>Returns RIA {accountNo}</span>
         </>
       }
     >

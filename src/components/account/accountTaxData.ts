@@ -5,18 +5,6 @@ import { F } from '../../lib/calc'
 
 // 매도 한도·세액·원금 유지·증빙서류 박스의 숫자 — 원본 renderVals 계산 그대로(값은 src/data·src/lib에서)
 
-// 남은 한도까지 팔 때 감면액의 예상 범위 배수 — 원본 account 화면 안의 예시 값
-// TODO: 백엔드 연결 시 주가·환율 시뮬레이션 결과(1,000번)로 교체
-const RANGE_CUT: [number, number] = [0.962, 1.035]
-
-// 시연 설정의 '조정비율(다른 계좌 순매수)' 1.00 / 0.90 — 원본은 이 화면 안에서만 바꾸고(혜택 상태를 바꾸면 해제), 없으면 혜택 상태에서 정해진 값
-let adjOverride: number | null = null
-export const setAdjOverride = (v: number | null): void => {
-  adjOverride = v
-}
-export const currentAdj = (): number => adjOverride ?? RD.BENEFIT.adj
-
-const rng = (v: number, r: [number, number]): string => F.man(v * r[0]) + '~' + F.man(v * r[1]) + ' 원'
 
 export interface LimitValues {
   remain: string
@@ -45,41 +33,6 @@ export function limitValues(): LimitValues {
     bandEnd: F.short(e),
     bandD: F.days(biz, e),
     guideLine: '남은 한도 ' + F.man(F.remaining()) + ' 원을 다 쓰면 예상 공제 ' + F.man(plan.ded) + ' 원 · 예상 절세 약 ' + F.man(plan.save) + ' 원'
-  }
-}
-
-export interface TaxValues {
-  bizShort: string
-  benX: boolean
-  benXMsg: string
-  cut: string
-  rangeOn: boolean
-  range: string
-  general: string
-  ria: string
-  guide: string
-  adjOn: boolean
-  adjMsg: string
-}
-
-export function taxValues(): TaxValues {
-  const biz = RD.C.BUSINESS_DATE
-  const adj = currentAdj()
-  const benX = RD.BENEFIT_STATE === 'IMPOSSIBLE'
-  const t0 = F.tax(0, biz, adj)
-  const tG = F.tax(F.plan({ biz }).gain, biz, adj)
-  return {
-    bizShort: F.short(biz),
-    benX,
-    benXMsg: benX && RD.BENEFIT.cancelledAt ? F.dot(RD.BENEFIT.cancelledAt) + ' 조기인출로 이 계좌의 세제 혜택이 취소됐어요' : '',
-    cut: F.won(benX ? 0 : t0.cut),
-    rangeOn: !benX,
-    range: rng(tG.cut, RANGE_CUT),
-    general: F.won(t0.general),
-    ria: F.won(benX ? t0.general : t0.ria),
-    guide: F.won(benX ? 0 : tG.cut),
-    adjOn: adj < 1,
-    adjMsg: '다른 계좌의 해외주식 순매수로 공제가 ' + Math.round((1 - adj) * 100) + '% 줄었어요'
   }
 }
 

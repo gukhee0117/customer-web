@@ -178,7 +178,6 @@
 .iconBtn:focus-visible,
 .userBtn:focus-visible,
 .userItem:focus-visible,
-.todoLink:focus-visible,
 .logo:focus-visible {
   outline: 2px solid var(--color-navy);
   outline-offset: 2px;
@@ -226,60 +225,13 @@
   border-bottom: 1px solid var(--color-line-soft);
 }
 
-.todoDate {
-  margin-left: auto;
-  font-size: var(--font-size-12);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-sub);
-}
 
-.todo {
-  padding: var(--space-10) var(--space-16);
-  border-top: 1px solid var(--color-line-soft);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-12);
-  align-items: center;
-}
 
-.todoMain {
-  min-width: 0;
-}
 
-.todoTitle {
-  font-size: var(--font-size-14);
-  font-weight: var(--font-weight-bold);
-  display: flex;
-  gap: var(--space-6);
-  align-items: baseline;
-  min-width: 0;
-}
 
-.todoTag {
-  font-size: var(--font-size-12-5);
-  font-weight: var(--font-weight-extrabold);
-  flex: none;
-}
 
-.todoText {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
-.todoDesc {
-  font-size: var(--font-size-12-5);
-  color: var(--color-sub);
-  margin-top: var(--space-2);
-  line-height: var(--line-height-normal);
-}
 
-.todoLink {
-  font-size: var(--font-size-13);
-  color: var(--color-navy);
-  white-space: nowrap;
-  text-decoration: none;
-}
 
 .divider {
   height: 1px;

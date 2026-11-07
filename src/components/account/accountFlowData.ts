@@ -2,7 +2,6 @@ import { RETURNS_DATA as RD } from '../../data/returns'
 import { F } from '../../lib/calc'
 import type { FundFlowAllocation, FundFlowMonthly, FundFlowRelief, FundFlowSummary, FundFlowTransactionType, FundFlowTransactions } from '../../api/fundFlow'
 import type { WithdrawScheduleState } from './useWithdrawSchedule'
-import { currentAdj } from './accountTaxData'
 import type { Tone } from './accountData'
 
 // 자금 흐름 탭 박스들의 숫자 — 서버 값이 있으면 서버 값으로, 없으면(로그인 전·오류) 시연 데이터(src/data·src/lib)로 계산한다
@@ -493,14 +492,13 @@ export function cutVsInvest(live?: { summary?: FundFlowSummary | null; relief?: 
       note: relief.statusLabel + ' · ' + relief.notice
     }
   }
-  const benX = RD.BENEFIT_STATE === 'IMPOSSIBLE'
-  const cut = F.tax(0, RD.C.BUSINESS_DATE, currentAdj()).cut
+  const cut = F.tax(0, RD.C.BUSINESS_DATE, 1).cut
   return {
-    cut: F.won(benX ? 0 : cut),
+    cut: F.won(cut),
     investLabel: '국내 운용',
     invest: F.won(RD.FLOW.evalAmt),
     ratioLabel: '감면 1원당 국내 운용 약',
-    ratio: benX || !cut ? '-' : String(Math.round(RD.FLOW.evalAmt / cut)),
+    ratio: !cut ? '-' : String(Math.round(RD.FLOW.evalAmt / cut)),
     note: '참고용이에요'
   }
 }

@@ -1,6 +1,7 @@
 import { Box } from '../common/Box'
 import { cx } from '../common/cx'
-import { tradeView } from './myinfoProfile'
+import { tradeViewOf } from './myinfoProfile'
+import { useTendency } from '../invest/useNewPkgData'
 import styles from './MyInfoTradeBox.module.css'
 
 interface Props {
@@ -10,13 +11,14 @@ interface Props {
 
 // 거래로 본 성향(참고용). 미진단일 때는 페이지가 이 박스를 아예 그리지 않음(원본)
 export function MyInfoTradeBox({ className, onOpenAssess }: Props) {
-  const tp = tradeView()
+  const { state, data } = useTendency()
+  const tp = data ? tradeViewOf(data) : null
   return (
     <Box
       data-box="trade-profile"
       className={cx(styles.box, className)}
       title="거래로 본 성향"
-      head={<span className={styles.sub}>최근 3개월 · 참고용</span>}
+      head={<span className={styles.sub}>참고용</span>}
     >
       {tp ? (
         <>
@@ -37,7 +39,7 @@ export function MyInfoTradeBox({ className, onOpenAssess }: Props) {
           </div>
         </>
       ) : (
-        <div className={styles.none}>거래가 쌓이면 보여드려요</div>
+        <div className={styles.none}>{state === 'loading' ? '불러오는 중이에요' : state === 'ready' ? '체결된 매수가 쌓이면 보여드려요' : '불러오지 못했어요. 잠시 후 다시 확인해 주세요'}</div>
       )}
     </Box>
   )

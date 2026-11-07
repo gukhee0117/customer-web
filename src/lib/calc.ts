@@ -1,4 +1,4 @@
-import { ALLOWED_GRADE, BUY_POS, C, ETF, FIXED, GRADE_NAMES, META, OFF, PROFILE_SCORE, RETURNS_DATA as D, demo } from '../data/returns'
+import { ALLOWED_GRADE, BUY_POS, C, ETF, FIXED, GRADE_NAMES, META, OFF, PROFILE_SCORE, RETURNS_DATA as D } from '../data/returns'
 import type { BizDates, DeductionBand, ProfileKey, StockMeta } from '../data/returns'
 import { getBusinessToday } from './clock'
 
@@ -136,7 +136,7 @@ export const F = {
   pct: (n: number): string => (n >= 0 ? '+' : '') + n.toFixed(2) + '%',
   upc: (n: number): string => n > 0 ? '#F04452' : n < 0 ? '#3182F6' : '#6B7280',
   // 남은 매도 한도 — 진행 중 매도 예시가 켜지면 AAPL 5주(150만 원) 차감
-  remaining: (): number => C.SELL_LIMIT - C.SOLD.amount - D.ACCOUNT.otherBrokerSold - (demo().trade ? 1500000 : 0),
+  remaining: (): number => C.SELL_LIMIT - C.SOLD.amount - D.ACCOUNT.otherBrokerSold,
   holdDays: (d?: string): number => Math.max(0, F.days(D.SOLD.confirmed, d || F.today())),
   // 인출: 지금 인출 가능 = 국내 운용 자산 − 납입 누적(수익 초과분)
   withdrawableNow: (): number => Math.max(0, D.ASSETS.domestic - D.WITHDRAW.paidIn),

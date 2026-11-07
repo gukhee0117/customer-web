@@ -11,7 +11,6 @@ import { cleanPct } from './investAddLogic'
 import { NM_STEPS, ackClock, buyCalc, checkItemsOf, gradeLabel, labOf, phaseOf, pickedFrom, profileOf, rowsOf, sumOf } from './investNewPkgLogic'
 import type { CkPhase, NewPkgState, NmBuyRow, NmLab } from './investNewPkgLogic'
 import type { DialogState } from './InvestDialog'
-import type { ChkDemo } from './investDevData'
 import { InvestCheckResult } from './InvestCheckResult'
 import { InvestNewPkgStart } from './InvestNewPkgStart'
 import type { OrderFees } from '../../api/stockPackage'
@@ -30,8 +29,6 @@ interface Props {
   onClose: () => void
   onMake: (buy: NmBuyRow[] | null) => void // null이면 목표 비중만 정해 만들기, 목록이면 만들고 바로 사기
   onDialog: (d: DialogState) => void
-  noCand?: boolean // 시연 설정 '후보 없음'
-  chkDemo?: ChkDemo | null // 시연 설정 '검사 결과'(null이면 실제 흐름)
 }
 
 // 종목 라벨 — 목록에 있는 종목은 공용 라벨, 그 밖의 국내 종목은 같은 모양으로 직접 그림
@@ -49,7 +46,7 @@ function StockName({ lab, sector, muted }: { lab: NmLab; sector: boolean; muted?
 
 // "새 패키지" 창 — 이름 → 후보 찾기 → 목표 비중 → 살 금액
 // 종목을 고르고 비중을 정하는 것은 고객이다. 서버는 후보를 조건으로 거르고, 고른 구성을 점검해 사실만 알려 준다(투자 권유 아님)
-export function InvestNewPkg({ nm, cash, fees, onPatch, onClose, onMake, onDialog, noCand = false, chkDemo = null }: Props) {
+export function InvestNewPkg({ nm, cash, fees, onPatch, onClose, onMake, onDialog }: Props) {
   const tendency = useTendency()
   const kw = useKeywordHits(nm.q2)
 
@@ -86,8 +83,7 @@ export function InvestNewPkg({ nm, cash, fees, onPatch, onClose, onMake, onDialo
   }
 
   // 검사: 구성이 100%일 때만. 서버가 지표를 계산하고, 검사한 때의 구성으로 결과를 확정한다
-  const realPh = phaseOf(nm.chk, nm.w)
-  const ph: CkPhase = chkDemo ?? realPh
+  const ph: CkPhase = phaseOf(nm.chk, nm.w)
   const ckOn = !empty && sum === 100
   const busy = ph === 'loading'
   const can = ckOn && !busy
@@ -173,7 +169,7 @@ export function InvestNewPkg({ nm, cash, fees, onPatch, onClose, onMake, onDialo
           {/* 후보 찾기는 1단계 이상에서 계속 두어서, 목표 비중 단계에서 돌아와도 조건·목록이 그대로 남게 한다(이름 단계로 돌아가면 초기화) */}
           {st >= 1 && (
             <div className={cx(styles.startWrap, st !== 1 && styles.startHidden)}>
-              <InvestNewPkgStart tendency={tendency} addedCodes={codes} ask={nm.ask} noCand={noCand} onPick={pick} />
+              <InvestNewPkgStart tendency={tendency} addedCodes={codes} ask={nm.ask} onPick={pick} />
             </div>
           )}
 

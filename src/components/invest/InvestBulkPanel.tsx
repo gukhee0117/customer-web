@@ -1,5 +1,4 @@
 import '../../styles/tokens.css'
-import { RETURNS_DATA as RD } from '../../data/returns'
 import type { OrderFees } from '../../api/stockPackage'
 import { F } from '../../lib/calc'
 import { cx } from '../common/cx'
@@ -13,6 +12,7 @@ import styles from './InvestSidePanel.module.css'
 interface Props {
   pkg: PkgView
   cash: number
+  accountNo: string
   fees: OrderFees
   amt: string
   onAmt: (v: string) => void
@@ -23,7 +23,7 @@ interface Props {
 const NOTE = () => 'RIA 계좌의 국내주식 매매예요. 매도 대금은 RIA 계좌에 남고, 원금 인출 가능일은 바뀌지 않아요.'
 
 // "패키지 한 번에 사기" 창 — 살 금액을 목표 비중대로 나눠 종목별 주 수를 계산
-export function InvestBulkPanel({ pkg, cash, fees, amt, onAmt, onClose, onSubmit }: Props) {
+export function InvestBulkPanel({ pkg, cash, accountNo, fees, amt, onAmt, onClose, onSubmit }: Props) {
   const c = bulkCalc(pkg, amt, cash, fees)
   const sums: [string, string, boolean][] = [
     ['예상 금액', '₩' + F.won(c.sum), false],
@@ -40,7 +40,7 @@ export function InvestBulkPanel({ pkg, cash, fees, amt, onAmt, onClose, onSubmit
         <PanelClose onClose={onClose} />
       </div>
       <div className={styles.acct}>
-        Returns RIA {RD.ACCOUNT.no} · 주문 가능 ₩{F.won(cash)}
+        Returns RIA {accountNo} · 주문 가능 ₩{F.won(cash)}
       </div>
       <div className={styles.body}>
         <div>
