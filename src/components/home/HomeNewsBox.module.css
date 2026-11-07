@@ -388,3 +388,31 @@
     border-left: 0;
   }
 }
+
+/* API-driven news states */
+.evidence { font-size: var(--font-size-12); line-height: 1.6; color: var(--color-sub); }
+.notice { margin: 0; padding: var(--space-8) var(--space-16); font-size: var(--font-size-12); }
+.searchItem { padding: var(--space-8) 0; border-bottom: 1px solid var(--color-line-soft); }
+.searchItem p { margin: var(--space-4) 0; }
+.send:disabled, .qChip:disabled { opacity: .5; cursor: wait; }
+
+/* Space the user message and AI reply within each exchange. */
+.turn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  flex-shrink: 0;
+}
+
+/* Article-grounded answers: source quotes and verified names, with no synthetic quotes/prices. */
+.qChips { flex-wrap: wrap; overflow: visible; }
+.stockSector { padding: 1px 4px; border-radius: var(--radius-4); background: var(--color-surface-sub); color: var(--color-sub); font-size: var(--font-size-11); }
+.chip { flex-wrap: wrap; row-gap: var(--space-3); max-width: 100%; font-size: var(--font-size-12); }
+.stockTicker { color: var(--color-sub); font-size: var(--font-size-11); }
+.waiting { margin: 0; color: var(--color-sub); font-size: var(--font-size-12); }
+.bubble { overflow-wrap: anywhere; }
+.conv > * { flex-shrink: 0; }
+
+.welcome { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 220px; padding: var(--space-16); text-align: center; color: var(--color-sub); }
+.welcome h3 { margin: 0 0 var(--space-8); font-size: var(--font-size-16); color: var(--color-navy); }
+.welcome p { margin: 0; font-size: var(--font-size-13); }
