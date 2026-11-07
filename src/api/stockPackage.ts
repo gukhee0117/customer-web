@@ -290,6 +290,8 @@ export const PROFILE_KEY: Record<string, string> = {
 // 내 투자성향 범위 안에서 RIA 계좌로 살 수 있는 상품과 이유. 이유·답변은 서버가 가진 사실(등급·변동성·테마)로만 만든다
 
 export type RecommendFilter = 'ALL' | 'STOCK' | 'FUND'
+// 추천 기준: 설문으로 본 투자성향 / 거래로 본 경향
+export type RecommendBasis = 'SURVEY' | 'TRADING'
 
 export interface RecommendItem {
   domesticProductId: number
@@ -301,7 +303,11 @@ export interface RecommendItem {
   themes: string[]
   riskGrade: number
   volatilityPercent: number | null
+  outOfProfile: boolean // 내 설문 투자성향 허용 범위보다 위험한 상품. 서버가 범위 밖 상품을 추천에서 빼므로 지금은 항상 false
   reasons: string[]
+  sectorMatched: boolean // 내가 가장 많이 산 업종과 같은 업종(거래 데이터가 없으면 false)
+  themeMatched: boolean // 내가 가장 많이 산 테마에 속함(거래 데이터가 없으면 false)
+  matchedTheme: string | null // 일치한 테마 이름(themeMatched가 false면 null)
 }
 
 export interface RecommendList {
@@ -310,9 +316,18 @@ export interface RecommendList {
   profileLabel: string | null
   allowedMinGrade: number | null
   filter: RecommendFilter
+  basis: RecommendBasis
+  basisAvailable: boolean // 이 기준으로 추천을 계산할 수 있는가(설문은 진단 유효, 거래는 체결 매수 최소 건수 이상)
+  basisFacts: string[] // 거래 기준일 때 추천의 바탕이 된 경향 사실
+  tradeBuyCount: number
+  minBuyCount: number
   subtitle: string
   disclaimer: string
   checkedAt: string
+  targetAdjusted: boolean // 거래 기준: 평균 매수 등급이 설문 허용 범위 밖이라 목표 등급을 허용 범위 경계로 보정했는가
+  targetGrade: number | null // 추천을 고를 때 기준으로 쓴 목표 등급(보정 뒤)
+  gradeFrom: number | null // 후보로 본 위험등급 범위(양 끝 포함, 1이 가장 위험). 추천을 계산하지 못했으면 null
+  gradeTo: number | null
 }
 
 export interface RecommendAnswer {
@@ -322,7 +337,7 @@ export interface RecommendAnswer {
   disclaimer: string
 }
 
-export const fetchRecommendations = (filter: RecommendFilter, limit: number) =>
-  unwrap(apiClient.get<ApiResponse<RecommendList>>(BASE + '/recommendations', { params: { filter, limit } }))
-export const askRecommendation = (question: string, focusTicker: string | null) =>
-  unwrap(apiClient.post<ApiResponse<RecommendAnswer>>(BASE + '/recommendations/ask', { question, focusTicker }, { timeout: 20000 }))
+export const fetchRecommendations = (filter: RecommendFilter, limit: number, basis: RecommendBasis) =>
+  unwrap(apiClient.get<ApiResponse<RecommendList>>(BASE + '/recommendations', { params: { filter, limit, basis } }))
+export const askRecommendation = (question: string, focusTicker: string | null, basis: RecommendBasis) =>
+  unwrap(apiClient.post<ApiResponse<RecommendAnswer>>(BASE + '/recommendations/ask', { question, focusTicker, basis }, { timeout: 20000 }))

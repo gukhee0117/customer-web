@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import '../../styles/tokens.css'
 import { PROFILE_KEY, askRecommendation } from '../../api/stockPackage'
-import { RETURNS_DATA as RD } from '../../data/returns'
+import type { RecommendBasis } from '../../api/stockPackage'
+import { serverState } from '../../data/returns'
 import { F } from '../../lib/calc'
 import { Box } from '../common/Box'
 import { KkiruAvatar } from '../common/KkiruAvatar'
@@ -20,6 +21,10 @@ type AskMsg = { me: true; text: string } | { me?: false; text: string; pkg?: str
 
 const tone = (n: number) => (n > 0 ? styles.up : n < 0 ? styles.down : styles.flat)
 const GRADE_WORD: Record<number, string> = { 1: '매우 높은 위험', 2: '높은 위험', 3: '다소 높은 위험', 4: '보통 위험', 5: '낮은 위험', 6: '매우 낮은 위험' }
+const BASES: [RecommendBasis, string][] = [
+  ['SURVEY', '설문으로 본 성향'],
+  ['TRADING', '거래로 본 경향']
+]
 const allowedText = (min: number | null) => (min == null ? '' : min === 6 ? '6등급' : min + '~6등급')
 
 interface HomeRecBoxProps {
@@ -28,31 +33,34 @@ interface HomeRecBoxProps {
   onAskDeposit?: () => void // "예탁금으로 두면 어떻게 되나요? ›" — 챗봇 창에서 대신 물어봄
 }
 
-// 오늘의 추천 박스: 성향별 추천 3종목(서버) + 상세 카드 + 끼루에게 물어보기(서버)
+// 오늘의 종목 박스: 성향별 추천 3종목(서버) + 상세 카드 + 끼루에게 물어보기(서버)
 export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBoxProps) {
   const navigate = useNavigate()
   const [open, setOpen] = useState<string | null>(null)
   const [ask, setAsk] = useState<AskMsg[]>([])
   const [askFocus, setAskFocus] = useState<string | null>(null)
+  const [basis, setBasis] = useState<RecommendBasis>('SURVEY')
   const [input, setInput] = useState('')
   const asking = useRef(false)
   const askRef = useRef<HTMLDivElement>(null)
   const askCount = useRef<number | null>(null)
 
-  const rec = useRecommendations('ALL', 3)
+  const rec = useRecommendations('ALL', 3, basis)
   const tendency = useTendency()
   const survey = tendency.data?.survey
   const data = rec.data
-  const recs = data && data.profileAvailable ? data.items : []
+  const trading = basis === 'TRADING'
+  const recs = data && data.basisAvailable ? data.items : []
   const profileKey = survey?.investorType ? (PROFILE_KEY[survey.investorType] ?? 'neutral') : 'neutral'
   const label = data?.profileLabel ?? survey?.label ?? ''
   const allow = allowedText(data?.allowedMinGrade ?? survey?.allowedMinGrade ?? null)
-  const opened = RD.ACCOUNT_STATE === 'opened'
-  const off = rec.state === 'ready' && data !== null && !data.profileAvailable
+  // 패키지에 담으려면 RIA 계좌가 개설돼 있어야 한다 — 로그인 때 서버 프로필로 맞춰 둔 계좌 상태(홈 패키지 박스와 같은 값)
+  const opened = serverState().account === 'opened'
+  const off = rec.state === 'ready' && data !== null && !data.basisAvailable
   const none = !survey?.available && !survey?.expired
   const ready = rec.state === 'ready'
   const recEmpty = ready && !off && recs.length === 0
-  const recEmptyT1 = label + '은 ' + allow + ' 상품을 추천받을 수 있어요.'
+  const recEmptyT1 = trading ? '내 거래 경향에 맞는 상품이 지금은 없어요.' : label + '은 ' + allow + ' 상품을 추천받을 수 있어요.'
 
   // 상세 카드: 바깥 클릭·Esc·스크롤하면 닫힘
   useEffect(() => {
@@ -94,7 +102,7 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
     asking.current = true
     setAsk((a) => a.concat([{ me: true, text }, { text: '', wait: true }]))
     setInput('')
-    askRecommendation(text, askFocus)
+    askRecommendation(text, askFocus, basis)
       .then(
         (res): AskMsg => ({ text: res.answer, pkg: res.ticker ?? undefined }),
         (): AskMsg => ({ text: '지금은 답을 가져오지 못했어요. 잠시 뒤에 다시 물어봐 주세요.' })
@@ -118,14 +126,32 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
 
   const headRight = (
     <span className={styles.headRight}>
-      {data?.profileAvailable ? label + ' · ' + allow + ' 안에서 · ' : ''}
+      {data?.basisAvailable ? data.subtitle + ' · ' : ''}
       <Link to="/invest#recommend">더보기 ›</Link>
     </span>
   )
 
   return (
-    <Box shadow className={className} title="오늘의 추천" actions={headRight} style={{ zIndex: open !== null ? 20 : undefined }}>
+    <Box shadow className={className} title="오늘의 종목" actions={headRight} style={{ zIndex: open !== null ? 20 : undefined }}>
       <div className={styles.gradeLine}>위험등급: 리턴증권 자체 산정 · 1 매우 높은 위험 ~ 6 매우 낮은 위험</div>
+
+      <div className={styles.basisRow} role="group" aria-label="추천 기준">
+        {BASES.map(([k, name]) => (
+          <button
+            key={k}
+            type="button"
+            className={cx(styles.basisBtn, basis === k && styles.basisBtnOn)}
+            aria-pressed={basis === k}
+            onClick={() => {
+              setBasis(k)
+              setOpen(null)
+              setAskFocus(null)
+            }}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
 
       {rec.state === 'loading' && <div className={styles.gradeLine}>추천을 불러오고 있어요…</div>}
       {rec.state === 'unauthorized' && <div className={styles.gradeLine}>로그인이 필요해요. 로그인한 뒤 다시 열어 주세요.</div>}
@@ -259,7 +285,7 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
               type="button"
               className={styles.full}
               onClick={() =>
-                onOpenFullAsk?.(ask.filter((m) => !('wait' in m && m.wait)).map((m): FullAskMsg => (m.me ? { me: true, text: m.text } : { kk: true, text: m.text, src: '오늘의 추천' })))
+                onOpenFullAsk?.(ask.filter((m) => !('wait' in m && m.wait)).map((m): FullAskMsg => (m.me ? { me: true, text: m.text } : { kk: true, text: m.text, src: '오늘의 종목' })))
               }
             >
               전체 대화 보기 ›
@@ -296,7 +322,7 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
               value={input}
               maxLength={100}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="오늘의 추천 종목에 대해 끼루에게 물어보세요"
+              placeholder="오늘의 종목에 대해 끼루에게 물어보세요"
               aria-label="추천 종목에 대해 끼루에게 질문"
             />
             <button type="submit" className={styles.send}>
@@ -307,7 +333,15 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
         </>
       )}
 
-      {off && (
+      {off && trading && (
+        <div className={styles.off}>
+          <p className={styles.offMsg}>
+            거래 기준 추천은 체결된 매수가 {data?.minBuyCount}건 이상일 때 볼 수 있어요. 지금은 {data?.tradeBuyCount}건이에요.
+          </p>
+        </div>
+      )}
+
+      {off && !trading && (
         <div className={styles.off}>
           <p className={styles.offMsg}>{none ? '투자성향을 진단하면 성향에 맞는 범위 안에서 추천을 받을 수 있어요.' : '진단 유효기간이 지나 추천을 보여드릴 수 없어요.'}</p>
           <Link to="/myinfo#assess" className={styles.offBtn}>{none ? '진단하기' : '다시 진단하기'}</Link>
