@@ -14,8 +14,7 @@ import { issuedRecords, setAdjOverride, docTypeOf } from '../components/account/
 import { apiErrorMessage } from '../api/client'
 import { subscribeAssetEvents } from '../api/assetEvents'
 import { downloadDocument, issueDocument, listDocuments } from '../api/documents'
-import { ALERT_DESC, ALERT_LINK, ALERT_TAG, BOT_CHIPS, botGreeting } from '../components/account/accountBotData'
-import type { ApplyAlert } from '../components/account/accountBotData'
+import { BOT_CHIPS, botGreeting } from '../components/account/accountBotData'
 import type { IssueRecord } from '../components/account/accountTaxData'
 import { AccountStateBox } from '../components/account/AccountStateBox'
 import { AccountSummaryBox } from '../components/account/AccountSummaryBox'
@@ -23,8 +22,6 @@ import { FOOT_FLOW, FOOT_STATUS, PAGE_TABS } from '../components/account/account
 import type { PageKey } from '../components/account/accountData'
 import type { ApplyKind } from '../components/account/accountApplyData'
 import type { SubmittedInboundResult } from '../components/account/ApplyModal'
-import { moreTitle } from '../components/account/accountSellData'
-import type { SellSubmitResult } from '../components/account/accountSellData'
 import { isHistTab } from '../components/account/accountHistData'
 import type { HistTab } from '../components/account/accountHistData'
 import styles from '../components/account/AccountLayout.module.css'
@@ -135,30 +132,7 @@ export function AccountPage() {
     [shell]
   )
 
-  // 상단 종 알림 — 신청이 접수될 때마다 1건 추가(누르면 해당 내역 탭으로)
-  const [alerts, setAlerts] = useState<ApplyAlert[]>([])
-  const addAlert = (title: string, tab: ApplyAlert['tab']) => setAlerts((prev) => [{ title, tab }, ...prev])
   const goHistRef = useRef<(tab: HistTab) => void>(() => {})
-  const profLabel = RD.PROFILES[RD.CUSTOMER.profile].label
-  useEffect(() => {
-    shell.setTopBar({
-      todos: alerts.map((a) => ({
-        tag: ALERT_TAG,
-        tagColor: 'var(--color-navy)',
-        title: a.title,
-        desc: ALERT_DESC,
-        to: '#' + a.tab,
-        link: ALERT_LINK,
-        onClick: (e) => {
-          e.preventDefault()
-          goHistRef.current(a.tab)
-        }
-      })),
-      todoDate: F.short(F.today()),
-      todoAlert: alerts.length,
-      profLabel
-    })
-  }, [shell, alerts, profLabel])
 
   // 신청 창 — 입고 / 인출 / 계좌 개설. 주소 끝이 #open이고 계좌가 없거나 반려일 때도 열림(원본 onHash)
   const canOpenAcct = () => RD.ACCOUNT_STATE !== 'opened' && RD.ACCOUNT_STATE !== 'reviewing'
@@ -271,7 +245,6 @@ export function AccountPage() {
   }
 
   // 신청 창 — 접수 결과를 내역에 올리고, 계좌 개설은 시연 상태를 '심사 중'으로 바꿈
-  // 접수된 신청은 상단 종 알림에도 1건 추가(원본 alerts): 입고 · 매도 · 인출 신청만(계좌 개설 신청은 원본도 토스트만)
   const goHist = (tab: HistTab) => {
     setApplyKind(null)
     setSellOpen(false)
@@ -392,11 +365,9 @@ export function AccountPage() {
           onGoHist={goHist}
           onSubmitIn={(results: SubmittedInboundResult[]) => {
             if (results.some((r) => r.status === 'ok')) retryInbounds()
-            addAlert('입고 신청 · ' + moreTitle(results.map((r) => ({ t: r.ticker }))), 'deposits')
           }}
-          onSubmitOut={(amt) => {
+          onSubmitOut={() => {
             retryWithdrawals()
-            addAlert('인출 신청 · ₩' + F.won(amt), 'withdraw')
           }}
           onFinishOpen={finishOpen}
         />
@@ -408,14 +379,12 @@ export function AccountPage() {
           remainingLimit={sellLimit.status === 'live' ? sellLimit.data.remainingLimit : null}
           onClose={() => setSellOpen(false)}
           onGoHist={() => goHist('sells')}
-          onSubmitted={(results: SellSubmitResult[]) => {
+          onSubmitted={() => {
             // 체결·거부가 한도·추천·예수금·내역에 반영되게 서버 값을 다시 받는다
             retrySellLimit()
             retrySellGuide()
             retryAssets()
             setHistVersion((n) => n + 1)
-            const done = results.filter((r) => r.status === 'EXECUTED').map((r) => ({ t: r.t }))
-            if (done.length > 0) addAlert('매도 신청 · ' + moreTitle(done), 'sells')
           }}
         />
       )}

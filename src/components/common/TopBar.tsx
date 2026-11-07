@@ -15,25 +15,12 @@ import styles from './TopBar.module.css'
 
 export type TopBarActive = 'home' | 'account' | 'invest' | 'community' | 'myinfo'
 
-export interface TopBarTodo {
-  tag: string
-  tagColor?: string // CSS 색(예: 'var(--color-red)')
-  title: string
-  desc: string
-  to: string
-  link: string
-  onClick?: (e: MouseEvent) => void
-}
-
 interface TopBarProps {
   active?: TopBarActive
   bizDot?: string // 업무일 표시(기본: 업무일 → 'YYYY.MM.DD')
   profLabel?: string // 투자성향 진단 알림에 붙는 성향 이름
   noSearch?: boolean
   simpleUserMenu?: boolean // 사용자 메뉴에 '내 정보'만
-  todos?: TopBarTodo[]
-  todoDate?: string
-  todoAlert?: number // 안 읽은 알림 수에 더할 개수
 }
 
 // ===== 로그인 30분 세션 (sessionStorage 키는 원본 그대로 · 페이지를 옮겨도 이어짐) =====
@@ -133,7 +120,7 @@ const USER_ITEMS: { label: string; hash: string }[] = [
   { label: '테마', hash: 'theme' }
 ]
 
-export function TopBar({ active = 'home', bizDot, noSearch = false, simpleUserMenu = false, todos = [], todoDate = '', todoAlert = 0 }: TopBarProps) {
+export function TopBar({ active = 'home', bizDot, noSearch = false, simpleUserMenu = false }: TopBarProps) {
   const navigate = useNavigate()
   const { logout: authLogout, extend: authExtend, auth } = useAuth()
   const customerName = auth.status === 'authenticated' ? auth.me.name : getSessionName()
@@ -266,7 +253,7 @@ export function TopBar({ active = 'home', bizDot, noSearch = false, simpleUserMe
 
   const readIds = lsJson<string[]>(KEY_PUSH_READ, [])
   const pushUnread = push.filter((n) => !readIds.includes(n.id)).length
-  const unread = (Number(todoAlert) || 0) + pushUnread
+  const unread = pushUnread
   const notifs = push.map((n) => ({ text: n.text, time: F.short(n.date), hot: true }))
 
   const rem = Math.max(0, Math.ceil((exp - now) / 1000))
@@ -348,35 +335,6 @@ export function TopBar({ active = 'home', bizDot, noSearch = false, simpleUserMe
             </button>
             {notifOpen && (
               <div className={styles.notifPanel}>
-                {todos.length > 0 && (
-                  <>
-                    <div className={styles.panelHead}>
-                      오늘 확인할 일<span className={styles.todoDate}>{todoDate}</span>
-                    </div>
-                    {todos.map((t) => (
-                      <div key={t.title} className={styles.todo}>
-                        <div className={styles.todoMain}>
-                          <div className={styles.todoTitle}>
-                            <span className={styles.todoTag} style={t.tagColor ? { color: t.tagColor } : undefined}>{t.tag}</span>
-                            <span className={styles.todoText}>{t.title}</span>
-                          </div>
-                          <div className={styles.todoDesc}>{t.desc}</div>
-                        </div>
-                        <Link
-                          to={t.to}
-                          className={styles.todoLink}
-                          onClick={(e) => {
-                            t.onClick?.(e)
-                            setNotifOpen(false)
-                          }}
-                        >
-                          {t.link}
-                        </Link>
-                      </div>
-                    ))}
-                    <div className={styles.divider} />
-                  </>
-                )}
                 <div className={cx(styles.panelHead, styles.panelHeadLine)}>알림</div>
                 {notifs.length === 0 && <div className={styles.notif}>새 알림이 없어요</div>}
                 {notifs.map((n, i) => (

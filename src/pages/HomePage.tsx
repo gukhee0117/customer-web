@@ -12,13 +12,11 @@ import { HomeTendencyBox } from '../components/home/HomeTendencyBox'
 import { HomeNewsBox } from '../components/home/HomeNewsBox'
 import { HomeProfileBox } from '../components/home/HomeProfileBox'
 import { BOT_CHIPS, WELCOME_MS } from '../components/home/homeBotData'
-import { homeTodos } from '../components/home/homeBotLogic'
 import { DISCLAIMER } from '../components/home/homeChatData'
 import styles from '../components/home/HomeLayout.module.css'
 import { RETURNS_DATA as RD, demo } from '../data/returns'
 import type { DemoSettings } from '../data/returns'
 import { useAppShell } from '../layouts/appShell'
-import { F } from '../lib/calc'
 import { getProfile } from '../api/profile'
 import type { Profile } from '../api/profile'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
@@ -30,7 +28,7 @@ export function HomePage() {
   useDocumentTitle('Returns 홈')
   const shell = useAppShell()
   const { hash } = useLocation()
-  const { message: toast, showToast } = useToast()
+  const { message: toast } = useToast()
   const [, refresh] = useReducer((n: number) => n + 1, 0)
   const stream = useStream()
   // 첫 마운트 시 대화가 비어 있으면 홈 인사말 추가 (페이지 이동 후 돌아오면 이력 유지)
@@ -48,7 +46,6 @@ export function HomePage() {
   const [aClosed, setAClosed] = useState<string | null>(null)
   const [welcome, setWelcome] = useState(hash === '#new')
   const { state: limit, retry: retryLimit } = useSellLimit()
-  const remainingLimit = limit.status === 'live' ? limit.data.remainingLimit : null
   const [prof, setProf] = useState<Profile | null>(null) // 서버 프로필(이름·계좌). 못 받으면 null → 이름 '-'·계좌는 목업
   useEffect(() => {
     getProfile().then(setProf).catch(() => {})
@@ -63,14 +60,6 @@ export function HomePage() {
     const t = setTimeout(() => setWelcome(false), WELCOME_MS)
     return () => clearTimeout(t)
   }, [welcome])
-
-  // 상단 종 알림: 오늘 확인할 일 + 안 읽은 알림 수(info 아닌 것)
-  const todos = homeTodos(showToast, remainingLimit)
-  const todoKey = todos.map((t) => t.title + t.desc).join('|')
-  useEffect(() => {
-    const list = homeTodos(showToast, remainingLimit)
-    shell.setTopBar({ todos: list, todoDate: F.short(F.today()), todoAlert: list.filter((t) => t.level !== 'info').length, profLabel })
-  }, [todoKey, profLabel, shell, showToast, remainingLimit])
 
   const ask = useCallback((q: string) => { send(q) }, [send])
   // 페이지 이탈 시 진행 중인 스트리밍 취소

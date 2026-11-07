@@ -1,12 +1,8 @@
 import { useOutletContext } from 'react-router-dom'
 import type { BotChat } from '../components/common/ChatbotFab'
-import type { TopBarTodo } from '../components/common/TopBar'
 
 // 페이지가 상단 바·챗봇에 넘겨주는 값(홈만 사용). 비어 있으면 AppLayout 기본값 그대로
 export interface TopBarExtra {
-  todos?: TopBarTodo[]
-  todoDate?: string
-  todoAlert?: number
   profLabel?: string
 }
 
