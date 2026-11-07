@@ -4,6 +4,7 @@ import * as apiAuth from '../api/auth'
 import { syncAssessState } from '../api/investor'
 import type { MeData } from '../api/auth'
 import { clearAssessHist, clearLoginSession, setLoginSession } from '../components/login/loginSession'
+import { RETURNS_DATA as RD } from '../data/returns'
 import { AuthContext } from './authState'
 import { resetNewsSession, prefetchNews } from '../components/home/newsPrefetch'
 import type { AuthState } from './authState'
@@ -41,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     resetNewsSession()
     clearLoginSession()
     clearAssessHist()
+    RD.setServerState({ profile: null, account: 'opened', assess: 'ok' }) // 같은 탭에서 다른 계정으로 들어와도 이전 계정 값이 비치지 않게 처음 값으로
     setAuth({ status: 'unauthenticated' })
     try {
       await apiAuth.logout()

@@ -30,11 +30,11 @@ export async function syncAssessState(): Promise<void> {
     // 조회 실패는 진단 여부를 모르는 것이라 '미진단·만료'로 단정하지 않는다(진단한 사람에게 진단 안내가 뜨지 않게). 성향만 비워 이전 계정 값이 남지 않게 한다
     RD.setServerState({ assess: 'ok', profile: null })
   }
-  // 계좌 상태(없음·심사 중·반려·정상)도 서버 프로필 값으로. 실패하면 이전 계정의 상태가 남지 않게 계좌 없음으로 둔다
+  // 계좌 상태(없음·심사 중·반려·정상)도 서버 프로필 값으로. 일시적 오류로 실패하면 값을 바꾸지 않는다(개설한 고객이 '계좌 없음'으로 보이지 않게, 계정이 바뀌면 로그아웃에서 초기화)
   try {
     RD.setServerState({ account: accountStateOf((await getProfile()).account) })
   } catch {
-    RD.setServerState({ account: 'none' })
+    // 프로필 조회 실패
   }
 }
 

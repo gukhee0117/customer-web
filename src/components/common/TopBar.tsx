@@ -272,7 +272,7 @@ export function TopBar({ active = 'home', bizDot, noSearch = false, simpleUserMe
   const sessLabel = wide ? '남은 시간 ' + sessText : sessText
 
   const toggleNotif = () => {
-    lsSetJson(keyOf(KEY_PUSH_READ, uid), push.map((n) => n.id))
+    if (uid != null) lsSetJson(keyOf(KEY_PUSH_READ, uid), push.map((n) => n.id))
     setNotifOpen((o) => !o)
     setUserOpen(false)
   }

@@ -16,7 +16,7 @@ export interface HomeChat {
 }
 
 // 서버 글 → 채팅 한 줄. 성향은 서버가 공개 동의한 때만 값을 주므로 없으면 비공개
-export const itemOf = (p: CommunityPost): ChatItem => ({
+const itemOf = (p: CommunityPost): ChatItem => ({
   code: p.ticker ?? GEN,
   kkiru: p.kkiruStatus === 'ANSWERED',
   row: [String(p.id), p.authorNickname ?? '익명', (profileKeyOf(p.authorInvestorType) ?? 'private') as ChatProfile, timeLabel(p.createdAt), p.content, p.likeCount, p.commentCount, p.mine ? 1 : 0]
