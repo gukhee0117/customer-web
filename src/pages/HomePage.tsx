@@ -32,7 +32,6 @@ export function HomePage() {
   const { hash } = useLocation()
   const { message: toast, showToast } = useToast()
   const [, refresh] = useReducer((n: number) => n + 1, 0)
-  const [hasPkg, setHasPkg] = useState(true)
   const stream = useStream()
   // 첫 마운트 시 대화가 비어 있으면 홈 인사말 추가 (페이지 이동 후 돌아오면 이력 유지)
   const { messages: bot, busy, send, cancel } = stream
@@ -111,7 +110,7 @@ export function HomePage() {
         <div className={styles.colMain}>
           <HomeNewsBox className={styles.news} />
           <div className={styles.pair}>
-            <HomePackageBox className={styles.pkg} hasPkg={hasPkg} />
+            <HomePackageBox className={styles.pkg} opened={prof?.account?.status === 'OPENED'} />
             <HomeTendencyBox className={styles.rec} />
           </div>
         </div>
@@ -123,7 +122,7 @@ export function HomePage() {
       </div>
       <p className={styles.note}>{DISCLAIMER}</p>
       {modalKind && <HomeAssessModal kind={modalKind} profLabel={profLabel} onClose={() => setAClosed(assess)} />}
-      <HomeDevPanel hasPkg={hasPkg} onHasPkg={setHasPkg} onChange={changeDemo} />
+      <HomeDevPanel onChange={changeDemo} />
       <Toast message={toast} />
     </>
   )

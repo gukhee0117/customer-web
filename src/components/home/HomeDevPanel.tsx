@@ -3,17 +3,15 @@ import '../../styles/tokens.css'
 import { RETURNS_DATA as RD, demo } from '../../data/returns'
 import type { DemoSettings } from '../../data/returns'
 import { cx } from '../common/cx'
-import { DEV_ACCT, DEV_ASSESS, DEV_BENEFIT, DEV_PKG, DEV_TRADE } from './homeDevData'
+import { DEV_ACCT, DEV_ASSESS, DEV_BENEFIT, DEV_TRADE } from './homeDevData'
 import styles from './HomeDevPanel.module.css'
 
 interface HomeDevPanelProps {
-  hasPkg: boolean
-  onHasPkg: (v: boolean) => void
   onChange: (patch: Partial<DemoSettings>) => void // 시연 설정이 바뀜 → 홈 박스들이 새로 그려짐
 }
 
-// 왼쪽 아래 "시연 설정" — 성향·진행 중 매도 예시·패키지·계좌 상태·성향 상태·혜택 상태
-export function HomeDevPanel({ hasPkg, onHasPkg, onChange }: HomeDevPanelProps) {
+// 왼쪽 아래 "시연 설정" — 성향·진행 중 매도 예시·계좌 상태·성향 상태·혜택 상태
+export function HomeDevPanel({ onChange }: HomeDevPanelProps) {
   const [open, setOpen] = useState(false)
   const dm = demo()
 
@@ -38,10 +36,6 @@ export function HomeDevPanel({ hasPkg, onHasPkg, onChange }: HomeDevPanelProps) 
           <div>
             <div className={styles.label}>진행 중 매도 예시</div>
             <div className={styles.rowNoWrap}>{DEV_TRADE.map(([v, label]) => seg(label, dm.trade === v, () => onChange({ trade: v })))}</div>
-          </div>
-          <div>
-            <div className={styles.label}>패키지</div>
-            <div className={styles.rowNoWrap}>{DEV_PKG.map(([v, label]) => seg(label, hasPkg === v, () => onHasPkg(v)))}</div>
           </div>
           <div>
             <div className={styles.label}>계좌 상태</div>
