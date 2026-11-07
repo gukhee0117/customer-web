@@ -47,7 +47,7 @@ export function HomeProfileBox({ className, prof, limit, onRetryLimit }: Props) 
     <Box shadow className={className}>
       <div className={styles.top}>
         <div className={styles.figure}>
-          <img src={assetUrl(profile.img ?? '')} alt={profile.label + ' 끼루'} />
+          <img src={assetUrl(profile.img ?? 'assets/kkiru-avatar-private.png')} alt={profile.label + ' 끼루'} />
         </div>
         <div className={styles.info}>
           <div className={styles.name}>{name ?? '-'} 님</div>

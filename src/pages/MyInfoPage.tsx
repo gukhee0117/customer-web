@@ -25,8 +25,6 @@ import { assessState, isTradeRisky } from '../components/myinfo/myinfoProfile'
 import { isRiskySnoozed, snoozeRisky } from '../components/myinfo/riskySnooze'
 import { useTendency } from '../components/invest/useNewPkgData'
 import type { AssessHistItem } from '../components/myinfo/myinfoProfile'
-import { useAppShell } from '../layouts/appShell'
-import { RETURNS_DATA as RD } from '../data/returns'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
 
 const HASH_BOXES = ['assess', 'notify', 'theme']
@@ -35,7 +33,6 @@ const INPUTS = ['wheel', 'touchstart', 'keydown', 'pointerdown'] // 사용자가
 // 내 정보 — 틀(박스 10개 자리) + 박스들 + 주소 해시 이동
 export function MyInfoPage() {
   useDocumentTitle('Returns 내 정보')
-  const shell = useAppShell()
   const { hash } = useLocation()
   const { message: toast, showToast } = useToast()
   const [, refresh] = useReducer((n: number) => n + 1, 0)
@@ -54,7 +51,6 @@ export function MyInfoPage() {
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const firstHash = useRef(true)
   const fontWatch = useRef<(() => void) | undefined>(undefined)
-  const profLabel = RD.PROFILES[RD.CUSTOMER.profile]?.label
   // 진단 이력은 서버 값(최신이 위). 프로필을 받기 전엔 null
   const hist: AssessHistItem[] | null = prof
     ? [...prof.assessmentHistory]
@@ -79,11 +75,6 @@ export function MyInfoPage() {
     window.addEventListener('returns-state', refresh)
     return () => window.removeEventListener('returns-state', refresh)
   }, [])
-
-  useEffect(() => {
-    shell.setTopBar({ profLabel })
-    return () => shell.setTopBar({})
-  }, [shell, profLabel])
 
   // 원본 goHash: 80px 아래로 부드럽게 스크롤 + 테두리 1.5초 강조. 처음 들어올 때는 0.3초 뒤, 같은 화면에서 해시만 바뀌면 바로
   useEffect(() => {

@@ -7,7 +7,7 @@ import type { BotChat } from '../components/common/ChatbotFab'
 import { SiteFooter } from '../components/common/SiteFooter'
 import { TopBar } from '../components/common/TopBar'
 import type { TopBarActive } from '../components/common/TopBar'
-import type { AppShellApi, TopBarExtra } from './appShell'
+import type { AppShellApi } from './appShell'
 import styles from './AppLayout.module.css'
 
 interface BotConfig {
@@ -36,8 +36,6 @@ export function AppLayout() {
   const active: TopBarActive = isActive(key) ? key : 'home'
   const { auth } = useAuth()
   const bot = active === 'home' && auth.status === 'authenticated' ? { ...BOT.home, text: '안녕하세요, ' + auth.me.name + ' 님. ' + BOT.home.text } : BOT[active]
-  // 페이지(홈)가 채워 주는 값 — 안 채우면 비어 있어 이전과 똑같이 동작
-  const [topBar, setTopBar] = useState<TopBarExtra>({})
   const [chat, setChat] = useState<BotChat | null>(null)
   const [botOpen, setBotOpen] = useState(false)
   // 화면을 옮기면 챗봇은 닫힌 채로 시작(간단한 창도 예전처럼 화면마다 새로 시작)
@@ -48,13 +46,13 @@ export function AppLayout() {
   }
   // 모든 페이지가 공유하는 끼루 스트림 — 페이지 이동 시 대화 이력 유지
   const stream = useChatStream()
-  const shell = useMemo<AppShellApi>(() => ({ setTopBar, setChat, setBotOpen }), [])
+  const shell = useMemo<AppShellApi>(() => ({ setChat, setBotOpen }), [])
 
   return (
     <StreamContext.Provider value={stream}>
     <div className={styles.shell}>
       {/* 원본은 다섯 화면 모두 검색창 없음 + 사용자 메뉴는 '내 정보'만 */}
-      <TopBar active={active} noSearch simpleUserMenu {...topBar} />
+      <TopBar active={active} noSearch simpleUserMenu />
       <main className={styles.main}>
         <Outlet context={shell} />
       </main>

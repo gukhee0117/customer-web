@@ -57,7 +57,7 @@ export function InvestRec({ className, onAdd }: Props) {
           {tendency.state === 'loading' && <p className={styles.plain}>불러오는 중이에요…</p>}
           {tendency.state === 'unauthorized' && <p className={styles.plain}>로그인하면 내 투자성향을 볼 수 있어요.</p>}
           {tendency.state === 'error' && <p className={styles.plain}>투자성향을 불러오지 못했어요. 잠시 후 다시 열어 주세요.</p>}
-          {tendency.state === 'ready' && tendency.data && !survey?.available && <p className={styles.plain}>투자성향 진단이 없거나 유효기간이 지났어요. 진단 후에 종목을 담을 수 있어요.</p>}
+          {tendency.state === 'ready' && tendency.data && !survey?.available && <p className={styles.plain}>투자성향을 진단하면 성향에 맞는 후보를 보고 종목을 담을 수 있어요. 진단이 없거나 유효기간(24개월)이 지났다면 내 정보에서 진단해 주세요.</p>}
           {tendency.state === 'ready' &&
             tendency.data?.explanation.map((b) => (
               <div key={b.metric} className={styles.blk}>

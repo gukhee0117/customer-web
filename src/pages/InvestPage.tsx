@@ -113,12 +113,6 @@ export function InvestPage() {
   const tendency = useTendency()
   const risk = usePkgRisk(cur, tendency.data?.survey)
 
-  // 상단 바: 내 투자성향 이름(진단이 있을 때)
-  const profLabel = tendency.data?.survey.available ? (tendency.data.survey.label ?? undefined) : undefined
-  useEffect(() => {
-    shell.setTopBar({ profLabel })
-  }, [profLabel, shell])
-
   // 끼루 AI 상담 창 — 내용은 AppLayout의 챗봇 버튼에 넘기고, 이 페이지를 떠나면 비움
   const [bot, setBot] = useState<BotMessage[]>(() => [botGreeting()])
   const chat = useMemo(
@@ -138,7 +132,6 @@ export function InvestPage() {
     () => () => {
       shell.setChat(null)
       shell.setBotOpen(false)
-      shell.setTopBar({})
     },
     [shell]
   )

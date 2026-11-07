@@ -85,7 +85,6 @@ export function HomePage() {
     () => () => {
       shell.setChat(null)
       shell.setBotOpen(false)
-      shell.setTopBar({})
       // reset 호출 안 함 — 페이지 이동 시 대화 이력 유지
     },
     [shell]
@@ -102,7 +101,7 @@ export function HomePage() {
         <div className={styles.colMain}>
           <HomeNewsBox className={styles.news} />
           <div className={styles.pair}>
-            <HomePackageBox className={styles.pkg} opened={prof?.account?.status === 'OPENED'} />
+            <HomePackageBox className={styles.pkg} opened={serverState().account === 'opened'} />
             <HomeTendencyBox className={styles.rec} />
           </div>
         </div>

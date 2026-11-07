@@ -129,7 +129,6 @@ export function AccountPage() {
     () => () => {
       shell.setChat(null)
       shell.setBotOpen(false)
-      shell.setTopBar({})
     },
     [shell]
   )

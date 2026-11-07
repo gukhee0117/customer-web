@@ -106,7 +106,7 @@ export function InvestNewPkgStart({ tendency, addedCodes, ask, onPick }: Props) 
           <>
             {!survey?.available && (
               <>
-                <p className={styles.plain}>투자성향 진단이 없거나 유효기간이 지났어요. 진단 후에 종목을 담을 수 있어요.</p>
+                <p className={styles.plain}>투자성향을 진단하면 성향에 맞는 후보를 보고 종목을 담을 수 있어요. 진단이 없거나 유효기간(24개월)이 지났다면 내 정보에서 진단해 주세요.</p>
                 <Link className={styles.linkBtn} to={ASSESS_PATH}>
                   진단하기
                 </Link>

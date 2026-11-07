@@ -18,7 +18,6 @@ export type TopBarActive = 'home' | 'account' | 'invest' | 'community' | 'myinfo
 interface TopBarProps {
   active?: TopBarActive
   bizDot?: string // 업무일 표시(기본: 업무일 → 'YYYY.MM.DD')
-  profLabel?: string // 투자성향 진단 알림에 붙는 성향 이름
   noSearch?: boolean
   simpleUserMenu?: boolean // 사용자 메뉴에 '내 정보'만
 }
@@ -30,9 +29,11 @@ const KEY_EXP = 'returns-session-exp'
 const KEY_WARNED = 'returns-session-warned'
 const KEY_LOGOUT_NOTICE = 'returns-logout-notice'
 // 관리자 정산 배치 → 고객 알림 시연(localStorage · 실제 앱은 SSE)
+// 같은 브라우저에서 계정이 바뀌어도 알림이 섞이지 않게 키 끝에 고객 번호를 붙인다
 const KEY_PUSH = 'returns-push'
 const KEY_PUSH_SHOWN = 'returns-push-shown'
 const KEY_PUSH_READ = 'returns-push-read'
+const keyOf = (base: string, uid: number | null): string => base + ':' + uid
 
 interface PushNote {
   id: string
@@ -77,10 +78,11 @@ const lsSetJson = (k: string, v: unknown) => {
   }
 }
 
-const readPush = (): PushNote[] => {
+const readPush = (uid: number | null): PushNote[] => {
+  if (uid == null) return []
   const seen: Record<string, boolean> = {}
   const out: PushNote[] = []
-  ;(lsJson<PushNote[]>(KEY_PUSH, []) || []).forEach((n) => {
+  ;(lsJson<PushNote[]>(keyOf(KEY_PUSH, uid), []) || []).forEach((n) => {
     if (n && n.id && !seen[n.id]) {
       seen[n.id] = true
       out.push(n)
@@ -133,7 +135,14 @@ export function TopBar({ active = 'home', bizDot, noSearch = false, simpleUserMe
   const [exp, setExp] = useState(initSession)
   const [now, setNow] = useState(() => Date.now())
   const [warnOpen, setWarnOpen] = useState(false)
-  const [push, setPush] = useState<PushNote[]>(() => readPush())
+  const uid = auth.status === 'authenticated' ? auth.me.customerId : null
+  const [push, setPush] = useState<PushNote[]>(() => readPush(uid))
+  // 계정이 바뀌면(로그아웃·다른 고객 로그인) 현재 고객의 알림만 다시 읽는다
+  const [pushUid, setPushUid] = useState(uid)
+  if (pushUid !== uid) {
+    setPushUid(uid)
+    setPush(readPush(uid))
+  }
 
   const notifRef = useRef<HTMLDivElement>(null)
   const userRef = useRef<HTMLDivElement>(null)
@@ -187,37 +196,39 @@ export function TopBar({ active = 'home', bizDot, noSearch = false, simpleUserMe
   // 정산 완료 푸시: 처음 보는 알림이 다른 탭에서 들어오면 토스트
   const syncPush = useCallback(
     (fromEvent: boolean) => {
-      const list = readPush()
-      const shown = lsJson<string[]>(KEY_PUSH_SHOWN, [])
+      const list = readPush(uid)
+      const shownKey = keyOf(KEY_PUSH_SHOWN, uid)
+      const shown = lsJson<string[]>(shownKey, [])
       const fresh = list.filter((n) => !shown.includes(n.id))
       if (fresh.length) {
-        lsSetJson(KEY_PUSH_SHOWN, shown.concat(fresh.map((n) => n.id)).slice(-50))
+        lsSetJson(shownKey, shown.concat(fresh.map((n) => n.id)).slice(-50))
         if (fromEvent) showToast('매도 대금이 원화로 확정됐어요', 5000)
       }
       setPush(list)
     },
-    [showToast]
+    [showToast, uid]
   )
 
   useEffect(() => {
     const onStore = (e: StorageEvent) => {
-      if (e.key === KEY_PUSH) syncPush(true)
+      if (e.key === keyOf(KEY_PUSH, uid)) syncPush(true)
     }
     window.addEventListener('storage', onStore)
     return () => window.removeEventListener('storage', onStore)
-  }, [syncPush])
+  }, [syncPush, uid])
 
   // 정산 완료 푸시(서버): 알림을 저장하고 다른 탭에도 알린다. 같은 정산 배치는 한 번만 담는다
   useEffect(() => {
-    if (auth.status !== 'authenticated') return
+    if (uid == null) return
+    const pushKey = keyOf(KEY_PUSH, uid)
     return subscribeSettlementCompleted((e) => {
       const id = 'settle-' + e.batchId
-      const list = lsJson<PushNote[]>(KEY_PUSH, []) || []
+      const list = lsJson<PushNote[]>(pushKey, []) || []
       if (list.some((n) => n.id === id)) return
-      lsSetJson(KEY_PUSH, [{ id, text: '매도 대금 정산이 완료됐어요 · 원화로 확정됐어요', date: e.completedAt.slice(0, 10) }, ...list].slice(0, 20))
+      lsSetJson(pushKey, [{ id, text: '매도 대금 정산이 완료됐어요 · 원화로 확정됐어요', date: e.completedAt.slice(0, 10) }, ...list].slice(0, 20))
       syncPush(true)
     })
-  }, [auth.status, syncPush])
+  }, [uid, syncPush])
 
   useEffect(() => {
     const onResize = () => setWide(window.innerWidth >= 1100)
@@ -251,7 +262,7 @@ export function TopBar({ active = 'home', bizDot, noSearch = false, simpleUserMe
     }
   }, [])
 
-  const readIds = lsJson<string[]>(KEY_PUSH_READ, [])
+  const readIds = lsJson<string[]>(keyOf(KEY_PUSH_READ, uid), [])
   const pushUnread = push.filter((n) => !readIds.includes(n.id)).length
   const unread = pushUnread
   const notifs = push.map((n) => ({ text: n.text, time: F.short(n.date), hot: true }))
@@ -261,7 +272,7 @@ export function TopBar({ active = 'home', bizDot, noSearch = false, simpleUserMe
   const sessLabel = wide ? '남은 시간 ' + sessText : sessText
 
   const toggleNotif = () => {
-    lsSetJson(KEY_PUSH_READ, push.map((n) => n.id))
+    lsSetJson(keyOf(KEY_PUSH_READ, uid), push.map((n) => n.id))
     setNotifOpen((o) => !o)
     setUserOpen(false)
   }

@@ -54,7 +54,7 @@ export const profileView = (stored: AssessHistItem[] | null, status: InvestorSta
     soon: aSt === 'ok' && dLeft >= 0 && dLeft <= 30,
     dLeft,
     noteOn: aSt === 'expired' || aSt === 'none',
-    note: aSt === 'none' ? '아직 투자성향을 진단하지 않았어요. 진단하면 성향에 맞는 범위 안에서 추천을 받을 수 있어요.' : '투자성향 진단 유효기간(24개월)이 지났어요. 다시 진단하기 전까지는 추천과 주식 패키지 후보를 볼 수 없어요.',
+    note: aSt === 'none' ? '아직 투자성향을 진단하지 않았어요. 진단하면 성향에 맞는 범위 안에서 추천을 받을 수 있어요.' : '투자성향 진단 유효기간(24개월)이 지났어요. 다시 진단하면 성향에 맞는 주식 패키지 후보 등 다양한 서비스를 계속 이용할 수 있어요.',
     noteBtn: aSt === 'none' ? '진단하기' : '다시 진단하기',
     date: date ? F.dot(date) : '',
     next: validUntil ? F.dot(validUntil) : '',

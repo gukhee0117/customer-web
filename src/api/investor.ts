@@ -19,7 +19,7 @@ export async function fetchAssessStatus(): Promise<InvestorStatus> {
 }
 
 // 서버의 내 투자성향·계좌 상태를 화면이 공통으로 읽는 값(RD.serverState)에 반영한다.
-// 미진단이면 홈·주식 패키지가 추천 대신 '진단하기' 안내를 보여 준다. 조회에 실패하면 미진단으로 둔다(이전 계정의 진단 완료가 남아 보이지 않게)
+// 미진단이면 홈·주식 패키지가 추천 대신 '진단하기' 안내를 보여 준다. 조회에 실패하면 성향만 비운다(이전 계정의 진단 완료가 남아 보이지 않게)
 export async function syncAssessState(): Promise<void> {
   try {
     const res = await apiClient.get<ApiResponse<InvestorStatus>>('/api/customer/investor-assessment/me')
@@ -27,13 +27,14 @@ export async function syncAssessState(): Promise<void> {
     // 성향도 서버 값으로 — 같은 브라우저에서 계정이 바뀌어도 이전 계정의 성향이 남지 않게
     RD.setServerState({ assess: !assessed ? 'none' : expired ? 'expired' : 'ok', profile: assessed ? profileKeyOf(investorType) : null })
   } catch {
-    RD.setServerState({ assess: 'none', profile: null })
+    // 조회 실패는 진단 여부를 모르는 것이라 '미진단·만료'로 단정하지 않는다(진단한 사람에게 진단 안내가 뜨지 않게). 성향만 비워 이전 계정 값이 남지 않게 한다
+    RD.setServerState({ assess: 'ok', profile: null })
   }
-  // 계좌 상태(없음·심사 중·반려·정상)도 서버 프로필 값으로. 실패하면 이전 값을 둔다
+  // 계좌 상태(없음·심사 중·반려·정상)도 서버 프로필 값으로. 실패하면 이전 계정의 상태가 남지 않게 계좌 없음으로 둔다
   try {
     RD.setServerState({ account: accountStateOf((await getProfile()).account) })
   } catch {
-    // 프로필 조회 실패
+    RD.setServerState({ account: 'none' })
   }
 }
 
