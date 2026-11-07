@@ -5,11 +5,14 @@ import { PROFILE_KEY } from '../../api/stockPackage'
 import type { CandidateItem, RecommendBasis, RecommendFilter, RecommendItem } from '../../api/stockPackage'
 import { F } from '../../lib/calc'
 import { KkiruAvatar } from '../common/KkiruAvatar'
+import { StockIcon } from '../common/StockIcon'
 import { cx } from '../common/cx'
 import { InvestRecSectors } from './InvestRecSectors'
 import { InvestRiskGauge } from './InvestRiskGauge'
-import { InvestStockName } from './InvestStockName'
+import { InvestSpark } from './InvestSpark'
 import { toneOf } from './investPkgLogic'
+import { changePercent, extremes, mmdd, pctLabel, priceLabel, roundedPct, sparkNorm, sparkPoints } from './investSparkLogic'
+import { usePriceHistory } from './usePriceHistory'
 import { recToCandidate, useRecommendations } from './useRecommendations'
 import { useTendency } from './useNewPkgData'
 import styles from './InvestRec.module.css'
@@ -49,6 +52,9 @@ const allowedText = (min: number | null) => (min == null ? '' : min === 6 ? '6�
 const volText = (r: RecommendItem) => (r.volatilityPercent == null ? '계산 전' : r.volatilityPercent + '%')
 // 표의 연 변동성 열: 서버 값을 소수 첫째 자리 %로. 아직 계산 전이면 "–"
 const volCell = (r: RecommendItem) => (r.volatilityPercent == null ? '–' : r.volatilityPercent.toFixed(1) + '%')
+// 30일 차트 여백(비율): 최고점 가격은 점 위에, 최저점 가격은 점 아래에 들어갈 만큼 위아래를 비우고, 양 끝 점이 테두리 밖으로 나가지 않게 좌우도 조금 비운다
+const CHART_PAD_Y = 0.2
+const CHART_PAD_X = 0.03
 const gradeRangeText = (from: number, to: number) => (from === to ? from + '등급' : from + '~' + to + '등급')
 // 업종 열: 펀드·ETF는 업종이 없어 유형으로 보인다
 const sectorText = (r: RecommendItem) => (r.type === 'FUND' ? '펀드·ETF' : (r.sectorName ?? '–'))
@@ -61,13 +67,14 @@ interface Tag {
   on: boolean
   hint?: string
 }
+const MAX_TAGS = 2 // 한 행에 보이는 태그 수. 넘치는 태그의 내용은 펼침 영역의 추천 이유에 이미 있다
 const tagsOf = (r: RecommendItem, targetGrade: number | null, mixedGrades: boolean): Tag[] => {
   const tags: Tag[] = []
-  // 표의 위험등급이 모두 같으면 "목표 등급"은 구별이 안 되는 정보라 붙이지 않는다. 서버는 목표 등급을 소수로 주고, 범위 중심은 그 값을 반올림한 정수다
-  if (mixedGrades && targetGrade != null && r.riskGrade === Math.round(targetGrade)) tags.push({ key: 'target', text: '목표 등급', on: false, hint: '추천 목표 등급과 같은 위험등급이에요' })
+  // 우선순위: 많이 산 업종 > 많이 산 테마 > 목표 등급(표의 위험등급이 섞여 있을 때만. 서버는 목표 등급을 소수로 주고, 범위 중심은 그 값을 반올림한 정수다)
   if (r.sectorMatched) tags.push({ key: 'sector', text: '많이 산 업종', on: true, hint: '내가 가장 많이 산 업종과 같아요' })
   if (r.matchedTheme) tags.push({ key: 'theme', text: '많이 산 테마 · ' + r.matchedTheme, on: true, hint: '내가 가장 많이 산 테마와 같아요' })
-  return tags
+  if (mixedGrades && targetGrade != null && r.riskGrade === Math.round(targetGrade)) tags.push({ key: 'target', text: '목표 등급', on: false, hint: '추천 목표 등급과 같은 위험등급이에요' })
+  return tags.slice(0, MAX_TAGS)
 }
 
 // 오늘의 종목 탭 — 오늘의 종목 박스 + 내 추천 기준 박스(넓은 화면 8 : 4, 좁은 화면 한 줄). 추천·이유는 서버 값
@@ -85,6 +92,7 @@ export function InvestRec({ className, onAdd }: Props) {
   const mixedGrades = new Set(rows.map((r) => r.riskGrade)).size > 1 // 위험등급이 섞여 있을 때만 "목표 등급" 태그를 붙인다
   const tagRows = rows.map((r) => tagsOf(r, data?.targetGrade ?? null, mixedGrades))
   const showReason = tagRows.some((t) => t.length > 0) // 어느 행에도 태그가 없으면 추천 이유 열을 숨기고 폭은 종목·업종 열이 나눠 갖는다
+  const history = usePriceHistory(rows.map((r) => r.ticker)) // 20일 미니 차트·30일 차트용 종가. 이 화면에서만, 종목 코드별로 한 번만 받는다
   const profile = survey?.investorType ? (PROFILE_KEY[survey.investorType] ?? 'neutral') : 'neutral'
   const label = data?.profileLabel ?? survey?.label ?? ''
   const allow = allowedText(data?.allowedMinGrade ?? survey?.allowedMinGrade ?? null)
@@ -163,6 +171,7 @@ export function InvestRec({ className, onAdd }: Props) {
           <div className={cx(styles.grid, styles.cols0, !showReason && styles.noReason)}>
             <span>종목</span>
             <span className={styles.r}>현재가</span>
+            <span className={styles.sparkCell}>20일 추이</span>
             <span>위험</span>
             <span className={styles.r}>연 변동성</span>
             <span>업종</span>
@@ -175,11 +184,24 @@ export function InvestRec({ className, onAdd }: Props) {
           const on = open === r.ticker
           const q = rec.quotes[r.ticker]
           const received = Object.prototype.hasOwnProperty.call(rec.quotes, r.ticker) // 시세 응답이 왔는지(못 받은 종목과 받는 중을 구분)
+          const h = history[r.ticker] // 없으면 받는 중, 'failed'면 이력을 못 받은 종목
+          const closes = h && h !== 'failed' ? h.points.map((p) => p.close) : null
+          const c30 = closes ? changePercent(closes) : null // 최근 30일 변동률(처음 → 마지막 종가)
+          const tone30 = c30 == null ? 'flat' : toneOf(roundedPct(c30)) // 30일 차트 선 색: 미니 차트와 같은 규칙(상승 빨강·하락 파랑·같음 회색)
+          const norm30 = closes ? sparkNorm(closes, CHART_PAD_Y, CHART_PAD_X) : []
+          const ext30 = closes ? extremes(closes) : null
+          const marks = closes && ext30 ? (['hi', 'lo'] as const).map((k) => ({ k, p: norm30[ext30[k]], price: priceLabel(closes[ext30[k]]) })) : [] // 최고점·최저점의 점과 가격
           return (
             <div key={r.ticker} className={styles.rowBox}>
               <button type="button" className={cx(styles.grid, styles.row, on && styles.rowOn, !showReason && styles.noReason)} aria-expanded={on} onClick={() => setOpen(on ? null : r.ticker)}>
                 <span className={styles.stock}>
-                  <InvestStockName code={r.ticker} name={r.name} />
+                  <span className={styles.stockCell}>
+                    <StockIcon color="var(--color-navy)" initial={String(r.name || r.ticker)[0]} size={20} code={r.ticker} />
+                    <span className={styles.stockText}>
+                      <b className={styles.stockName}>{r.name || r.ticker}</b>
+                      <span className={styles.stockCode}>{r.ticker}</span>
+                    </span>
+                  </span>
                 </span>
                 <span className={styles.px}>
                   {q ? (
@@ -191,13 +213,17 @@ export function InvestRec({ className, onAdd }: Props) {
                     <span>{received ? '확인 불가' : '…'}</span>
                   )}
                 </span>
-                <span className={styles.risk}>{r.riskGrade + '등급 · ' + (GRADE_WORD[r.riskGrade] ?? '')}</span>
+                <span className={styles.sparkCell}>{closes ? <InvestSpark values={closes.slice(-20)} /> : h === 'failed' ? <span className={styles.sparkNone}>–</span> : null}</span>
+                <span className={styles.risk}>
+                  {r.riskGrade + '등급'}
+                  <span className={styles.riskName}>{GRADE_WORD[r.riskGrade] ?? ''}</span>
+                </span>
                 <span className={styles.vol}>{volCell(r)}</span>
                 <span className={styles.sector}>{sectorText(r)}</span>
                 {showReason && (
                   <span className={styles.tags}>
                     {tagRows[idx].map((t) => (
-                      <span key={t.key} className={cx(styles.tag, t.on && styles.tagOn)} title={t.hint}>
+                      <span key={t.key} className={cx(styles.tag, t.key === 'theme' && styles.tagShrink, t.on && styles.tagOn)} title={t.hint}>
                         {t.text}
                       </span>
                     ))}
@@ -240,8 +266,28 @@ export function InvestRec({ className, onAdd }: Props) {
                     <div className={styles.asOf}>{data ? F.dot(data.checkedAt.slice(0, 10)) + ' 기준' : ''}</div>
                   </div>
                   <div className={styles.moreCol}>
-                    <div className={styles.r30Head}>최근 30일</div>
-                    <div className={styles.asOf}>가격 이력은 제공하지 않아요</div>
+                    <div className={styles.r30Head}>
+                      최근 30일
+                      {c30 != null && <span className={cx(styles.r30, styles[toneOf(roundedPct(c30))])}>{pctLabel(c30)}</span>}
+                    </div>
+                    {h && h !== 'failed' && closes ? (
+                      <>
+                        <div className={styles.chartBox}>
+                          <svg className={cx(styles.spark, styles[tone30])} viewBox="0 0 300 96" preserveAspectRatio="none" role="img" aria-label={'최근 ' + closes.length + '일 종가 선 차트'}>
+                            <polyline className={styles.sparkLine} points={sparkPoints(closes, 300, 96, CHART_PAD_Y, CHART_PAD_X)} fill="none" strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                          </svg>
+                          {marks.map(({ k, p, price }) => (
+                            <span key={k} className={cx(styles.mark, styles[tone30])} style={{ left: p.x * 100 + '%', top: p.y * 100 + '%' }}>
+                              <i className={styles.markDot} />
+                              <span className={cx(styles.markLabel, k === 'hi' ? styles.labelAbove : styles.labelBelow, p.x < 0.2 ? styles.labelStart : p.x > 0.8 ? styles.labelEnd : styles.labelMid)}>{price}</span>
+                            </span>
+                          ))}
+                        </div>
+                        <div className={styles.asOf}>{'종가 기준 ' + mmdd(h.points[0].date) + '~' + mmdd(h.points[h.points.length - 1].date)}</div>
+                      </>
+                    ) : (
+                      <div className={styles.asOf}>{h === 'failed' ? '가격 이력을 불러오지 못했어요' : '불러오는 중이에요…'}</div>
+                    )}
                     <button type="button" className={styles.add} onClick={() => onAdd?.(recToCandidate(r))}>
                       패키지에 담기
                     </button>

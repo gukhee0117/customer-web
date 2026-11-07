@@ -337,6 +337,23 @@ export interface RecommendAnswer {
   disclaimer: string
 }
 
+// ───── 종가 이력(차트) ─────
+// 서버 업무일 이전 영업일의 저장 종가(날짜 오름차순). 현재가가 아니라서 표의 현재가와 조금 다를 수 있다
+
+export interface PricePoint {
+  date: string // 종가 기준일 YYYY-MM-DD
+  close: number
+}
+
+export interface PriceHistory {
+  ticker: string
+  available: boolean // false면 이력을 받지 못한 종목(points는 비어 있음)
+  points: PricePoint[]
+}
+
+export const fetchPriceHistory = (tickers: string[], days: number) =>
+  unwrap(apiClient.get<ApiResponse<PriceHistory[]>>(BASE + '/price-history', { params: { tickers: tickers.join(','), days }, timeout: 30000 }))
+
 export const fetchRecommendations = (filter: RecommendFilter, limit: number, basis: RecommendBasis) =>
   unwrap(apiClient.get<ApiResponse<RecommendList>>(BASE + '/recommendations', { params: { filter, limit, basis } }))
 export const askRecommendation = (question: string, focusTicker: string | null, basis: RecommendBasis) =>
