@@ -285,3 +285,44 @@ export const PROFILE_KEY: Record<string, string> = {
   ACTIVE: 'active',
   AGGRESSIVE: 'aggressive'
 }
+
+// ───── 성향별 추천 ─────
+// 내 투자성향 범위 안에서 RIA 계좌로 살 수 있는 상품과 이유. 이유·답변은 서버가 가진 사실(등급·변동성·테마)로만 만든다
+
+export type RecommendFilter = 'ALL' | 'STOCK' | 'FUND'
+
+export interface RecommendItem {
+  domesticProductId: number
+  ticker: string
+  name: string
+  market: string | null
+  type: ProductType
+  sectorName: string | null
+  themes: string[]
+  riskGrade: number
+  volatilityPercent: number | null
+  reasons: string[]
+}
+
+export interface RecommendList {
+  items: RecommendItem[]
+  profileAvailable: boolean
+  profileLabel: string | null
+  allowedMinGrade: number | null
+  filter: RecommendFilter
+  subtitle: string
+  disclaimer: string
+  checkedAt: string
+}
+
+export interface RecommendAnswer {
+  answer: string
+  ticker: string | null // 있으면 그 종목의 "패키지에 담기" 버튼을 붙인다
+  aiGenerated: boolean
+  disclaimer: string
+}
+
+export const fetchRecommendations = (filter: RecommendFilter, limit: number) =>
+  unwrap(apiClient.get<ApiResponse<RecommendList>>(BASE + '/recommendations', { params: { filter, limit } }))
+export const askRecommendation = (question: string, focusTicker: string | null) =>
+  unwrap(apiClient.post<ApiResponse<RecommendAnswer>>(BASE + '/recommendations/ask', { question, focusTicker }, { timeout: 20000 }))

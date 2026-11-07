@@ -8,11 +8,12 @@ import { HomeBriefBox } from '../components/home/HomeBriefBox'
 import { HomeChatBox } from '../components/home/HomeChatBox'
 import { HomeDevPanel } from '../components/home/HomeDevPanel'
 import { HomePackageBox } from '../components/home/HomePackageBox'
-import { HomeTendencyBox } from '../components/home/HomeTendencyBox'
+import { HomeRecBox } from '../components/home/HomeRecBox'
 import { HomeNewsBox } from '../components/home/HomeNewsBox'
 import { HomeProfileBox } from '../components/home/HomeProfileBox'
-import { BOT_CHIPS, WELCOME_MS } from '../components/home/homeBotData'
+import { BOT_CHIPS, DEPOSIT_QUESTION, WELCOME_MS } from '../components/home/homeBotData'
 import { homeTodos } from '../components/home/homeBotLogic'
+import type { FullAskMsg } from '../components/home/homeBotLogic'
 import { DISCLAIMER } from '../components/home/homeChatData'
 import styles from '../components/home/HomeLayout.module.css'
 import { RETURNS_DATA as RD, demo } from '../data/returns'
@@ -94,6 +95,17 @@ export function HomePage() {
     [shell]
   )
 
+  // "전체 대화 보기 ›": 오늘의 추천 박스의 대화를 상담 창으로 옮기고 창을 연다
+  const openFullAsk = (conv: FullAskMsg[]) => {
+    if (conv.length) stream.addMessages(conv)
+    shell.setBotOpen(true)
+  }
+  // "예탁금으로 두면 어떻게 되나요? ›": 상담 창을 열고 대신 물어본다
+  const askDeposit = () => {
+    shell.setBotOpen(true)
+    ask(DEPOSIT_QUESTION)
+  }
+
   const changeDemo = (patch: Partial<DemoSettings>) => {
     if (patch.assess !== undefined) setAClosed(null)
     RD.setDemo(patch)
@@ -112,7 +124,7 @@ export function HomePage() {
           <HomeNewsBox className={styles.news} />
           <div className={styles.pair}>
             <HomePackageBox className={styles.pkg} hasPkg={hasPkg} />
-            <HomeTendencyBox className={styles.rec} />
+            <HomeRecBox className={styles.rec} onOpenFullAsk={openFullAsk} onAskDeposit={askDeposit} />
           </div>
         </div>
         <div className={styles.colSide}>
