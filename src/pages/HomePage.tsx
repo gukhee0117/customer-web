@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Toast } from '../components/common/Toast'
-import { useToast } from '../components/common/useToast'
 import { useSellLimit } from '../components/account/useSellLimit'
 import { HomeAssessModal } from '../components/home/HomeAssessModal'
 import { HomeBriefBox } from '../components/home/HomeBriefBox'
@@ -29,7 +27,6 @@ export function HomePage() {
   useDocumentTitle('Returns 홈')
   const shell = useAppShell()
   const { hash } = useLocation()
-  const { message: toast } = useToast()
   const [, refresh] = useReducer((n: number) => n + 1, 0)
   const stream = useStream()
   // 첫 마운트 시 대화가 비어 있으면 홈 인사말 추가 (페이지 이동 후 돌아오면 이력 유지)
@@ -60,7 +57,7 @@ export function HomePage() {
   const assess = serverState().assess || 'ok'
   const tendency = useTendency()
   const risky = isTradeRisky(tendency.data) && !isRiskySnoozed()
-  const profLabel = RD.PROFILES[RD.CUSTOMER.profile].label
+  const profLabel = RD.PROFILES[serverState().profile ?? 'private']?.label ?? ''
   const kind = assess === 'expired' ? 'expired' : risky ? 'risky' : null
   const modalKind = kind && aClosed !== kind ? kind : null
 
@@ -113,7 +110,6 @@ export function HomePage() {
       </div>
       <p className={styles.note}>{DISCLAIMER}</p>
       {modalKind && <HomeAssessModal kind={modalKind} profLabel={profLabel} onClose={() => setAClosed(modalKind)} />}
-      <Toast message={toast} />
     </>
   )
 }

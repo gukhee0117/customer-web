@@ -133,8 +133,6 @@ export function AccountPage() {
     [shell]
   )
 
-  const goHistRef = useRef<(tab: HistTab) => void>(() => {})
-
   // 신청 창 — 입고 / 인출. 계좌 개설 신청은 서버 API가 없어 열지 않는다
   const [applyKind, setApplyKind] = useState<ApplyKind | null>(null)
   // 접수한 신청 — 거래·신청 내역 해당 탭 맨 위에 '심사 중' 줄로 보임
@@ -250,9 +248,6 @@ export function AccountPage() {
     pickHistTab(tab)
     scrollToHist()
   }
-  useEffect(() => {
-    goHistRef.current = goHist
-  })
   // 어떤 신청 창이든 열면 상담 창은 닫힘(원본 openM)
   const openApply = (k: ApplyKind) => {
     if (k === 'open') {

@@ -132,8 +132,7 @@ export interface DdGroup {
 export function ddGroups(dq: string, code: string, recent: string[], stocks: StocksValue): { groups: DdGroup[]; flat: string[] } {
   const lc = dq.toLowerCase()
   const known = (c: string) => stocks.stock(c) != null
-  const posts: Record<string, string> = {}
-  stocks.rank.forEach((r) => (posts[r.ticker] = String(r.postCount)))
+  const posts = Object.fromEntries(stocks.rank.map((r) => [r.ticker, String(r.postCount)]))
   const raw: { title: string; codes: string[]; rank?: boolean }[] = dq
     ? [{ title: '', codes: stocks.list.filter((s) => s.name.toLowerCase().includes(lc) || s.code.includes(dq)).map((s) => s.code) }]
     : [{ title: '최근 본 종목', codes: recent.filter(known) }, { title: '많이 이야기하는 종목', codes: stocks.rank.map((r) => r.ticker).filter(known), rank: true }]
