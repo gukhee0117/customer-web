@@ -23,6 +23,7 @@ export function InvestRiskGauge({ className, allowedMin, avgBuyGrade, minBuyCoun
   // 등급 g의 칸 가운데가 (g-0.5)/6 지점이다. 소수 등급(1.21)은 그 사이에 놓인다
   const arrowAt = avgBuyGrade == null ? null : Math.min(6.5, Math.max(0.5, avgBuyGrade))
   const avgText = avgBuyGrade == null ? '' : String(avgBuyGrade)
+  const avgLegend = avgBuyGrade == null ? '' : avgBuyGrade.toFixed(2) + '등급' // 범례: 소수 둘째 자리 + 등급
   const aria =
     '위험등급 1에서 6' +
     (allowedMin != null ? ', 허용 범위 ' + allowedMin + '~6등급' : '') +
@@ -66,7 +67,7 @@ export function InvestRiskGauge({ className, allowedMin, avgBuyGrade, minBuyCoun
         {avgBuyGrade != null && (
           <span className={styles.item}>
             <i className={styles.swArrow} />
-            {'내 평균 매수 ' + avgText}
+            {'내 평균 매수 ' + avgLegend}
           </span>
         )}
       </div>
@@ -75,7 +76,7 @@ export function InvestRiskGauge({ className, allowedMin, avgBuyGrade, minBuyCoun
 
       {adjusted && avgBuyGrade != null && allowedMin != null && (
         <div className={styles.adjust}>
-          {'최근 매수 평균 위험등급(' + avgText + '등급)이 투자성향(' + label + ', ' + allowedMin + '~6등급)보다 높아요. 투자성향 범위 안의 종목만 추천해요. '}
+          {'최근 매수 평균 위험등급(' + avgLegend + ')이 투자성향(' + label + ', ' + allowedMin + '~6등급)보다 높아요. 투자성향 범위 안의 종목만 추천해요. '}
           <Link className={styles.adjustLink} to={assessPath}>
             투자성향 다시 진단하기
           </Link>

@@ -97,10 +97,10 @@
   outline-offset: 1px;
 }
 
-/* 종목 · 현재가 · 위험 · 업종 · 추천 이유(태그) · 화살표 */
+/* 종목 · 현재가 · 위험 · 연 변동성 · 업종 · 추천 이유(태그 2개 폭) · 화살표 — 남는 폭은 종목·업종 열이 나눠 가진다 */
 .grid {
   display: grid;
-  grid-template-columns: minmax(160px, 1.2fr) 104px 96px 88px minmax(0, 1.8fr) 28px;
+  grid-template-columns: minmax(150px, 1.5fr) 100px 96px 64px minmax(80px, 1fr) minmax(0, 216px) 28px;
   gap: var(--space-12);
   align-items: center;
   padding: 0 var(--space-16);
@@ -139,13 +139,19 @@
   box-sizing: border-box;
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(160px, 1.2fr) 104px 96px 88px minmax(0, 1.8fr) 28px;
+  grid-template-columns: minmax(150px, 1.5fr) 100px 96px 64px minmax(80px, 1fr) minmax(0, 216px) 28px;
   gap: var(--space-12);
   height: 48px;
   align-items: center;
   padding: 0 var(--space-16);
   font-size: var(--font-size-14);
   background: var(--color-surface);
+}
+
+/* 어느 행에도 태그가 없을 때: 추천 이유 열을 빼고 그 폭을 종목·업종 열이 나눠 갖는다(.grid·.row보다 뒤에 두어 우선 적용) */
+.grid.noReason,
+.row.noReason {
+  grid-template-columns: minmax(150px, 1.5fr) 100px 96px 64px minmax(96px, 1fr) 28px;
 }
 
 .row:hover,
@@ -176,6 +182,13 @@
 
 .risk {
   font-size: var(--font-size-12);
+  color: var(--color-gray-600);
+  white-space: nowrap;
+}
+
+.vol {
+  text-align: right;
+  font-size: var(--font-size-13);
   color: var(--color-gray-600);
   white-space: nowrap;
 }

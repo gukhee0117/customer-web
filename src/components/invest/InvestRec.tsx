@@ -47,6 +47,8 @@ const RULES = (allow: string) => [
 ]
 const allowedText = (min: number | null) => (min == null ? '' : min === 6 ? '6등급' : min + '~6등급')
 const volText = (r: RecommendItem) => (r.volatilityPercent == null ? '계산 전' : r.volatilityPercent + '%')
+// 표의 연 변동성 열: 서버 값을 소수 첫째 자리 %로. 아직 계산 전이면 "–"
+const volCell = (r: RecommendItem) => (r.volatilityPercent == null ? '–' : r.volatilityPercent.toFixed(1) + '%')
 const gradeRangeText = (from: number, to: number) => (from === to ? from + '등급' : from + '~' + to + '등급')
 // 업종 열: 펀드·ETF는 업종이 없어 유형으로 보인다
 const sectorText = (r: RecommendItem) => (r.type === 'FUND' ? '펀드·ETF' : (r.sectorName ?? '–'))
@@ -59,17 +61,12 @@ interface Tag {
   on: boolean
   hint?: string
 }
-const tagsOf = (r: RecommendItem, targetGrade: number | null): Tag[] => {
+const tagsOf = (r: RecommendItem, targetGrade: number | null, mixedGrades: boolean): Tag[] => {
   const tags: Tag[] = []
-  // 서버는 목표 등급을 소수로 주고, 범위 중심은 그 값을 반올림한 정수다
-  if (targetGrade != null && r.riskGrade === Math.round(targetGrade)) tags.push({ key: 'target', text: '목표 등급', on: false, hint: '추천 목표 등급과 같은 위험등급이에요' })
+  // 표의 위험등급이 모두 같으면 "목표 등급"은 구별이 안 되는 정보라 붙이지 않는다. 서버는 목표 등급을 소수로 주고, 범위 중심은 그 값을 반올림한 정수다
+  if (mixedGrades && targetGrade != null && r.riskGrade === Math.round(targetGrade)) tags.push({ key: 'target', text: '목표 등급', on: false, hint: '추천 목표 등급과 같은 위험등급이에요' })
   if (r.sectorMatched) tags.push({ key: 'sector', text: '많이 산 업종', on: true, hint: '내가 가장 많이 산 업종과 같아요' })
   if (r.matchedTheme) tags.push({ key: 'theme', text: '많이 산 테마 · ' + r.matchedTheme, on: true, hint: '내가 가장 많이 산 테마와 같아요' })
-  // 고른 이유 태그가 하나도 없으면 목표 등급과의 차이로 기본 태그 하나를 보여 준다(1등급 이내면 "근처", 그 밖은 "범위 안")
-  if (tags.length === 0 && targetGrade != null) {
-    const near = Math.abs(r.riskGrade - targetGrade) <= 1
-    tags.push({ key: 'near', text: near ? '목표 등급 근처' : '목표 등급 범위 안', on: false })
-  }
   return tags
 }
 
@@ -85,6 +82,9 @@ export function InvestRec({ className, onAdd }: Props) {
   const trading = basis === 'TRADING'
   const off = rec.state === 'ready' && data !== null && !data.basisAvailable
   const rows = data && data.basisAvailable ? data.items : []
+  const mixedGrades = new Set(rows.map((r) => r.riskGrade)).size > 1 // 위험등급이 섞여 있을 때만 "목표 등급" 태그를 붙인다
+  const tagRows = rows.map((r) => tagsOf(r, data?.targetGrade ?? null, mixedGrades))
+  const showReason = tagRows.some((t) => t.length > 0) // 어느 행에도 태그가 없으면 추천 이유 열을 숨기고 폭은 종목·업종 열이 나눠 갖는다
   const profile = survey?.investorType ? (PROFILE_KEY[survey.investorType] ?? 'neutral') : 'neutral'
   const label = data?.profileLabel ?? survey?.label ?? ''
   const allow = allowedText(data?.allowedMinGrade ?? survey?.allowedMinGrade ?? null)
@@ -160,23 +160,24 @@ export function InvestRec({ className, onAdd }: Props) {
         {rec.state === 'error' && <div className={styles.none}>추천을 불러오지 못했어요. 잠시 뒤에 다시 열어 주세요.</div>}
 
         {rows.length > 0 && (
-          <div className={cx(styles.grid, styles.cols0)}>
+          <div className={cx(styles.grid, styles.cols0, !showReason && styles.noReason)}>
             <span>종목</span>
             <span className={styles.r}>현재가</span>
             <span>위험</span>
+            <span className={styles.r}>연 변동성</span>
             <span>업종</span>
-            <span>추천 이유</span>
+            {showReason && <span>추천 이유</span>}
             <span />
           </div>
         )}
 
-        {rows.map((r) => {
+        {rows.map((r, idx) => {
           const on = open === r.ticker
           const q = rec.quotes[r.ticker]
           const received = Object.prototype.hasOwnProperty.call(rec.quotes, r.ticker) // 시세 응답이 왔는지(못 받은 종목과 받는 중을 구분)
           return (
             <div key={r.ticker} className={styles.rowBox}>
-              <button type="button" className={cx(styles.grid, styles.row, on && styles.rowOn)} aria-expanded={on} onClick={() => setOpen(on ? null : r.ticker)}>
+              <button type="button" className={cx(styles.grid, styles.row, on && styles.rowOn, !showReason && styles.noReason)} aria-expanded={on} onClick={() => setOpen(on ? null : r.ticker)}>
                 <span className={styles.stock}>
                   <InvestStockName code={r.ticker} name={r.name} />
                 </span>
@@ -191,14 +192,17 @@ export function InvestRec({ className, onAdd }: Props) {
                   )}
                 </span>
                 <span className={styles.risk}>{r.riskGrade + '등급 · ' + (GRADE_WORD[r.riskGrade] ?? '')}</span>
+                <span className={styles.vol}>{volCell(r)}</span>
                 <span className={styles.sector}>{sectorText(r)}</span>
-                <span className={styles.tags}>
-                  {tagsOf(r, data?.targetGrade ?? null).map((t) => (
-                    <span key={t.key} className={cx(styles.tag, t.on && styles.tagOn)} title={t.hint}>
-                      {t.text}
-                    </span>
-                  ))}
-                </span>
+                {showReason && (
+                  <span className={styles.tags}>
+                    {tagRows[idx].map((t) => (
+                      <span key={t.key} className={cx(styles.tag, t.on && styles.tagOn)} title={t.hint}>
+                        {t.text}
+                      </span>
+                    ))}
+                  </span>
+                )}
                 <span className={styles.chev}>
                   <svg className={cx(on && styles.chevOpen)} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="m6 9 6 6 6-6" />
