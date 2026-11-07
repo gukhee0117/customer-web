@@ -6,6 +6,8 @@ import type { CandidateItem, RecommendBasis, RecommendFilter, RecommendItem } fr
 import { F } from '../../lib/calc'
 import { KkiruAvatar } from '../common/KkiruAvatar'
 import { cx } from '../common/cx'
+import { InvestRecSectors } from './InvestRecSectors'
+import { InvestRiskGauge } from './InvestRiskGauge'
 import { InvestStockName } from './InvestStockName'
 import { toneOf } from './investPkgLogic'
 import { recToCandidate, useRecommendations } from './useRecommendations'
@@ -88,6 +90,10 @@ export function InvestRec({ className, onAdd }: Props) {
   const allow = allowedText(data?.allowedMinGrade ?? survey?.allowedMinGrade ?? null)
   const none = !survey?.available && !survey?.expired
   const expired = survey?.expired === true
+  // 위험등급 게이지: 설문 허용 범위·평균 매수 등급은 경향(useTendency) 값, 추천 범위는 거래 기준 탭에서만
+  const tend = tendency.state === 'ready' ? tendency.data : null
+  const tradeOn = trading && data?.basisAvailable === true
+  const recRange: [number, number] | null = tradeOn && data.gradeFrom != null && data.gradeTo != null ? [data.gradeFrom, data.gradeTo] : null
   // 부제목에 실제 추천 범위(서버 gradeFrom~gradeTo)를 한 번 보여 준다. 범위를 못 받으면 서버 부제목 그대로
   const range = data?.basisAvailable && data.gradeFrom != null && data.gradeTo != null ? gradeRangeText(data.gradeFrom, data.gradeTo) : null
   const subtitle =
@@ -245,6 +251,8 @@ export function InvestRec({ className, onAdd }: Props) {
           )
         })}
 
+        {rows.length > 0 && <InvestRecSectors items={rows} />}
+
         {rec.state === 'ready' && !off && rows.length === 0 && filter !== 'ALL' && <div className={styles.none}>이 분류에는 추천할 상품이 없어요</div>}
 
         {rec.state === 'ready' && !off && rows.length === 0 && filter === 'ALL' && trading && <div className={styles.none}>내 거래 경향에 맞는 상품이 지금은 없어요</div>}
@@ -289,46 +297,60 @@ export function InvestRec({ className, onAdd }: Props) {
         <div className={styles.guide}>{data?.disclaimer ?? '교육용 프로젝트의 자체 분석 결과예요. 수익을 보장하지 않으며, 실제 금융상품 판매·권유 절차를 대체하지 않아요.'}</div>
       </section>
 
-      <section className={styles.box} data-box="rec-basis">
-        <div className={styles.head}>
-          <h2 className={styles.title}>내 추천 기준</h2>
-        </div>
-        <div className={styles.prof}>
-          <KkiruAvatar profile={profile} size={48} />
-          <div className={styles.profText}>
-            <b className={styles.profLine}>{trading ? '내 거래 경향' : none ? '미진단' : label + (allow ? ' · ' + allow : '')}</b>
-            <span className={styles.assess}>
-              {trading ? (data?.basisAvailable ? '체결 매수 ' + data.tradeBuyCount + '건 기준' : '') : survey?.assessedAt ? '진단일 ' + F.dot(survey.assessedAt.slice(0, 10)) : ''}
-              {!trading && expired && (
-                <>
-                  {' '}
-                  <span className={styles.expired}>진단 만료</span>
-                </>
-              )}
-            </span>
+      <div className={styles.side}>
+        {tend && (
+          <InvestRiskGauge
+            className={styles.box}
+            allowedMin={tend.survey.available ? tend.survey.allowedMinGrade : null}
+            avgBuyGrade={tend.trading.avgBuyGrade}
+            minBuyCount={tend.trading.minBuyCount}
+            recRange={recRange}
+            adjusted={tradeOn && data.targetAdjusted}
+            label={label || '내 성향'}
+            assessPath={ASSESS_PATH}
+          />
+        )}
+        <section className={styles.box} data-box="rec-basis">
+          <div className={styles.head}>
+            <h2 className={styles.title}>내 추천 기준</h2>
           </div>
-        </div>
-        <div className={styles.rules}>
-          <div className={styles.rulesTitle}>추천 기준</div>
-          {(trading ? TRADING_RULES : RULES(allow || '내 성향')).map((text, i, all) => (
-            <div key={text} className={cx(styles.rule, i < all.length - 1 && styles.ruleLine)}>
-              <b className={styles.ruleN}>{i + 1}</b>
-              <span>{text}</span>
+          <div className={styles.prof}>
+            <KkiruAvatar profile={profile} size={48} />
+            <div className={styles.profText}>
+              <b className={styles.profLine}>{trading ? '내 거래 경향' : none ? '미진단' : label + (allow ? ' · ' + allow : '')}</b>
+              <span className={styles.assess}>
+                {trading ? (data?.basisAvailable ? '체결 매수 ' + data.tradeBuyCount + '건 기준' : '') : survey?.assessedAt ? '진단일 ' + F.dot(survey.assessedAt.slice(0, 10)) : ''}
+                {!trading && expired && (
+                  <>
+                    {' '}
+                    <span className={styles.expired}>진단 만료</span>
+                  </>
+                )}
+              </span>
             </div>
-          ))}
-        </div>
-        <div className={styles.again}>
-          {trading ? (
-            <Link className={styles.againLink} to="/myinfo">
-              내 정보에서 거래로 본 성향 보기 ›
-            </Link>
-          ) : (
-            <Link className={styles.againLink} to={ASSESS_PATH}>
-              투자성향 다시 확인하기 ›
-            </Link>
-          )}
-        </div>
-      </section>
+          </div>
+          <div className={styles.rules}>
+            <div className={styles.rulesTitle}>추천 기준</div>
+            {(trading ? TRADING_RULES : RULES(allow || '내 성향')).map((text, i, all) => (
+              <div key={text} className={cx(styles.rule, i < all.length - 1 && styles.ruleLine)}>
+                <b className={styles.ruleN}>{i + 1}</b>
+                <span>{text}</span>
+              </div>
+            ))}
+          </div>
+          <div className={styles.again}>
+            {trading ? (
+              <Link className={styles.againLink} to="/myinfo">
+                내 정보에서 거래로 본 성향 보기 ›
+              </Link>
+            ) : (
+              <Link className={styles.againLink} to={ASSESS_PATH}>
+                투자성향 다시 확인하기 ›
+              </Link>
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   )
 }

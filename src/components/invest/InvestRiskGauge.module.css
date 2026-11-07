@@ -1,0 +1,136 @@
+/* 위험등급 게이지. 박스 배경·테두리는 부모가 넘겨준 className(InvestRec의 .box)을 쓴다 */
+.box {
+  padding: var(--space-12) var(--space-16) var(--space-14);
+  box-sizing: border-box;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+}
+
+.title {
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-bold);
+}
+
+.bar {
+  position: relative;
+  margin-top: var(--space-20);
+}
+
+/* 1~6등급 여섯 칸. 칸 가운데가 그 등급이다 */
+.cells {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-2);
+  height: 14px;
+}
+
+.cell {
+  background: var(--color-line-soft);
+  border-radius: var(--radius-2);
+}
+
+/* 설문 허용 범위 */
+.allowed {
+  background: var(--color-donut-4);
+}
+
+/* 거래 기준의 실제 추천 범위: 허용 범위 위에 진한 색 */
+.rec {
+  background: var(--color-navy);
+}
+
+.ticks {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin-top: var(--space-4);
+  text-align: center;
+  font-size: var(--font-size-12);
+  color: var(--color-sub);
+}
+
+.ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+  font-size: var(--font-size-11);
+  color: var(--color-muted);
+}
+
+/* 내 평균 매수 등급: 막대 위에서 아래를 가리키는 화살표 */
+.arrow {
+  position: absolute;
+  top: calc(-1 * var(--space-12));
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 9px solid var(--color-gold-dark);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-12);
+  margin-top: var(--space-10);
+  font-size: var(--font-size-12);
+  color: var(--color-gray-600);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  white-space: nowrap;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-2);
+}
+
+.swAllowed {
+  background: var(--color-donut-4);
+}
+
+.swRec {
+  background: var(--color-navy);
+}
+
+.swArrow {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 8px solid var(--color-gold-dark);
+}
+
+.note {
+  margin-top: var(--space-6);
+  font-size: var(--font-size-12);
+  color: var(--color-sub);
+}
+
+/* 범위 보정 안내(거래 기준, targetAdjusted) */
+.adjust {
+  margin-top: var(--space-10);
+  padding: var(--space-8) var(--space-10);
+  border: 1px solid var(--color-gold-border);
+  border-radius: var(--radius-6);
+  background: var(--color-gold-pale);
+  color: var(--color-gold-brown);
+  font-size: var(--font-size-12);
+  line-height: 1.5;
+}
+
+.adjustLink {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-navy);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.adjustLink:hover {
+  text-decoration: underline;
+}
