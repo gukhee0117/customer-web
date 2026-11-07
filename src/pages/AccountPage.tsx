@@ -12,6 +12,7 @@ import { AccountTaxBox } from '../components/account/AccountTaxBox'
 import { TaxCalcModal } from '../components/account/TaxCalcModal'
 import { issuedRecords, setAdjOverride, docTypeOf } from '../components/account/accountTaxData'
 import { apiErrorMessage } from '../api/client'
+import { subscribeAssetEvents } from '../api/assetEvents'
 import { downloadDocument, issueDocument, listDocuments } from '../api/documents'
 import { ALERT_DESC, ALERT_LINK, ALERT_TAG, BOT_CHIPS, botGreeting } from '../components/account/accountBotData'
 import type { ApplyAlert } from '../components/account/accountBotData'
@@ -76,12 +77,24 @@ export function AccountPage() {
   // 서버 값: 계좌(프로필)·세액·자산·인출 가능 금액. 박스마다 따로 받아 느린 것이 다른 박스를 막지 않는다
   const { state: profileState } = useServerData(getProfile)
   const { state: taxState, retry: retryTax } = useServerData(getCustomerTaxBriefing, NO_DATA_CODES)
-  const { state: assetState, retry: retryAssets } = useServerData(getCustomerAssetBriefing, NO_DATA_CODES)
+  const { state: assetState, retry: retryAssets, refresh: refreshAssets } = useServerData(getCustomerAssetBriefing, NO_DATA_CODES)
   const { state: availState, retry: retryAvail } = useServerData(getWithdrawalAvailability, NO_DATA_CODES)
-  const { state: holdingsState, retry: retryHoldings } = useServerData(getAssetHoldings, NO_DATA_CODES)
+  const { state: holdingsState, retry: retryHoldings, refresh: refreshHoldings } = useServerData(getAssetHoldings, NO_DATA_CODES)
   const { state: linkedState, retry: retryLinked } = useServerData(getGeneralAccounts)
   const { state: inboundState, retry: retryInbounds } = useServerData(getInboundHistory)
   const { state: withdrawalState, retry: retryWithdrawals } = useServerData(getWithdrawalHistory)
+  // 국내 시세·거래로 평가액이 바뀌면 서버가 알려 준다 — 브리핑·보유만 조용히 다시 받는다(거래내역은 그대로)
+  useEffect(
+    () =>
+      subscribeAssetEvents(
+        () => {
+          refreshAssets()
+          refreshHoldings()
+        },
+        () => undefined
+      ),
+    [refreshAssets, refreshHoldings]
+  )
   const account = profileState.status === 'live' ? profileState.data.account : undefined // 받는 중·실패면 undefined
   const fundFlow = useFundFlow(RD.ACCOUNT_STATE === 'opened' && hash === '#flow')
 
