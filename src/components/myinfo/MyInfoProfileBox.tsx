@@ -41,8 +41,7 @@ export function MyInfoProfileBox({ className, hist, name, status, onOpenAssess }
             <>
               <div className={styles.dateRow}>
                 <span>{pf.date ? `진단일 ${pf.date} · ${pf.next}까지 유효(24개월)` : '진단 기록이 없어요'}</span>
-                {/* TODO: 백엔드 연결 시 실제 만료일까지 남은 날로 계산 (원본은 D-23 고정 문구, 홈과 같음) */}
-                {pf.soon && <span className={styles.badge}>재진단 D-23</span>}
+                {pf.soon && <span className={styles.badge}>재진단 D-{pf.dLeft}</span>}
               </div>
               {pf.score != null && (
                 <div className={styles.line}>
