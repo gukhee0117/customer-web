@@ -45,7 +45,7 @@ type InvestTab = 'mine' | 'rec'
 
 const TABS = [
   { key: 'mine', label: '나만의 주식 패키지' },
-  { key: 'rec', label: '성향별 추천' }
+  { key: 'rec', label: '오늘의 종목' }
 ]
 
 // 주문 한 줄(서버 상품 번호로 보낸다)
@@ -451,7 +451,7 @@ export function InvestPage() {
       })
     )
 
-  // 홈 "오늘의 추천"의 "패키지에 담기"로 들어오면(?rec=종목코드) 그 종목으로 바로 "어느 패키지에 담을까요?" 창을 연다. 내 패키지를 다 받은 뒤 한 번만
+  // 홈 "오늘의 종목"의 "패키지에 담기"로 들어오면(?rec=종목코드) 그 종목으로 바로 "어느 패키지에 담을까요?" 창을 연다. 내 패키지를 다 받은 뒤 한 번만
   const recTicker = params.get('rec')
   const recHandled = useRef(false)
   useEffect(() => {
@@ -472,7 +472,7 @@ export function InvestPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recTicker, server.state])
 
-  // 탭 전환은 기록을 쌓지 않고 바꿈(원본 replaceState): 성향별 추천은 #recommend, 나만의 패키지는 해시 없이 현재 쿼리 유지
+  // 탭 전환은 기록을 쌓지 않고 바꿈(원본 replaceState): 오늘의 종목은 #recommend, 나만의 패키지는 해시 없이 현재 쿼리 유지
   const pickTab = (key: string) => navigate({ pathname: '/invest', search, hash: key === 'rec' ? '#recommend' : '' }, { replace: true })
 
   const names = useMemo(() => Object.fromEntries(views.flatMap((v) => v.items.map((i) => [i.code, i.name]))), [views])

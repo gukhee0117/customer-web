@@ -88,7 +88,7 @@ export function HomePage() {
     [shell]
   )
 
-  // "전체 대화 보기 ›": 오늘의 추천 박스의 대화를 상담 창으로 옮기고 창을 연다
+  // "전체 대화 보기 ›": 오늘의 종목 박스의 대화를 상담 창으로 옮기고 창을 연다
   const openFullAsk = (conv: FullAskMsg[]) => {
     if (conv.length) stream.addMessages(conv)
     shell.setBotOpen(true)

@@ -554,3 +554,37 @@
     right: auto;
   }
 }
+
+/* 추천 기준 선택: 설문으로 본 성향 / 거래로 본 경향 */
+.basisRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-8) var(--space-16) 0;
+}
+
+.basisBtn {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  height: 24px;
+  padding: 0 var(--space-10);
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-6);
+  font-size: var(--font-size-12);
+  color: var(--color-ink);
+}
+
+.basisBtnOn {
+  background: var(--color-navy);
+  border-color: var(--color-navy);
+  color: var(--color-surface);
+  font-weight: var(--font-weight-extrabold);
+}
+
+.basisBtn:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 1px;
+}
