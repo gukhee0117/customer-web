@@ -3,7 +3,7 @@ import '../../styles/tokens.css'
 import { profileKeyOf } from '../../api/investor'
 import { formatAccountNo } from '../../api/profile'
 import type { Profile } from '../../api/profile'
-import { RETURNS_DATA as RD, demo } from '../../data/returns'
+import { RETURNS_DATA as RD, serverState } from '../../data/returns'
 import { F } from '../../lib/calc'
 import { Box } from '../common/Box'
 import { assetUrl } from '../common/assetUrl'
@@ -12,7 +12,7 @@ import { Toast } from '../common/Toast'
 import { useToast } from '../common/useToast'
 import styles from './HomeProfileBox.module.css'
 
-// 프로필·계좌 박스. 이름·성향·진단일·유효기간·계좌번호는 서버 프로필 값(받기 전·실패하면 '-'). 계좌 상태 화면은 개설·정상만 쓴다. 진단 상태(미진단·만료)는 demo().assess를 따른다
+// 프로필·계좌 박스. 이름·성향·진단일·유효기간·계좌번호는 서버 프로필 값(받기 전·실패하면 '-'). 계좌 상태 화면은 개설·정상만 쓴다. 진단 상태(미진단·만료)는 서버 진단 상태(RD.serverState)를 따른다
 interface Props {
   className?: string
   prof: Profile | null
@@ -29,7 +29,7 @@ export function HomeProfileBox({ className, prof, limit, onRetryLimit }: Props) 
   const acct = RD.ACCOUNT_STATE
   const accountNo = account?.accountNo
   const acctNo = formatAccountNo(accountNo)
-  const assess = demo().assess || 'ok'
+  const assess = serverState().assess || 'ok'
   const assessedDate = prof?.assessedAt?.slice(0, 10)
   const pfLeft = prof?.expiresAt ? F.days(biz, F.addDays(prof.expiresAt.slice(0, 10), -1)) : 999 // 진단 유효기간 남은 날(만료일 전날까지 유효)
   const usedPct = limit.status === 'live' && limit.data.limitAmount > 0 ? (limit.data.usedAmount / limit.data.limitAmount) * 100 + '%' : '0%'

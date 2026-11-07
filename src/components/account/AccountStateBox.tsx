@@ -13,7 +13,7 @@ import styles from './AccountStateBox.module.css'
 interface AccountStateBoxProps {
   className?: string
   linked: ServerState<GeneralAccount[]> // 연결 일반계좌(서버)
-  appliedAt?: string // 서버 계좌 신청 시각(없으면 시연 설정의 신청일)
+  appliedAt?: string // 서버 계좌 신청 시각(없으면 예시 신청일)
   onOpen: () => void // 계좌 개설 신청
   onCancel: () => void // 신청 취소
 }

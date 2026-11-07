@@ -6,7 +6,6 @@ import { useSellLimit } from '../components/account/useSellLimit'
 import { HomeAssessModal } from '../components/home/HomeAssessModal'
 import { HomeBriefBox } from '../components/home/HomeBriefBox'
 import { HomeChatBox } from '../components/home/HomeChatBox'
-import { HomeDevPanel } from '../components/home/HomeDevPanel'
 import { HomePackageBox } from '../components/home/HomePackageBox'
 import { HomeTendencyBox } from '../components/home/HomeTendencyBox'
 import { HomeNewsBox } from '../components/home/HomeNewsBox'
@@ -14,8 +13,10 @@ import { HomeProfileBox } from '../components/home/HomeProfileBox'
 import { BOT_CHIPS, WELCOME_MS } from '../components/home/homeBotData'
 import { DISCLAIMER } from '../components/home/homeChatData'
 import styles from '../components/home/HomeLayout.module.css'
-import { RETURNS_DATA as RD, demo } from '../data/returns'
-import type { DemoSettings } from '../data/returns'
+import { RETURNS_DATA as RD, serverState } from '../data/returns'
+import { useTendency } from '../components/invest/useNewPkgData'
+import { isTradeRisky } from '../components/myinfo/myinfoProfile'
+import { isRiskySnoozed } from '../components/myinfo/riskySnooze'
 import { useAppShell } from '../layouts/appShell'
 import { getProfile } from '../api/profile'
 import type { Profile } from '../api/profile'
@@ -23,7 +24,7 @@ import { useDocumentTitle } from '../components/common/useDocumentTitle'
 import { useStream } from '../api/useChatStream'
 
 
-// 홈 — 1~6번째 부분: 배치 + 박스 6개 + 아래 고지 + 상담 창·알림·성향 알림 창·환영 배너·시연 설정
+// 홈 — 1~6번째 부분: 배치 + 박스 6개 + 아래 고지 + 상담 창·알림·성향 알림 창·환영 배너
 export function HomePage() {
   useDocumentTitle('Returns 홈')
   const shell = useAppShell()
@@ -51,9 +52,17 @@ export function HomePage() {
     getProfile().then(setProf).catch(() => {})
   }, [])
 
-  const assess = demo().assess || 'ok'
+  // 서버 진단 상태가 바뀌면(로그인·세션 복원 동기화, 재진단) 다시 그린다
+  useEffect(() => {
+    window.addEventListener('returns-state', refresh)
+    return () => window.removeEventListener('returns-state', refresh)
+  }, [])
+  const assess = serverState().assess || 'ok'
+  const tendency = useTendency()
+  const risky = isTradeRisky(tendency.data) && !isRiskySnoozed()
   const profLabel = RD.PROFILES[RD.CUSTOMER.profile].label
-  const modalKind = (assess === 'risky' || assess === 'expired') && aClosed !== assess ? assess : null
+  const kind = assess === 'expired' ? 'expired' : risky ? 'risky' : null
+  const modalKind = kind && aClosed !== kind ? kind : null
 
   useEffect(() => {
     if (!welcome) return
@@ -82,12 +91,6 @@ export function HomePage() {
     [shell]
   )
 
-  const changeDemo = (patch: Partial<DemoSettings>) => {
-    if (patch.assess !== undefined) setAClosed(null)
-    RD.setDemo(patch)
-    refresh()
-  }
-
   return (
     <>
       {welcome && (
@@ -110,8 +113,7 @@ export function HomePage() {
         </div>
       </div>
       <p className={styles.note}>{DISCLAIMER}</p>
-      {modalKind && <HomeAssessModal kind={modalKind} profLabel={profLabel} onClose={() => setAClosed(assess)} />}
-      <HomeDevPanel onChange={changeDemo} />
+      {modalKind && <HomeAssessModal kind={modalKind} profLabel={profLabel} onClose={() => setAClosed(modalKind)} />}
       <Toast message={toast} />
     </>
   )

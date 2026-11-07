@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import '../../styles/tokens.css'
+import { snoozeRisky } from '../myinfo/riskySnooze'
 import styles from './HomeAssessModal.module.css'
 
 interface HomeAssessModalProps {
@@ -37,7 +38,7 @@ export function HomeAssessModal({ kind, profLabel, onClose }: HomeAssessModalPro
         </p>
         <div className={styles.actions}>
           <Link to="/myinfo#assess" className={styles.primary}>다시 진단하기</Link>
-          <button type="button" className={styles.later} onClick={onClose}>
+          <button type="button" className={styles.later} onClick={() => { if (risky) snoozeRisky(); onClose() }}>
             {risky ? '30일 동안 보지 않기' : '나중에'}
           </button>
         </div>

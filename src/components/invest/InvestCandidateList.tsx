@@ -8,7 +8,6 @@ import styles from './InvestCandidateList.module.css'
 interface Props {
   state: LoadState
   data: CandidateList | null
-  noCand?: boolean // 시연 설정 '후보 없음'
   addedCodes: string[] // 이미 담은 종목(종목코드)
   actionLabel: string // 담을 수 있는 종목의 버튼 글자('담기' · '패키지에 담기')
   onPick: (c: CandidateItem) => void
@@ -16,22 +15,21 @@ interface Props {
 }
 
 // 후보 목록 — 조건에 맞는 상품의 사실 정보(위험등급·연 변동성·테마)만 보여 준다. 순위·점수·추천 이유는 없다
-export function InvestCandidateList({ state, data, noCand = false, addedCodes, actionLabel, onPick, onShowOut }: Props) {
-  const items = noCand ? [] : (data?.items ?? [])
+export function InvestCandidateList({ state, data, addedCodes, actionLabel, onPick, onShowOut }: Props) {
+  const items = data?.items ?? []
   const added = new Set(addedCodes)
   // 내 성향 범위 안에 후보가 하나도 없을 때는 범위 밖 상품도 볼 수 있다고 알려 준다
-  const restrictedEmpty = !noCand && state === 'ready' && !items.length && !!data?.profileAvailable && !data.includeOutOfProfile
+  const restrictedEmpty = state === 'ready' && !items.length && !!data?.profileAvailable && !data.includeOutOfProfile
 
   return (
     <>
       <div className={styles.listHead}>
         <b>후보 목록</b>
-        {data && !noCand && <span className={styles.count}>{data.totalCount}개</span>}
+        {data && <span className={styles.count}>{data.totalCount}개</span>}
       </div>
-      {state === 'loading' && !noCand && <div className={styles.none}>불러오는 중이에요…</div>}
+      {state === 'loading' && <div className={styles.none}>불러오는 중이에요…</div>}
       {state === 'unauthorized' && <div className={styles.none}>로그인하면 후보를 볼 수 있어요.</div>}
       {state === 'error' && <div className={styles.none}>후보를 불러오지 못했어요. 잠시 후 다시 열어 주세요.</div>}
-      {noCand && <div className={styles.none}>조건에 맞는 상품이 없어요.</div>}
       {restrictedEmpty && (
         <div className={styles.none}>
           내 투자성향 범위 안에는 조건에 맞는 상품이 없어요.{' '}
@@ -75,7 +73,7 @@ export function InvestCandidateList({ state, data, noCand = false, addedCodes, a
           })}
         </div>
       )}
-      {data && !noCand && (
+      {data && (
         <div className={styles.summary}>
           {data.summary.map((s) => (
             <span key={s}>{s}</span>

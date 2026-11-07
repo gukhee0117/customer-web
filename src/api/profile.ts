@@ -34,7 +34,7 @@ export const ACCOUNT_STATUS_LABEL: Record<ProfileAccount['status'], string> = {
 }
 
 // 본인 계좌번호는 그대로 보여 준다. 개설 전이면 번호가 없어 '-'
-// 서버 계좌 상태 → 화면의 계좌 상태(시연 설정의 account). 해지 신청 중은 계좌가 아직 있으므로 정상으로 본다
+// 서버 계좌 상태 → 화면의 계좌 상태(RD.serverState의 account). 해지 신청 중은 계좌가 아직 있으므로 정상으로 본다
 export const accountStateOf = (a: ProfileAccount | null): 'opened' | 'none' | 'reviewing' | 'rejected' =>
   !a || a.status === 'CLOSED' ? 'none' : a.status === 'APPLIED' ? 'reviewing' : a.status === 'REJECTED' ? 'rejected' : 'opened'
 

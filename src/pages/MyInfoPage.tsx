@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { fetchAssessStatus, profileKeyOf } from '../api/investor'
+import { fetchAssessStatus, profileKeyOf, syncAssessState } from '../api/investor'
 import type { InvestorStatus } from '../api/investor'
 import { getProfile } from '../api/profile'
 import type { Profile } from '../api/profile'
@@ -13,20 +13,20 @@ import { MyInfoAssessDialog } from '../components/myinfo/MyInfoAssessDialog'
 import { MyInfoBasicBox } from '../components/myinfo/MyInfoBasicBox'
 import { MyInfoCommunityBox } from '../components/myinfo/MyInfoCommunityBox'
 import { MyInfoConsentBox } from '../components/myinfo/MyInfoConsentBox'
-import { MyInfoDevPanel } from '../components/myinfo/MyInfoDevPanel'
 import { MyInfoNotifyBox } from '../components/myinfo/MyInfoNotifyBox'
 import { MyInfoThemeBox } from '../components/myinfo/MyInfoThemeBox'
-import { MyInfoRiskyNotice } from '../components/myinfo/MyInfoRiskyNotice'
 import { MyInfoProfileBox } from '../components/myinfo/MyInfoProfileBox'
+import { MyInfoRiskyNotice } from '../components/myinfo/MyInfoRiskyNotice'
 import { MyInfoLoginsBox } from '../components/myinfo/MyInfoLoginsBox'
 import { MyInfoPwDialog } from '../components/myinfo/MyInfoPwDialog'
 import { MyInfoSecurityBox } from '../components/myinfo/MyInfoSecurityBox'
 import { MyInfoTradeBox } from '../components/myinfo/MyInfoTradeBox'
-import { assessState } from '../components/myinfo/myinfoProfile'
+import { assessState, isTradeRisky } from '../components/myinfo/myinfoProfile'
+import { isRiskySnoozed, snoozeRisky } from '../components/myinfo/riskySnooze'
+import { useTendency } from '../components/invest/useNewPkgData'
 import type { AssessHistItem } from '../components/myinfo/myinfoProfile'
 import { useAppShell } from '../layouts/appShell'
 import { RETURNS_DATA as RD } from '../data/returns'
-import type { ProfileKey } from '../data/returns'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
 
 const HASH_BOXES = ['assess', 'notify', 'theme']
@@ -39,7 +39,6 @@ export function MyInfoPage() {
   const { hash } = useLocation()
   const { message: toast, showToast } = useToast()
   const [, refresh] = useReducer((n: number) => n + 1, 0)
-  const [riskyHide, setRiskyHide] = useState(false)
   const [asOpen, setAsOpen] = useState(false)
   const [pwOpen, setPwOpen] = useState(false)
   // 서버 프로필(기본 정보·커뮤니티 박스가 같이 씀). 못 받으면 null + 다시 불러오기
@@ -73,14 +72,12 @@ export function MyInfoPage() {
     }
   }, [profTries])
 
-  // 시연 설정(성향 상태 등)이 바뀌면 다시 그림
+  const tendency = useTendency()
+  const [riskyHide, setRiskyHide] = useState(false) // 이번에 '보지 않기'를 누르면 바로 숨김(저장은 riskySnooze)
+  // 서버 진단 상태·성향이 바뀌면(로그인·세션 복원 동기화, 재진단) 다시 그림
   useEffect(() => {
-    const onDemo = () => {
-      setRiskyHide(false) // 원본: 시연 설정이 바뀌면 '30일 동안 보지 않기'도 풀림
-      refresh()
-    }
-    window.addEventListener('returns-demo', onDemo)
-    return () => window.removeEventListener('returns-demo', onDemo)
+    window.addEventListener('returns-state', refresh)
+    return () => window.removeEventListener('returns-state', refresh)
   }, [])
 
   useEffect(() => {
@@ -133,10 +130,10 @@ export function MyInfoPage() {
 
   const openAssess = () => setAsOpen(true)
 
-  // 재진단 제출 직후(창은 결과 화면 그대로): 서버 프로필을 다시 받아 이력에 반영 + 시연 설정의 성향 바꿈 → 홈·추천·상단 바에 바로 반영
-  const saveAssess = (_score: number, profile: string) => {
+  // 재진단 제출 직후(창은 결과 화면 그대로): 서버 프로필을 다시 받아 이력에 반영 + 서버 성향을 다시 받음 → 홈·추천·상단 바에 반영
+  const saveAssess = () => {
     getProfile().then(setProf).catch(() => {})
-    RD.setDemo({ profile: profile as ProfileKey, assess: 'ok' })
+    void syncAssessState() // 서버 성향·진단 상태를 다시 받아 홈·추천·상단 바에 반영
     void loadAssessStatus()
     showToast('투자성향을 저장했어요 · 홈·추천에 바로 반영돼요')
   }
@@ -147,11 +144,12 @@ export function MyInfoPage() {
       <div className={styles.page}>
         <div className={styles.col}>
           <MyInfoProfileBox className={cx(styles.profile, styles.flashable, flash === 'assess' && styles.flashOn)} hist={hist} name={prof?.name} status={assessStatus} onOpenAssess={openAssess} />
-          {assessState() === 'risky' && !riskyHide && (
+          {isTradeRisky(tendency.data) && !riskyHide && !isRiskySnoozed() && (
             <MyInfoRiskyNotice
               className={styles.trade}
               onOpenAssess={openAssess}
               onSnooze={() => {
+                snoozeRisky()
                 setRiskyHide(true)
                 showToast('30일 동안 이 안내를 보지 않아요')
               }}
@@ -183,7 +181,6 @@ export function MyInfoPage() {
           }}
         />
       )}
-      <MyInfoDevPanel onChange={(assess) => RD.setDemo({ assess })} />
       <Toast message={toast} />
     </>
   )

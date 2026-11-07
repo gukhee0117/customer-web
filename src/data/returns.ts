@@ -2,7 +2,7 @@
 // 날짜 계산(dates, F)은 src/lib/calc.ts, 화면의 "오늘"은 src/lib/clock.ts의 getBusinessToday() 한 곳.
 // 데이터 날짜는 고정값이 아니라 "기준일(F.anchor)로부터 N영업일 전"으로 정의 → 언제 열어도 앞뒤가 맞음.
 // 주석·문구의 날짜 예시(10.21, 10.23 …)는 모두 "업무일 = 2026-11-18일 때"의 값. 금액·수량·차익률은 날짜와 무관. 모든 값은 예시.
-import { F, addMonths, bizAdd, dates } from '../lib/calc'
+import { F, addMonths, dates } from '../lib/calc'
 
 // ===== 타입 =====
 export type ProfileKey = 'stable' | 'stableSeek' | 'neutral' | 'active' | 'aggressive'
@@ -11,14 +11,11 @@ export type PackageId = 'semi-chain' | 'steady-div' | 'auto-parts'
 export type AccountState = 'opened' | 'none' | 'reviewing' | 'rejected'
 export type BenefitState = 'POSSIBLE' | 'REDUCED' | 'IMPOSSIBLE'
 
-export interface DemoSettings {
-  dateOn: boolean // 서버 system_clock 연동 전까지는 쓰지 않음(업무일은 getBusinessToday)
-  date: string
-  trade: boolean
-  profile: ProfileKey
-  account: AccountState
-  benefit: BenefitState
-  assess: string
+// 서버 프로필·진단 상태를 화면 전체가 같은 값으로 읽도록 담아 두는 값(로그인·새로고침·재진단 때 서버 값으로 채움, 브라우저에 저장하지 않음)
+export interface ServerState {
+  profile: ProfileKey | null // 서버 투자성향(미진단이면 null)
+  account: AccountState // 서버 RIA 계좌 상태
+  assess: string // 진단 상태: ok(유효) · expired(만료) · none(미진단)
 }
 
 export interface FixedDates {
@@ -60,7 +57,7 @@ export interface OverseasHolding {
 
 export interface Customer {
   name: string
-  profile: ProfileKey
+  profile: ProfileKey | 'private' // 서버 투자성향, 미진단이면 'private'(기본 아바타)
   score: number
   domesticAssets: number
   birth: string
@@ -175,22 +172,6 @@ export interface TradeRow {
   text: string
   amount: number | null
   status: string
-}
-
-export interface TradeDemo {
-  on: boolean
-  date: string
-  kind: string
-  t: string
-  qty: number
-  price: number
-  amount: number
-  text: string
-  confirmDate: string
-  status: string
-  steps: string[]
-  cur: number
-  stepNote: string
 }
 
 export interface Notif {
@@ -308,9 +289,8 @@ export interface ReturnsData {
   PROFILE_SCORE: ProfileScoreRule
   ETF: Record<string, EtfInfo>
   RECS_BY_PROFILE: Record<string, string[]>
-  demo: () => DemoSettings
-  setDemo: (patch: Partial<DemoSettings>) => DemoSettings
-  DEMO_DEFAULT: DemoSettings
+  serverState: () => ServerState
+  setServerState: (patch: Partial<ServerState>) => ServerState
   readonly DATES: BizDates
   PROFILES: Record<string, ProfileInfo>
   SN: Record<string, string>
@@ -328,7 +308,6 @@ export interface ReturnsData {
   LIVE_BY_STOCK: Record<string, LiveRow[]>
   LIVE_POOL: LiveRow[]
   readonly TRADES: TradeRow[]
-  readonly TRADE_DEMO: TradeDemo
   readonly NOTIFS: Notif[]
   readonly DOMESTIC_BUYS: TradeRow[]
   readonly DOMESTIC_TRADES: DomesticTrade[]
@@ -341,8 +320,6 @@ export interface ReturnsData {
   readonly ASSESSMENT: Assessment
   readonly ACCOUNT_STATE: AccountState
   readonly ACCOUNT_STATES: Record<AccountState, AccountStateInfo>
-  readonly BENEFIT_STATE: BenefitState
-  readonly BENEFIT: Benefit
   readonly ACCOUNT: Account
   LINKED: { name: string; no: string; note: string }
   readonly ASSETS: Assets
@@ -356,31 +333,18 @@ export interface ReturnsData {
 // ===== 절대 바뀌지 않는 날짜 =====
 export const FIXED: FixedDates = { DEPOSIT_BASE: '2025-12-23', JOIN_END: '2026-12-31', DOCS_FROM_YEAR: 2027, LAUNCH: '2026-03-23' }
 
-// ===== 시연 설정(브라우저 저장, 모든 페이지 공통) =====
-const DEMO_KEY = 'returns-demo'
-const DEMO_DEFAULT: DemoSettings = { dateOn: false, date: '2026-12-24', trade: false, profile: 'active', account: 'opened', benefit: 'POSSIBLE', assess: 'ok' }
-export const demo = (): DemoSettings => {
-  let v: Partial<DemoSettings> = {}
+// ===== 서버 값 상태(모든 페이지 공통, 메모리에만 둠) =====
+const STATE_EVENT = 'returns-state' // 값이 바뀌면 이 이벤트로 알려 화면이 다시 그린다
+let state: ServerState = { profile: null, account: 'opened', assess: 'ok' }
+export const serverState = (): ServerState => state
+const setServerState = (patch: Partial<ServerState>): ServerState => {
+  state = { ...state, ...patch }
   try {
-    v = JSON.parse(localStorage.getItem(DEMO_KEY) || '{}') || {}
-  } catch {
-    // 저장소를 못 읽으면 기본값 사용
-  }
-  return { ...DEMO_DEFAULT, ...v }
-}
-const setDemo = (patch: Partial<DemoSettings>): DemoSettings => {
-  const v = { ...demo(), ...patch }
-  try {
-    localStorage.setItem(DEMO_KEY, JSON.stringify(v))
-  } catch {
-    // 저장소를 못 쓰면 이번 값만 반영
-  }
-  try {
-    window.dispatchEvent(new CustomEvent('returns-demo', { detail: v }))
+    window.dispatchEvent(new CustomEvent(STATE_EVENT, { detail: state }))
   } catch {
     // 이벤트 발행 실패는 무시
   }
-  return v
+  return state
 }
 
 // 상대 날짜 표(영업일 전) — 괄호는 업무일 = 2026-11-18일 때
@@ -428,12 +392,11 @@ export const C: Constants = {
     const t = dates()
     return { amount: 38000000, date: t.confirmed, filled: t.filled, confirmed: t.confirmed, gain: 14000000 }
   },
-  // 입고 해외주식(매도 가능) — '진행 중 매도 예시'가 켜지면 AAPL 5주가 빠짐
+  // 입고 해외주식(매도 가능)
   get HOLDINGS() {
-    const tr = demo().trade
     return [
       { t: 'TSLA', name: '테슬라', price: 450000, qty: 10, rate: 0.52 },
-      { t: 'AAPL', name: '애플', price: 300000, qty: tr ? 15 : 20, rate: 0.31 },
+      { t: 'AAPL', name: '애플', price: 300000, qty: 20, rate: 0.31 },
       { t: 'NVDA', name: '엔비디아', price: 500000, qty: 8, rate: 0.28 },
       { t: 'MSFT', name: '마이크로소프트', price: 700000, qty: 5, rate: 0.24 }
     ]
@@ -484,7 +447,7 @@ Object.keys(KR).concat(KR_EXTRA).forEach((c) => { META[c] = { grade: 2, gradeBas
 
 const D: ReturnsData = {
   C, FIXED, ALLOWED_GRADE, GRADE_NAMES, GRADE_SOURCE, PROFILE_SCORE, ETF, RECS_BY_PROFILE,
-  demo, setDemo, DEMO_DEFAULT,
+  serverState, setServerState,
   get DATES() { return dates() },
   PROFILES: {
     stable: { label: '안정형', img: 'assets/kkiru-stable.png' },
@@ -933,11 +896,6 @@ const D: ReturnsData = {
         { date: t.opened, kind: '개설', text: 'Returns RIA 계좌', amount: null, status: '완료' }
       ]
     },
-    // 진행 중 매도 예시(시연 '진행 중 매도 예시' 스위치, 기본 꺼짐): 업무일 체결 → 업무일 + 2영업일 원화 확정 예정
-    get TRADE_DEMO() {
-      const td = F.biz(), cf = bizAdd(td, 2)
-      return { on: demo().trade, date: td, kind: '매도', t: 'AAPL', qty: 5, price: 300000, amount: 1500000, text: 'AAPL 애플 5주', confirmDate: cf, status: '체결 · 원화 확정 예정 (' + F.short(cf) + ')', steps: ['주문', '체결', '원화 확정'], cur: 2, stepNote: '정산 완료 · 1년 유지 시작' }
-    },
     // 알림(최신이 위)
     get NOTIFS() {
       const t = dates()
@@ -984,25 +942,19 @@ const D: ReturnsData = {
     WATCH: ['000660', '005380', '900020'], // 관심 종목. 최근 본 종목은 localStorage 기준
     COMMUNITY: { nickname: '리아', profilePublic: false },
     get CUSTOMER() {
-      const pf = demo().profile
-      return { name: '김리아', profile: ALLOWED_GRADE[pf] ? pf : 'active', score: 36, domesticAssets: D.ASSETS.domestic, birth: '1994.**.**', phone: '010-****-5678', email: 'ri***@returns.co.kr' }
+      const pf = state.profile
+      return { name: '김리아', profile: (pf && ALLOWED_GRADE[pf] ? pf : 'private') as ProfileKey | 'private', score: 36, domesticAssets: D.ASSETS.domestic, birth: '1994.**.**', phone: '010-****-5678', email: 'ri***@returns.co.kr' }
     },
     get ASSESSMENT() {
       const t = dates()
       return { date: t.assessed, validUntil: t.assessValid, score: 36, profile: F.profileOf(36), validMonths: 24 }
     },
-    // 계좌 상태 시연: opened(기본) / none / reviewing / rejected
-    get ACCOUNT_STATE() { return demo().account },
+    // 계좌 상태: 서버 프로필 값(opened / none / reviewing / rejected)
+    get ACCOUNT_STATE() { return state.account },
     get ACCOUNT_STATES() { return { opened: { label: '정상' }, none: { label: '계좌 없음' }, reviewing: { label: '심사 중', appliedAt: dates().reviewApplied }, rejected: { label: '반려', reason: '다른 증권사 RIA 한도 합계가 5,000만 원을 넘어요' } } },
-    // 혜택 상태 시연: POSSIBLE(기본) / REDUCED(조정비율 0.90) / IMPOSSIBLE(조기인출로 취소)
-    get BENEFIT_STATE() { return demo().benefit },
-    get BENEFIT() {
-      const st = demo().benefit
-      return { state: st, adj: st === 'REDUCED' ? 0.9 : 1, cancelledAt: st === 'IMPOSSIBLE' ? dates().benefitCancel : null, cancelReason: st === 'IMPOSSIBLE' ? '조기인출로 취소' : '' }
-    },
     get ACCOUNT() {
       const t = dates()
-      return { name: 'Returns RIA', no: '123-45-****89', opened: t.opened, status: (D.ACCOUNT_STATES[demo().account] || { label: '정상' }).label, state: demo().account, sellLimit: 50000000, limitScope: '전 증권사 합산', otherBrokerSold: 0 }
+      return { name: 'Returns RIA', no: '123-45-****89', opened: t.opened, status: (D.ACCOUNT_STATES[state.account] || { label: '정상' }).label, state: state.account, sellLimit: 50000000, limitScope: '전 증권사 합산', otherBrokerSold: 0 }
     },
     LINKED: { name: 'Returns 일반계좌', no: '456-78-****10', note: '입고·인출은 이 계좌로만' },
     get ASSETS() {

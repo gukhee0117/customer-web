@@ -21,7 +21,6 @@ interface Props {
   tendency: { state: LoadState; data: Tendency | null }
   addedCodes: string[] // 이미 담은 종목
   ask: string // 주소(?ask=)로 들어온 말
-  noCand: boolean // 시연 설정 '후보 없음'
   onPick: (c: CandidateItem) => void
 }
 
@@ -42,7 +41,7 @@ function Bubble({ profile, lines }: { profile: string; lines: string[] }) {
 
 // "후보 찾기" 단계 — 성향 비교 · 말로 조건 찾기 · 직접 조건 고르기 · 후보 목록
 // 끼루는 말을 조건으로 바꾸고 결과를 설명만 한다. 종목·비중을 제안하거나 순위를 매기지 않는다
-export function InvestNewPkgStart({ tendency, addedCodes, ask, noCand, onPick }: Props) {
+export function InvestNewPkgStart({ tendency, addedCodes, ask, onPick }: Props) {
   const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER)
   const [text, setText] = useState(ask)
   const [parse, setParse] = useState<ParseState>({ phase: 'idle' })
@@ -151,7 +150,7 @@ export function InvestNewPkgStart({ tendency, addedCodes, ask, noCand, onPick }:
       </div>
 
       <InvestCandidateFilters filter={filter} onChange={setFilter} themes={themes} canIncludeOut={!!survey?.available} />
-      <InvestCandidateList state={list.state} data={list.data} noCand={noCand} addedCodes={addedCodes} actionLabel="담기" onPick={onPick} onShowOut={() => setFilter((f) => ({ ...f, includeOut: true }))} />
+      <InvestCandidateList state={list.state} data={list.data} addedCodes={addedCodes} actionLabel="담기" onPick={onPick} onShowOut={() => setFilter((f) => ({ ...f, includeOut: true }))} />
     </>
   )
 }

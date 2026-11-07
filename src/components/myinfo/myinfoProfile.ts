@@ -1,10 +1,10 @@
-import { RETURNS_DATA as RD, demo } from '../../data/returns'
+import { RETURNS_DATA as RD, serverState } from '../../data/returns'
 import type { ProfileKey } from '../../data/returns'
 import { F } from '../../lib/calc'
 import type { InvestorStatus } from '../../api/investor'
 import type { Tendency } from '../../api/stockPackage'
 
-// 내 정보 — 프로필·거래로 본 성향 박스가 쓰는 값. 고객·진단·계좌는 RD(홈과 같은 값), 시연 상태는 demo()에서 읽는다.
+// 내 정보 — 프로필·거래로 본 성향 박스가 쓰는 값. 고객·진단·계좌는 서버 값을 담아 둔 RD.serverState(홈과 같은 값)에서 읽는다.
 
 export interface AssessHistItem {
   date: string
@@ -33,10 +33,11 @@ export interface ProfileView {
 
 const labelOf = (key: string, fallback: string): string => RD.PROFILES[key]?.label ?? fallback
 
-// 시연 성향 상태: ok(유효) · risky(거래가 성향보다 위험) · soon(만료 30일 이내) · expired(만료) · none(미진단)
-export const assessState = (): string => demo().assess || 'ok'
+// 서버 진단 상태: ok(유효) · expired(만료) · none(미진단)
+export const assessState = (): string => serverState().assess || 'ok'
 
-export const profileKey = (): ProfileKey => RD.CUSTOMER.profile as ProfileKey
+// 서버 투자성향. 미진단이면 기본 아바타 키('private')
+export const profileKey = (): ProfileKey | 'private' => RD.CUSTOMER.profile
 
 export const profileView = (stored: AssessHistItem[] | null, status: InvestorStatus | null): ProfileView => {
   const key = profileKey(), pf = RD.PROFILES[key], aSt = assessState()
@@ -48,9 +49,9 @@ export const profileView = (stored: AssessHistItem[] | null, status: InvestorSta
   const dLeft = validUntil ? F.days(F.today(), validUntil) : 999
   return {
     label: aSt === 'none' ? '미진단' : pf.label,
-    img: pf.img ?? '',
+    img: pf.img ?? 'assets/kkiru-avatar-private.png',
     done: aSt !== 'none',
-    soon: aSt === 'soon' || (aSt === 'ok' && dLeft >= 0 && dLeft <= 30),
+    soon: aSt === 'ok' && dLeft >= 0 && dLeft <= 30,
     dLeft,
     noteOn: aSt === 'expired' || aSt === 'none',
     note: aSt === 'none' ? '아직 투자성향을 진단하지 않았어요. 진단하면 성향에 맞는 범위 안에서 추천을 받을 수 있어요.' : '투자성향 진단 유효기간(24개월)이 지났어요. 다시 진단하기 전까지는 추천과 주식 패키지 후보를 볼 수 없어요.',
@@ -74,6 +75,11 @@ export interface TradeView {
 
 // 위험 → 안전 순서. 허용 최소 등급은 서버 InvestorRiskRange와 같은 표(RD.ALLOWED_GRADE)를 쓴다
 const ORDER: ProfileKey[] = ['aggressive', 'active', 'neutral', 'stableSeek', 'stable']
+
+// 거래 위험: 서버가 준 평균 매수 등급이 설문 성향이 허용하는 가장 위험한 등급(allowedMinGrade)보다 더 위험할 때(등급 숫자가 더 작을 때).
+// 서버가 성향을 판정하지는 않으므로, 이 안내는 "다시 진단해 보시겠어요?"를 권하는 용도로만 쓴다(추천은 계속 설문 결과 기준)
+export const isTradeRisky = (t: Tendency | null): boolean =>
+  !!t && t.survey.available && t.survey.allowedMinGrade != null && t.trading.available && t.trading.avgBuyGrade != null && t.trading.avgBuyGrade < t.survey.allowedMinGrade
 
 // 거래로 본 경향(참고용). 서버 /stock-packages/tendency 값으로 만든다. 체결된 매수가 서버 기준(5건)보다 적으면 null(→ "거래가 쌓이면 보여드려요")
 // 성향을 판정하지 않고, 평균 매수 등급을 담을 수 있는 가장 안전한 성향 범위를 사실로만 알려 준다

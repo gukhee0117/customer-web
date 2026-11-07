@@ -4,8 +4,6 @@ import { Tabs } from '../components/common/Tabs'
 import type { BotMessage } from '../components/common/ChatbotFab'
 import { Toast } from '../components/common/Toast'
 import { useToast } from '../components/common/useToast'
-import { RETURNS_DATA as RD } from '../data/returns'
-import type { DemoSettings } from '../data/returns'
 import { F } from '../lib/calc'
 import { useAppShell } from '../layouts/appShell'
 import { apiErrorMessage } from '../api/client'
@@ -16,7 +14,6 @@ import { usePollTick } from '../components/common/usePollTick'
 import { createPackage, deletePackage, placeOrder, updatePackage } from '../api/stockPackage'
 import type { CandidateItem, OrderResult, SavePackageRequest } from '../api/stockPackage'
 import { InvestAssetsBox } from '../components/invest/InvestAssetsBox'
-import { InvestDevPanel } from '../components/invest/InvestDevPanel'
 import { InvestDialog } from '../components/invest/InvestDialog'
 import type { DialogState } from '../components/invest/InvestDialog'
 import { InvestOrders } from '../components/invest/InvestOrders'
@@ -30,7 +27,6 @@ import { InvestTradePanel } from '../components/invest/InvestTradePanel'
 import { InvestUnsuitDialog } from '../components/invest/InvestUnsuitDialog'
 import type { UnsuitState } from '../components/invest/InvestUnsuitDialog'
 import { BOT_CHIPS, botGreeting, botTurn } from '../components/invest/investBotLogic'
-import type { ChkDemo, RejectReason } from '../components/invest/investDevData'
 import { emptyAdd, pctInt } from '../components/invest/investAddLogic'
 import type { AddState } from '../components/invest/investAddLogic'
 import { openTradeState } from '../components/invest/investOrderLogic'
@@ -69,7 +65,7 @@ const saveRequest = (pkg: PkgView, name: string, weights: { pid: number; weight:
 
 const currentWeights = (pkg: PkgView) => pkg.items.filter((i) => i.target > 0).map((i) => ({ pid: i.pid, weight: i.target, confirmed: i.out === true }))
 
-// 주식 패키지 — 내 패키지(목록·상세·보유 종목·주문 내역)와 주문·패키지 만들기·수정·삭제는 서버 값과 서버 처리, 후보 보기 탭, 새 패키지 만들기 창, 시연 설정
+// 주식 패키지 — 내 패키지(목록·상세·보유 종목·주문 내역)와 주문·패키지 만들기·수정·삭제는 서버 값과 서버 처리, 후보 보기 탭, 새 패키지 만들기 창
 export function InvestPage() {
   useDocumentTitle('Returns 주식 패키지')
   const { hash, search } = useLocation()
@@ -80,11 +76,11 @@ export function InvestPage() {
   const shell = useAppShell()
   const { message, showToast } = useToast()
 
-  // 시연 설정(성향·성향 상태)이 바뀌면 다시 그림(원본 returns-demo 이벤트)
+  // 서버 성향·진단 상태가 바뀌면(로그인·세션 복원 동기화, 재진단) 다시 그림
   const [, redraw] = useReducer((n: number) => n + 1, 0)
   useEffect(() => {
-    window.addEventListener('returns-demo', redraw)
-    return () => window.removeEventListener('returns-demo', redraw)
+    window.addEventListener('returns-state', redraw)
+    return () => window.removeEventListener('returns-state', redraw)
   }, [])
 
   // 내 패키지·보유·현재가·주문 내역(서버 값)과 오늘 기준 요율
@@ -101,10 +97,6 @@ export function InvestPage() {
   // 주소로 열기: ?new=1(&ask=말)이면 새 패키지 창, 아니고 ?add=1이면 종목 추가 창. 이 화면에 들어올 때 한 번만 봄
   const [nm, setNm] = useState<NewPkgState | null>(() => (params.get('new') === '1' ? nmFromUrl(params.get('ask')) : null))
   const [add, setAdd] = useState<AddState | null>(() => (params.get('new') !== '1' && params.get('add') === '1' ? emptyAdd() : null))
-  // 시연 설정 중 이 화면 안에서만 쓰는 값
-  const [noCand, setNoCand] = useState(false)
-  const [chkDemo, setChkDemo] = useState<ChkDemo | null>(null)
-  const [rejNext, setRejNext] = useState<RejectReason | null>(null)
   const [dlg, setDlg] = useState<DialogState | null>(null)
   const [uf, setUf] = useState<UnsuitState | null>(null)
   const sending = useRef(false) // 서버에 보내는 중이면 같은 버튼을 다시 눌러도 보내지 않는다
@@ -152,7 +144,7 @@ export function InvestPage() {
   )
 
   // 평가액이 바뀌면 서버가 알려 준다 — 주문·패키지 창을 열어 둔 동안에는 건너뛰어 입력을 방해하지 않는다
-  const editing = trade != null || bulk != null || nm != null || add != null || dlg != null || uf != null || chkDemo != null
+  const editing = trade != null || bulk != null || nm != null || add != null || dlg != null || uf != null
   const editingRef = useRef(editing)
   useEffect(() => {
     editingRef.current = editing
@@ -444,11 +436,6 @@ export function InvestPage() {
     })
   }
 
-  const changeDemo = (patch: Partial<DemoSettings>) => {
-    RD.setDemo(patch)
-    redraw()
-  }
-
   // 후보 보기 탭 "패키지에 담기": 진단 확인·성향 밖이면 확인 → 어느 패키지에 담을지 → 그 패키지의 종목 추가 창(이미 담긴 패키지면 고르기 없이 검색만)
   const pickPackage = (c: CandidateItem) =>
     gateCandidate(c, () =>
@@ -547,8 +534,6 @@ export function InvestPage() {
           onClose={() => setNm(null)}
           onMake={makePkg}
           onDialog={setDlg}
-          noCand={noCand}
-          chkDemo={chkDemo}
         />
       )}
       {dlg && <InvestDialog dialog={dlg} onClose={() => setDlg(null)} />}
@@ -566,7 +551,6 @@ export function InvestPage() {
           }}
         />
       )}
-      <InvestDevPanel onChange={changeDemo} noCand={noCand} onNoCand={setNoCand} chk={chkDemo} onChk={setChkDemo} rej={rejNext} onRej={setRejNext} />
       <Toast message={message} />
     </>
   )
