@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import { RETURNS_DATA as RD } from '../../data/returns'
-import { AT_TOP_PAGE_PX, AT_TOP_PX, FEED_LIMIT, FRESH_MS, GEN, KIRU_MS, LIVE_MIN_MS, LIVE_SPAN_MS, POST_MAX, REPLY_MAX, REPORT_MAX, REP_FIRST, REP_STEP, THREAD_LIMIT } from './communityData'
-import { buildList, myReplies, resolveKiru, type AddedReplies, type FeedView, type KiruState, type Post, type Reply } from './communityPosts'
+import { apiErrorMessage } from '../../api/client'
+import { deleteComment, deletePost, editPost, getComments, getCommentsThrough, getMyComments, getMyPosts, getPopularPosts, getPost, getPosts, likeComment, likePost, reportTarget, retryCommentKkiru, retryPostKkiru, unlikeComment, unlikePost, writeComment, writePost } from '../../api/community'
+import type { CommunityPage, CommunityPost, ReportReason } from '../../api/community'
+import { FEED_LIMIT, FRESH_MS, GEN, POST_MAX, REPLY_MAX } from './communityData'
+import { fromServerComment, fromServerPost, type FeedView, type MyReply, type Post, type Reply } from './communityPosts'
 
 export type FeedTab = 'live' | 'hot' | 'mine'
 export type HotScope = 'stock' | 'all'
@@ -15,7 +17,7 @@ interface FeedArgs {
   fixed: boolean // 화면 고정 상태면 피드 영역만 스크롤
   listRef: RefObject<HTMLDivElement | null>
   feedRef: RefObject<HTMLElement | null>
-  nick: string // 내 닉네임(글·답글의 작성자). 닉네임이 비었으면 기본 이름
+  onMyChanged: () => void // 내 글·답글 수가 달라졌을 때(프로필 카드 숫자를 다시 받음)
   onPosted: () => void // 글을 등록했을 때(인기글 탭에서 썼으면 실시간으로 옮기는 일은 부른 쪽이 함)
   thread: string | null // 주소 ?thread= 로 들어온 글 id(처음 한 번만 쓰임)
   onToast: (text: string) => void
@@ -25,20 +27,17 @@ interface FeedArgs {
 interface ReplyAt { post: string; rep: string | null; target: string | null }
 
 // 피드 글 목록의 상태: 새로 붙은 글, 아직 안 보인 새 글, 좋아요, 더보기, 메뉴, 보여 줄 개수 + 실시간 새 글 타이머
-export function useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listRef, feedRef, nick, onPosted, thread, onToast }: FeedArgs) {
-  const [added, setAdded] = useState<Record<string, Post[]>>({}) // 종목별로 앞에 붙은 새 글
-  const [pend, setPend] = useState<Record<string, Post[]>>({}) // 스크롤 중이라 바에만 알린 새 글
+export function useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listRef, feedRef, onMyChanged, onPosted, thread, onToast }: FeedArgs) {
+  const [refreshed, setRefreshed] = useState<Record<string, Post>>({}) // 다시 받은 글(끼루 상태가 바뀐 것)
+  const [added, setAdded] = useState<Record<string, Post[]>>({}) // 종목별로 앞에 붙은 새 글(글쓰기를 서버에 연결하기 전까지 화면에만 둠)
   const [fresh, setFresh] = useState<string | null>(null) // 방금 붙은 글(나타나는 효과)
-  const [barFade, setBarFade] = useState(0)
-  const [liked, setLiked] = useState<Record<string, boolean>>({})
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  const [kMore, setKMore] = useState<Record<string, boolean>>({})
-  const [limitState, setLimitState] = useState<{ code: string; n: number }>({ code, n: thread ? THREAD_LIMIT : FEED_LIMIT }) // 종목이 바뀌면 자동으로 처음 개수로 돌아감
   const [menuState, setMenuState] = useState<{ code: string; id: string } | null>(null)
   const [flash, setFlash] = useState<{ id: string; on: boolean } | null>(thread ? { id: thread, on: true } : null)
-  const [addRep, setAddRep] = useState<AddedReplies>({}) // 내가 새로 단 답글
+  // 펼친 글의 댓글(서버). 오래된 것부터 오고 nextCursor로 이어 받는다
+  const [cm, setCm] = useState<Record<string, { status: 'loading' | 'live' | 'error'; items: Reply[]; next: number | null; more: boolean }>>({})
+  const [rcDelta, setRcDelta] = useState<Record<string, number>>({}) // 내가 댓글을 쓰거나 지워서 달라진 댓글 수
   const [repOpen, setRepOpen] = useState<Record<string, boolean>>(thread ? { [thread]: true } : {}) // 답글을 펼친 글(여러 글 동시에 가능)
-  const [repShow, setRepShow] = useState<Record<string, number>>({}) // 글마다 보여 줄 답글 수(처음 REP_FIRST)
   const [replyAt, setReplyAt] = useState<ReplyAt | null>(null)
   const [replyText, setReplyText] = useState('')
   // 종목이 바뀌면 쓰던 답글 자리는 닫힘(쓰던 글자는 그대로 두는 것까지 원본과 같음)
@@ -48,8 +47,7 @@ export function useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listR
   const [editing, setEditing] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [delId, setDelId] = useState<string | null>(null) // 삭제 확인 창에 떠 있는 글
-  const [report, setReport] = useState<{ reason: string | null; text: string } | null>(null) // 신고 창
-  const [kSt, setKSt] = useState<Record<string, KiruState>>({}) // 물어본 글의 끼루 답변 상태
+  const [report, setReport] = useState<{ reason: ReportReason | null; postId?: number; commentId?: number } | null>(null) // 신고 창
   const [draft, setDraft] = useState('')
   const [compFocus, setCompFocus] = useState(false)
   const [kAsk, setKAsk] = useState(false)
@@ -57,25 +55,78 @@ export function useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listR
   const [seenCode, setSeenCode] = useState(code)
   if (seenCode !== code) { setSeenCode(code); setReplyAt(null) }
 
-  const limit = limitState.code === code ? limitState.n : FEED_LIMIT
   const menu = menuState && menuState.code === code ? menuState.id : null
 
   const qt = q.trim()
   const qOn = searchOpen && !!qt
   const view: FeedView = qOn ? 'search' : tab
-  const list = useMemo(() => buildList({ code, view, scope, q: qt, added, addRep, mods }), [code, view, scope, qt, added, addRep, mods])
+  // ===== 서버 글 목록(최신·인기·내 글·검색). 종목·탭·범위·검색어가 바뀌면 처음부터 다시 받는다 =====
+  const ticker = code === GEN ? 'GENERAL' : code
+  const [tries, setTries] = useState(0)
+  const listKey = [view, ticker, view === 'hot' ? scope : '', view === 'search' ? qt : '', tries].join('|')
+  const [srv, setSrv] = useState<{ key: string; items: Post[]; next: number | null; failed: boolean; more: boolean } | null>(null)
+  const fetchPage = useCallback(
+    (cursor?: number): Promise<CommunityPage<CommunityPost>> => {
+      if (view === 'hot') return getPopularPosts({ ticker: scope === 'all' ? undefined : ticker, size: 30 })
+      if (view === 'mine') return getMyPosts({ cursor, size: FEED_LIMIT })
+      return getPosts({ ticker, q: view === 'search' ? qt : undefined, cursor, size: FEED_LIMIT })
+    },
+    [view, scope, ticker, qt]
+  )
+  useEffect(() => {
+    let alive = true
+    const key = listKey
+    const t = setTimeout(
+      () =>
+        fetchPage().then(
+          (page) => alive && setSrv({ key, items: page.items.map(fromServerPost), next: page.nextCursor, failed: false, more: false }),
+          () => alive && setSrv({ key, items: [], next: null, failed: true, more: false })
+        ),
+      view === 'search' ? 300 : 0 // 검색어를 칠 때마다 부르지 않게 잠깐 기다림
+    )
+    return () => {
+      alive = false
+      clearTimeout(t)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listKey])
+  const cur = srv && srv.key === listKey ? srv : null
+  const status: 'loading' | 'live' | 'error' = !cur ? 'loading' : cur.failed ? 'error' : 'live'
+  const retryList = () => setTries((n) => n + 1)
+
+  // ?thread= 로 들어온 글: 목록에 없을 수 있어 한 건을 따로 받아 맨 위에 붙인다
+  const [pin, setPin] = useState<Post | null>(null)
+  const pinThread = useCallback((id: string) => {
+    const n = Number(id)
+    if (!Number.isInteger(n) || n <= 0) return
+    getPost(n).then((p) => setPin(fromServerPost(p)), () => setPin(null))
+  }, [])
+
+  const list = useMemo(() => {
+    const local = view === 'live' || view === 'mine' ? added[code] || [] : []
+    const lead = pin && (view === 'live' || view === 'search') && pin.code === code ? [pin] : []
+    const seen = new Set<string>()
+    return [...local, ...lead, ...(cur?.items ?? [])]
+      .filter((p) => !mods.deleted[p.id] && !seen.has(p.id) && !!seen.add(p.id))
+      .map((p) => refreshed[p.id] ?? p)
+      .map((p) => (mods.edits[p.id] != null ? { ...p, text: mods.edits[p.id] } : p))
+  }, [view, added, code, pin, cur, mods, refreshed])
   const total = list.length
-  const shown = list.slice(0, limit)
+  const shown = list
+  const moreOn = !!cur && cur.next != null
+  const loadingMore = !!cur && cur.more
+  const loadMore = () => {
+    if (!cur || cur.next == null || cur.more) return
+    const key = cur.key
+    setSrv({ ...cur, more: true })
+    fetchPage(cur.next).then(
+      (page) => setSrv((o) => (o && o.key === key ? { ...o, items: o.items.concat(page.items.map(fromServerPost)), next: page.nextCursor, more: false } : o)),
+      () => setSrv((o) => (o && o.key === key ? { ...o, more: false } : o))
+    )
+  }
+
 
   // ===== 스크롤 =====
-  const atTop = useCallback(() => {
-    if (fixed) {
-      const l = listRef.current
-      return !l || l.scrollTop < AT_TOP_PX
-    }
-    const el = feedRef.current
-    return !el || el.getBoundingClientRect().top > -AT_TOP_PAGE_PX
-  }, [fixed, listRef, feedRef])
   const toListTop = useCallback((smooth: boolean) => {
     const behavior = smooth ? 'smooth' : 'auto'
     if (fixed) listRef.current?.scrollTo({ top: 0, behavior })
@@ -97,58 +148,24 @@ export function useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listR
     return () => { set.forEach(clearTimeout); set.clear() }
   }, [])
 
-  // ===== 실시간 새 글: 10~15초마다 1개. 보고 있는 화면이 실시간이고 맨 위가 아니면 바로 붙이지 않고 새 글 바로 알림 =====
-  const latest = useRef({ code, tab, searchOpen, atTop })
-  useEffect(() => { latest.current = { code, tab, searchOpen, atTop } })
-  const liveIdx = useRef<Record<string, number>>({})
-  useEffect(() => {
-    let t: ReturnType<typeof setTimeout>
-    const tick = () => {
-      t = setTimeout(() => { addLive(); tick() }, LIVE_MIN_MS + Math.random() * LIVE_SPAN_MS)
-    }
-    const addLive = () => {
-      const s = latest.current
-      if (s.code === GEN) return
-      const pool = RD.LIVE_BY_STOCK[s.code] || RD.LIVE_POOL
-      const i = liveIdx.current[s.code] || 0
-      liveIdx.current[s.code] = i + 1
-      const [nick, pf, text] = pool[i % pool.length]
-      // TODO: 백엔드 연결 시 서버가 보내 주는 새 글로 대체(지금은 예시 글을 차례로 돌려 씀)
-      const post: Post = { id: 'live-' + Date.now(), nick, pfRaw: pf, time: '방금', text: text.replace('{n}', RD.SN[s.code]), likes: 0, rc: 0, mine: false, code: s.code, kiru: null }
-      const watching = s.tab === 'live' && !s.searchOpen
-      if (!watching || s.atTop()) {
-        setAdded((a) => ({ ...a, [s.code]: [post].concat(a[s.code] || []) }))
-        setFresh(post.id)
-        later(() => setFresh((f) => (f === post.id ? null : f)), 400)
-      } else setPend((p) => ({ ...p, [s.code]: [post].concat(p[s.code] || []) }))
-    }
-    tick()
-    return () => clearTimeout(t)
-  }, [later])
-
-  // ===== 새 글 바 =====
-  const pendN = (pend[code] || []).length
-  const newBar = { show: (view === 'live' && pendN > 0) || !!barFade, n: pendN || barFade, fading: !!barFade }
-  const showNew = () => {
-    if (barFade) return
-    toListTop(true)
-    const mine = pend[code] || []
-    setAdded((a) => ({ ...a, [code]: mine.concat(a[code] || []) }))
-    setPend((p) => ({ ...p, [code]: [] }))
-    setFresh(mine[0] ? mine[0].id : null)
-    setBarFade(pendN)
-    later(() => { setBarFade(0); setFresh(null) }, 200)
-  }
-
   // ===== 글 하나에 대한 동작 =====
-  const toggle = (set: typeof setLiked) => (id: string) => set((m) => { const n = { ...m }; if (n[id]) delete n[id]; else n[id] = true; return n })
-  const like = toggle(setLiked)
-  const toggleMore = toggle(setExpanded)
-  const toggleKMore = toggle(setKMore)
+  // 글(p)·댓글(c) 좋아요: 키는 'p글id'·'c댓글id'. 서버가 돌려준 값으로 바꾼다
+  const [lk, setLk] = useState<Record<string, { liked: boolean; likes: number }>>({})
+  const like = (key: string) => {
+    const id = key.slice(1)
+    const post = key[0] === 'p'
+    const base = post ? list.find((x) => x.id === id) : Object.values(cm).flatMap((c) => c.items).find((r) => r.id === id)
+    if (!base) return
+    const liked = (lk[key] ?? base).liked
+    const call = post ? (liked ? unlikePost : likePost) : liked ? unlikeComment : likeComment
+    call(Number(id)).then(
+      (r) => setLk((m) => ({ ...m, [key]: { liked: r.liked, likes: r.likeCount } })),
+      (e) => onToast(apiErrorMessage(e, '좋아요를 바꾸지 못했어요'))
+    )
+  }
+  const toggleMore = (id: string) => setExpanded((m) => { const n = { ...m }; if (n[id]) delete n[id]; else n[id] = true; return n })
   const toggleMenu = (id: string) => setMenuState(menu === id ? null : { code, id })
   const closeMenu = useCallback(() => setMenuState(null), [])
-  const loadMore = () => setLimitState({ code, n: limit + FEED_LIMIT })
-  const resetLimit = () => setLimitState({ code, n: FEED_LIMIT })
 
   // 글을 찾아 스크롤 + 잠깐 강조(글이 아직 안 그려졌으면 잠깐씩 기다리며 다시 찾음)
   const scrollToPost = (id: string, smooth: boolean) => {
@@ -165,8 +182,9 @@ export function useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listR
     later(() => go(0), 120)
   }
   // 내가 쓴 답글 줄에서 그 글로 이동: 더 많이 보여 주고 답글을 펼치고 글을 찾아 스크롤 + 잠깐 강조
-  const focusPost = (targetCode: string, id: string) => {
-    setLimitState({ code: targetCode, n: THREAD_LIMIT })
+  const focusPost = (_targetCode: string, id: string) => {
+    pinThread(id)
+    if (!cm[id] || cm[id].status === 'error') loadReplies(id)
     setRepOpen((o) => ({ ...o, [id]: true }))
     setReplyAt(null)
     setFlash({ id, on: true })
@@ -174,16 +192,51 @@ export function useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listR
   }
   // 주소 ?thread= 로 들어왔으면 그 글로 스크롤(처음 한 번)
   useEffect(() => {
-    if (thread) later(() => scrollToPost(thread, false), 150)
+    if (thread) {
+      pinThread(thread)
+      loadReplies(thread)
+      later(() => scrollToPost(thread, false), 600)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ===== 답글 =====
+  // ===== 답글(서버 댓글) =====
+  const loadReplies = useCallback((id: string, cursor?: number, silent = false) => {
+    const n = Number(id)
+    if (!Number.isInteger(n) || n <= 0) return
+    if (cursor == null && !silent) setCm((m) => ({ ...m, [id]: { status: 'loading', items: [], next: null, more: false } }))
+    else setCm((m) => (m[id] ? { ...m, [id]: { ...m[id], more: true } } : m))
+    // 끼루 갱신처럼 조용히 다시 받을 때는 이미 불러온 개수까지 받아 더 본 댓글을 첫 쪽으로 줄이지 않는다
+    const loaded = silent && cursor == null ? cmRef.current[id]?.items.length ?? 0 : 0
+    const fetched = loaded > 20 ? getCommentsThrough(n, loaded) : getComments(n, { cursor, size: 20 })
+    fetched.then(
+      (page) => setCm((m) => ({ ...m, [id]: { status: 'live', items: (cursor == null ? [] : m[id]?.items ?? []).concat(page.items.map(fromServerComment)), next: page.nextCursor, more: false } })),
+      () => setCm((m) => (silent ? m : { ...m, [id]: cursor == null ? { status: 'error', items: [], next: null, more: false } : { ...(m[id] ?? { status: 'live', items: [], next: null }), more: false } }))
+    )
+  }, [])
+  const moreReps = (id: string) => {
+    const c = cm[id]
+    if (c && c.next != null && !c.more) loadReplies(id, c.next)
+  }
   const toggleRep = (id: string) => {
+    if (!repOpen[id] && (!cm[id] || cm[id].status === 'error')) loadReplies(id)
     setRepOpen((o) => ({ ...o, [id]: !o[id] }))
     if (replyAt && replyAt.post === id) { setReplyAt(null); setReplyText('') }
   }
-  const olderReps = (id: string) => setRepShow((m) => ({ ...m, [id]: (m[id] || REP_FIRST) + REP_STEP }))
+  const [delRepId, setDelRepId] = useState<string | null>(null) // 한 번 눌러 "정말 삭제"로 바뀐 내 댓글
+  const removeReply = (postId: string, id: string) => {
+    if (delRepId !== id) { setDelRepId(id); return }
+    setDelRepId(null)
+    deleteComment(Number(id)).then(
+      () => {
+        setCm((m) => (m[postId] ? { ...m, [postId]: { ...m[postId], items: m[postId].items.filter((r) => r.id !== id) } } : m))
+        setRcDelta((d) => ({ ...d, [postId]: (d[postId] || 0) - 1 }))
+        onMyChanged()
+        onToast('답글을 삭제했어요')
+      },
+      (e) => onToast(apiErrorMessage(e, '답글을 삭제하지 못했어요'))
+    )
+  }
   // 답글 버튼: 그 답글 아래에 입력칸을 열고 "@닉네임 "을 채움
   const openBox = (postId: string, repId: string, target: string) => {
     setReplyAt({ post: postId, rep: repId, target })
@@ -202,66 +255,118 @@ export function useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listR
   }
   const typeReply = (v: string) => setReplyText(v.slice(0, REPLY_MAX))
   const clearReply = () => setReplyAt(null)
-  // 등록할 글: "@대상 "으로 시작하면 @닉네임 표시로 분리하고 나머지만 본문
+  // 등록할 글: "@대상 "으로 시작하면 @닉네임 표시는 빼고 나머지만 본문(서버가 replyToNickname으로 @닉네임을 그림)
   let rBody = replyText
-  let rTarget: string | null = null
-  if (replyAt && replyAt.target && rBody.startsWith('@' + replyAt.target)) { rTarget = replyAt.target; rBody = rBody.slice(replyAt.target.length + 1) }
+  if (replyAt && replyAt.target && rBody.startsWith('@' + replyAt.target)) rBody = rBody.slice(replyAt.target.length + 1)
   rBody = rBody.trim()
   const replyOk = !!replyAt && !!rBody
+  const [replying, setReplying] = useState(false)
   const submitReply = () => {
-    if (!replyAt || !replyOk) return
+    if (!replyAt || !replyOk || replying) return
     const postId = replyAt.post
-    // TODO: 백엔드 연결 시 서버가 id·시간을 정해 줌
-    const r: Reply = { id: 'mr-' + Date.now(), nick, pfRaw: 'me', time: '방금', text: rBody, likes: 0, target: rTarget }
-    setAddRep((m) => ({ ...m, [postId]: (m[postId] || []).concat([r]) }))
-    setReplyAt(null)
-    setReplyText('')
-    setRepOpen((o) => ({ ...o, [postId]: true }))
-    setRepShow((m) => ({ ...m, [postId]: (m[postId] || REP_FIRST) + 1 }))
-    onToast('답글을 남겼어요')
+    setReplying(true)
+    writeComment(Number(postId), { content: rBody, replyToCommentId: replyAt.rep ? Number(replyAt.rep) : undefined }).then(
+      (saved) => {
+        setCm((m) => ({ ...m, [postId]: { status: 'live', items: (m[postId]?.items ?? []).concat(fromServerComment(saved)), next: m[postId]?.next ?? null, more: false } }))
+        setRcDelta((d) => ({ ...d, [postId]: (d[postId] || 0) + 1 }))
+        onMyChanged()
+        setReplyAt(null)
+        setReplyText('')
+        setRepOpen((o) => ({ ...o, [postId]: true }))
+        onToast('답글을 남겼어요')
+      },
+      (e) => onToast(apiErrorMessage(e, '답글을 남기지 못했어요'))
+    ).finally(() => setReplying(false))
   }
   const replyKey = (e: { key: string; preventDefault: () => void; stopPropagation: () => void }) => {
     if (e.key === 'Enter') { e.preventDefault(); submitReply() }
     else if (e.key === 'Escape') { e.stopPropagation(); setReplyAt(null); setReplyText('') }
   }
 
-  const myReps = useMemo(() => myReplies(added, addRep, mods), [added, addRep, mods])
-  const myPostN = useMemo(() => buildList({ code, view: 'mine', scope, q: '', added, addRep, mods }).length, [code, scope, added, addRep, mods])
+  // 내가 쓴 답글 줄(내가 쓴 댓글 탭): 최근 20개만 받는다
+  const [myReps, setMyReps] = useState<MyReply[]>([])
+  useEffect(() => {
+    if (view !== 'mine') return
+    let alive = true
+    getMyComments({ size: 20 }).then(
+      (page) => alive && setMyReps(page.items.map((c) => ({ postId: String(c.postId), time: fromServerComment(c).time, text: c.content, target: c.replyToNickname }))),
+      () => {}
+    )
+    return () => { alive = false }
+  }, [view])
 
-  // ===== 끼루에게 물어보기: 2.5초 뒤 결과(답변·자료 없음·범위 밖·실패) =====
-  const askKiru = (p: Post, retry = false) => {
-    setKSt((m) => ({ ...m, [p.id]: { status: 'PENDING' } }))
-    later(() => setKSt((m) => ({ ...m, [p.id]: resolveKiru(p, retry) })), KIRU_MS)
-  }
+  // ===== 끼루: 호출이 끝날 때까지 주기적으로 다시 확인 =====
+  const cmRef = useRef(cm)
+  useEffect(() => { cmRef.current = cm })
+  const pendingPosts = list.filter((p) => p.kkiru === 'PENDING').map((p) => p.id).join(',')
+  usePending(pendingPosts, (ids) =>
+    Promise.all(ids.map((id) => getPost(Number(id)))).then((ps) => {
+      setRefreshed((m) => ({ ...m, ...Object.fromEntries(ps.map((p) => [String(p.id), fromServerPost(p)])) }))
+      // 답이 달렸으면 펼쳐 둔 댓글 목록도 다시 받는다
+      ps.filter((p) => p.kkiruStatus !== 'PENDING' && cmRef.current[String(p.id)]).forEach((p) => loadReplies(String(p.id), undefined, true))
+      return ps.some((p) => p.kkiruStatus === 'PENDING')
+    })
+  )
+  const pendingComments = Object.entries(cm).filter(([, c]) => c.items.some((r) => r.kkiru === 'PENDING')).map(([id]) => id).join(',')
+  usePending(pendingComments, (ids) => {
+    ids.forEach((id) => loadReplies(id, undefined, true))
+    return true
+  })
+  const retryPost = (id: string) =>
+    retryPostKkiru(Number(id)).then(
+      (p) => setRefreshed((m) => ({ ...m, [id]: fromServerPost(p) })),
+      (e) => onToast(apiErrorMessage(e, '다시 요청하지 못했어요'))
+    )
+  const retryReply = (postId: string, id: string) =>
+    retryCommentKkiru(Number(id)).then(
+      () => loadReplies(postId, undefined, true),
+      (e) => onToast(apiErrorMessage(e, '다시 요청하지 못했어요'))
+    )
 
   // ===== 글쓰기 =====
   const dt = draft.trim()
   const composing = compFocus || !!draft
   const typeDraft = (v: string) => setDraft(v.slice(0, POST_MAX))
+  const [posting, setPosting] = useState(false)
   const submitPost = () => {
-    if (!dt) return
-    // TODO: 백엔드 연결 시 서버가 id·시간을 정해 줌
-    const p: Post = { id: 'my-' + Date.now(), nick, pfRaw: 'me', time: '방금', text: dt, likes: 0, rc: 0, mine: true, code, kiru: null }
-    if (kAsk) { askKiru(p); setKAsk(false) }
-    setAdded((a) => ({ ...a, [code]: [p].concat(a[code] || []) }))
-    setDraft('')
-    setCompFocus(false)
-    setFresh(p.id)
-    later(() => setFresh((f) => (f === p.id ? null : f)), FRESH_MS)
-    onPosted()
-    toListTop(true)
-    onToast('글을 남겼어요')
+    if (!dt || posting) return
+    setPosting(true)
+    // 끼루에게 물어보기를 켜면 본문 맨 앞에 @끼루를 붙인다(서버는 본문의 @끼루로 호출을 판단함)
+    const content = kAsk && !dt.includes('@끼루') ? '@끼루 ' + dt : dt
+    writePost({ ticker: code === GEN ? undefined : code, content }).then(
+      (saved) => {
+        const p = fromServerPost(saved)
+        setAdded((a) => ({ ...a, [code]: [p].concat(a[code] || []) }))
+        onMyChanged()
+        setKAsk(false)
+        setDraft('')
+        setCompFocus(false)
+        setFresh(p.id)
+        later(() => setFresh((f) => (f === p.id ? null : f)), FRESH_MS)
+        onPosted()
+        toListTop(true)
+        onToast('글을 남겼어요')
+      },
+      (e) => onToast(apiErrorMessage(e, '글을 남기지 못했어요'))
+    ).finally(() => setPosting(false))
   }
 
   // ===== 수정·삭제·신고 =====
   const startEdit = (p: Post) => { setMenuState(null); setEditing(p.id); setEditText(p.text) }
   const typeEdit = (v: string) => setEditText(v.slice(0, POST_MAX))
   const cancelEdit = () => setEditing(null)
-  // 빈 글이면 저장하지 않고 수정 칸을 그대로 둠(안내는 원본처럼 그대로 뜸)
+  // 빈 글이면 저장하지 않고 수정 칸을 그대로 둠
   const saveEdit = (id: string) => {
     const v = editText.trim()
-    if (v) { setEdits((m) => ({ ...m, [id]: v })); setEditing(null) }
-    onToast('글을 수정했어요')
+    if (!v) return
+    editPost(Number(id), v).then(
+      (saved) => {
+        setEdits((m) => ({ ...m, [id]: saved.content }))
+        setEditing(null)
+        onToast('글을 수정했어요')
+      },
+      (e) => onToast(apiErrorMessage(e, '글을 수정하지 못했어요'))
+    )
   }
   const askDelete = (id: string) => { setMenuState(null); setDelId(id) }
   const cancelDelete = () => setDelId(null)
@@ -269,19 +374,48 @@ export function useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listR
     if (!delId) return
     const id = delId
     setDelId(null)
-    setDeleted((m) => ({ ...m, [id]: true }))
-    onToast('글을 삭제했어요')
+    deletePost(Number(id)).then(
+      () => {
+        setDeleted((m) => ({ ...m, [id]: true }))
+        onMyChanged()
+        onToast('글을 삭제했어요')
+      },
+      (e) => onToast(apiErrorMessage(e, '글을 삭제하지 못했어요'))
+    )
   }
-  const openReport = () => { setMenuState(null); setReport({ reason: null, text: '' }) }
-  const pickReason = (reason: string) => setReport((r) => r && { ...r, reason })
-  const typeReport = (v: string) => setReport((r) => r && { ...r, text: v.slice(0, REPORT_MAX) })
+  const openReport = (target: { postId?: number; commentId?: number }) => { setMenuState(null); setReport({ reason: null, ...target }) }
+  const pickReason = (reason: ReportReason) => setReport((r) => r && { ...r, reason })
   const cancelReport = () => setReport(null)
-  // TODO: 백엔드 연결 시 신고 사유를 서버로 보냄. 원본은 글을 숨기지 않고 안내만 띄움
   const submitReport = () => {
     if (!report || !report.reason) return
+    const { reason, postId, commentId } = report
     setReport(null)
-    onToast('신고를 접수했어요. 운영 정책에 따라 확인할게요')
+    reportTarget({ postId, commentId, reason }).then(
+      () => onToast('신고를 접수했어요. 운영 정책에 따라 확인할게요'),
+      (e) => onToast(apiErrorMessage(e, '신고하지 못했어요'))
+    )
   }
 
-  return { view, qOn, list, total, shown, limit, moreOn: total > limit, newBar, showNew, liked, like, expanded, toggleMore, kMore, toggleKMore, menu, toggleMenu, closeMenu, loadMore, resetLimit, flash, fresh, toListTop, focusPost, myReps, myPostN, addRep, kSt, askKiru, draft, compFocus, setCompFocus, composing, canPost: !!dt, typeDraft, submitPost, kAsk, toggleKAsk: () => setKAsk((v) => !v), editing, editText, startEdit, typeEdit, cancelEdit, saveEdit, delId, askDelete, cancelDelete, confirmDelete, report, openReport, pickReason, typeReport, cancelReport, submitReport, repOpen, repShow, replyAt, replyText, replyOk, toggleRep, olderReps, openBox, focusBox, typeReply, clearReply, submitReply, replyKey }
+  return { view, qOn, list, total, shown, status, retryList, moreOn, loadingMore, lk, like, expanded, toggleMore, menu, toggleMenu, closeMenu, loadMore, flash, fresh, toListTop, focusPost, myReps, retryPost, retryReply, draft, compFocus, setCompFocus, composing, canPost: !!dt && !posting, typeDraft, submitPost, kAsk, toggleKAsk: () => setKAsk((v) => !v), editing, editText, startEdit, typeEdit, cancelEdit, saveEdit, delId, askDelete, cancelDelete, confirmDelete, report, openReport, pickReason, cancelReport, submitReport, repOpen, replyAt, replyText, replyOk, replying, toggleRep, moreReps, cm, rcDelta, delRepId, removeReply, openBox, focusBox, typeReply, clearReply, submitReply, replyKey }
+}
+
+const POLL_MAX = 20 // 끼루 호출 상태를 다시 확인하는 최대 횟수
+
+// key(쉼표로 이은 대상 id)가 있는 동안 3초부터 점점 길게(최대 8초) run을 부른다. run이 false를 돌려주면 멈춘다
+function usePending(key: string, run: (ids: string[]) => Promise<boolean> | boolean) {
+  const runRef = useRef(run)
+  useEffect(() => { runRef.current = run })
+  useEffect(() => {
+    if (!key) return
+    let alive = true
+    let n = 0
+    let t: ReturnType<typeof setTimeout>
+    const tick = () => {
+      Promise.resolve(runRef.current(key.split(','))).then((again) => again, () => true).then((again) => {
+        if (alive && again && ++n < POLL_MAX) t = setTimeout(tick, Math.min(3000 + n * 1000, 8000))
+      })
+    }
+    t = setTimeout(tick, 3000)
+    return () => { alive = false; clearTimeout(t) }
+  }, [key])
 }

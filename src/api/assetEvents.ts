@@ -11,6 +11,7 @@ export function subscribeAssetEvents(onChanged: () => void, onConnection: (statu
   let active = true
   let reconnecting = false
   let lastErrorRefreshAt = -Infinity
+  let fallback: ReturnType<typeof setInterval> | undefined
   onConnection('connecting')
   const refresh = () => { if (active) onChanged() }
   events.onopen = () => {
@@ -30,9 +31,12 @@ export function subscribeAssetEvents(onChanged: () => void, onConnection: (statu
       lastErrorRefreshAt = now
       refresh() // 세션 만료 확인 요청도 반복 오류 시 30초에 한 번으로 제한한다.
     }
+    // 서버가 4xx로 거부하면 EventSource가 CLOSED가 되어 브라우저가 다시 연결하지 않는다 — 그때만 30초 폴링으로 대신한다
+    if (events.readyState === EventSource.CLOSED && fallback === undefined) fallback = setInterval(refresh, ERROR_REFRESH_COOLDOWN_MS)
   }
   return () => {
     active = false
+    clearInterval(fallback)
     events.removeEventListener('asset-changed', refresh)
     events.close()
   }

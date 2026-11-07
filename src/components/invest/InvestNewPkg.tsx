@@ -39,7 +39,7 @@ function StockName({ lab, sector, muted }: { lab: NmLab; sector: boolean; muted?
   if (lab.kn) return <StockLabel sym={lab.code} size="sm" />
   return (
     <span className={styles.ulabel}>
-      <StockIcon color={lab.ic} initial={lab.ini} size={20} />
+      <StockIcon color={lab.ic} initial={lab.ini} size={20} code={lab.code} />
       <b className={cx(styles.uname, muted && styles.unameMuted)}>{lab.name}</b>
       <span className={cx(styles.ucode, sector && styles.ucodeSub)}>{lab.code}</span>
       {sector && <span className={styles.usector}>{lab.sector}</span>}

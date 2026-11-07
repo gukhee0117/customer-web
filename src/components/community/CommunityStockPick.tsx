@@ -61,11 +61,10 @@ export function CommunityStockPick({ groups, q, hi, placeholder, ariaLabel, inpu
                   onMouseEnter={() => { if (hi !== idx) onHover(idx) }}
                 >
                   {g.rank && <span className={cx(styles.rank, o.rank != null && o.rank <= 3 && styles.rankTop)}>{o.rank}</span>}
-                  <StockIcon color={o.icon.color} initial={o.icon.ini} size={24} />
+                  <StockIcon color={o.icon.color} initial={o.icon.ini} size={24} code={o.code} />
                   <span className={styles.optName}>
                     <span className={styles.optNameText}><Segs segs={o.name} /></span>
                     <span className={styles.optCode}><Segs segs={o.codeSegs} /></span>
-                    <span className={styles.sector}>{o.sector}</span>
                   </span>
                   {tag ? (
                     <span className={styles.tag}>{tag(o.code)}</span>

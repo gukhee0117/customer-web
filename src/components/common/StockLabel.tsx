@@ -67,7 +67,7 @@ export function StockLabel({ sym, size = 'md', stack = false, sector = true, log
 
   return (
     <div className={cx(styles.label, styles[size])}>
-      <StockIcon color={s.color} initial={s.initial} size={iconSize} logo={logo} />
+      <StockIcon color={s.color} initial={s.initial} size={iconSize} logo={logo} code={s.code} />
       {!isKr && (
         <span className={styles.overseas}>
           <b className={styles.ticker}>{s.t}</b>
