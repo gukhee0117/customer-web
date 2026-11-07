@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import '../../styles/tokens.css'
-import { RETURNS_DATA } from '../../data/returns'
+import { subscribeSettlementCompleted } from '../../api/settlementEvents'
 import { F } from '../../lib/calc'
 import { assetUrl } from './assetUrl'
 import { cx } from './cx'
@@ -133,7 +133,7 @@ const USER_ITEMS: { label: string; hash: string }[] = [
   { label: '테마', hash: 'theme' }
 ]
 
-export function TopBar({ active = 'home', bizDot, profLabel, noSearch = false, simpleUserMenu = false, todos = [], todoDate = '', todoAlert = 0 }: TopBarProps) {
+export function TopBar({ active = 'home', bizDot, noSearch = false, simpleUserMenu = false, todos = [], todoDate = '', todoAlert = 0 }: TopBarProps) {
   const navigate = useNavigate()
   const { logout: authLogout, extend: authExtend, auth } = useAuth()
   const customerName = auth.status === 'authenticated' ? auth.me.name : getSessionName()
@@ -141,7 +141,6 @@ export function TopBar({ active = 'home', bizDot, profLabel, noSearch = false, s
 
   const [wide, setWide] = useState(() => window.innerWidth >= 1100)
   const [notifOpen, setNotifOpen] = useState(false)
-  const [notifRead, setNotifRead] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
   const [secHash, setSecHash] = useState(() => hashSection())
   const [exp, setExp] = useState(initSession)
@@ -221,6 +220,18 @@ export function TopBar({ active = 'home', bizDot, profLabel, noSearch = false, s
     return () => window.removeEventListener('storage', onStore)
   }, [syncPush])
 
+  // 정산 완료 푸시(서버): 알림을 저장하고 다른 탭에도 알린다. 같은 정산 배치는 한 번만 담는다
+  useEffect(() => {
+    if (auth.status !== 'authenticated') return
+    return subscribeSettlementCompleted((e) => {
+      const id = 'settle-' + e.batchId
+      const list = lsJson<PushNote[]>(KEY_PUSH, []) || []
+      if (list.some((n) => n.id === id)) return
+      lsSetJson(KEY_PUSH, [{ id, text: '매도 대금 정산이 완료됐어요 · 원화로 확정됐어요', date: e.completedAt.slice(0, 10) }, ...list].slice(0, 20))
+      syncPush(true)
+    })
+  }, [auth.status, syncPush])
+
   useEffect(() => {
     const onResize = () => setWide(window.innerWidth >= 1100)
     const onHash = () => setSecHash(hashSection())
@@ -253,14 +264,10 @@ export function TopBar({ active = 'home', bizDot, profLabel, noSearch = false, s
     }
   }, [])
 
-  // 업무일·알림은 RETURNS_DATA(F.today는 getBusinessToday)에서만 읽음
-  const notifSrc = RETURNS_DATA.NOTIFS
   const readIds = lsJson<string[]>(KEY_PUSH_READ, [])
   const pushUnread = push.filter((n) => !readIds.includes(n.id)).length
-  const unread = (notifRead ? 0 : 2) + (Number(todoAlert) || 0) + pushUnread
-  const notifs = push
-    .map((n) => ({ text: n.text, time: F.short(n.date), hot: true }))
-    .concat(notifSrc.map((n, i) => ({ text: i === 1 && profLabel ? '투자성향 진단이 완료됐어요 · ' + profLabel : n.text, time: F.short(n.date), hot: i < 2 })))
+  const unread = (Number(todoAlert) || 0) + pushUnread
+  const notifs = push.map((n) => ({ text: n.text, time: F.short(n.date), hot: true }))
 
   const rem = Math.max(0, Math.ceil((exp - now) / 1000))
   const sessText = mmss(rem)
@@ -269,7 +276,6 @@ export function TopBar({ active = 'home', bizDot, profLabel, noSearch = false, s
   const toggleNotif = () => {
     lsSetJson(KEY_PUSH_READ, push.map((n) => n.id))
     setNotifOpen((o) => !o)
-    setNotifRead(true)
     setUserOpen(false)
   }
 
@@ -372,6 +378,7 @@ export function TopBar({ active = 'home', bizDot, profLabel, noSearch = false, s
                   </>
                 )}
                 <div className={cx(styles.panelHead, styles.panelHeadLine)}>알림</div>
+                {notifs.length === 0 && <div className={styles.notif}>새 알림이 없어요</div>}
                 {notifs.map((n, i) => (
                   <div key={i} className={cx(styles.notif, i < notifs.length - 1 && styles.notifLine)}>
                     <span className={cx(styles.dot, n.hot && styles.dotHot)} />
@@ -384,7 +391,7 @@ export function TopBar({ active = 'home', bizDot, profLabel, noSearch = false, s
           </div>
           <div className={styles.popWrap} ref={userRef}>
             <button type="button" className={cx(styles.userBtn, userActive && styles.userBtnOn)} onClick={toggleUser} aria-haspopup="menu" aria-expanded={userOpen}>
-              {customerName || (auth.status === 'checking' ? '' : RETURNS_DATA.CUSTOMER.name)} 님
+              {customerName} 님
               <svg className={cx(styles.chevron, userOpen && styles.chevronOpen)} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m6 9 6 6 6-6" />
               </svg>
