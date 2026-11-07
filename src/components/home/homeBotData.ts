@@ -6,8 +6,5 @@ export const BOT_CHIPS = ['언제부터 인출할 수 있어요?', '남은 매�
 // "예탁금으로 두면 어떻게 되나요? ›"를 누르면 챗봇이 대신 묻는 문장
 export const DEPOSIT_QUESTION = '예탁금으로 두면 어떻게 되나요?'
 
-// 알림 목록 '경고' 태그 글자색 (마감 임박일 때만 나옴)
-export const URGENT_TAG = 'var(--color-danger)'
-
 // 가입 직후(/home#new) 환영 배너가 떠 있는 시간
 export const WELCOME_MS = 3000

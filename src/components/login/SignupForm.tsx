@@ -173,7 +173,6 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
     try {
       const res = await submitAssessment(survey.answers)
       const key = profileKeyOf(res.investorType)
-      RETURNS_DATA.setDemo({ profile: key })
       await syncAssessState()
       setResult(key)
       return true

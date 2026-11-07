@@ -2,7 +2,6 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ApplyModal } from '../components/account/ApplyModal'
 import { SellModal } from '../components/account/SellModal'
-import { AccountDevPanel } from '../components/account/AccountDevPanel'
 import { AccountBalanceBox } from '../components/account/AccountBalanceBox'
 import { AccountDocsBox } from '../components/account/AccountDocsBox'
 import { AccountHistBox } from '../components/account/AccountHistBox'
@@ -10,12 +9,11 @@ import { AccountHoldBox } from '../components/account/AccountHoldBox'
 import { AccountLimitBox } from '../components/account/AccountLimitBox'
 import { AccountTaxBox } from '../components/account/AccountTaxBox'
 import { TaxCalcModal } from '../components/account/TaxCalcModal'
-import { issuedRecords, setAdjOverride, docTypeOf } from '../components/account/accountTaxData'
+import { issuedRecords, docTypeOf } from '../components/account/accountTaxData'
 import { apiErrorMessage } from '../api/client'
 import { subscribeAssetEvents } from '../api/assetEvents'
 import { downloadDocument, issueDocument, listDocuments } from '../api/documents'
-import { ALERT_DESC, ALERT_LINK, ALERT_TAG, BOT_CHIPS, botGreeting } from '../components/account/accountBotData'
-import type { ApplyAlert } from '../components/account/accountBotData'
+import { BOT_CHIPS, botGreeting } from '../components/account/accountBotData'
 import type { IssueRecord } from '../components/account/accountTaxData'
 import { AccountStateBox } from '../components/account/AccountStateBox'
 import { AccountSummaryBox } from '../components/account/AccountSummaryBox'
@@ -23,8 +21,6 @@ import { FOOT_FLOW, FOOT_STATUS, PAGE_TABS } from '../components/account/account
 import type { PageKey } from '../components/account/accountData'
 import type { ApplyKind } from '../components/account/accountApplyData'
 import type { SubmittedInboundResult } from '../components/account/ApplyModal'
-import { moreTitle } from '../components/account/accountSellData'
-import type { SellSubmitResult } from '../components/account/accountSellData'
 import { isHistTab } from '../components/account/accountHistData'
 import type { HistTab } from '../components/account/accountHistData'
 import styles from '../components/account/AccountLayout.module.css'
@@ -34,11 +30,12 @@ import { Tabs } from '../components/common/Tabs'
 import { Toast } from '../components/common/Toast'
 import { useToast } from '../components/common/useToast'
 import { RETURNS_DATA as RD } from '../data/returns'
-import type { DemoSettings } from '../data/returns'
 import { useAppShell } from '../layouts/appShell'
 import { F } from '../lib/calc'
 import { useFundFlow } from '../components/account/useFundFlow'
-import { getProfile } from '../api/profile'
+import { fetchFundFlowRelief } from '../api/fundFlow'
+import { formatAccountNo, getProfile } from '../api/profile'
+import { linkedAccountText } from '../components/account/linkedAccount'
 import { getAssetHoldings, getCustomerAssetBriefing, getCustomerTaxBriefing } from '../api/briefing'
 import { getWithdrawalAvailability } from '../api/withdrawalAvailability'
 import { getGeneralAccounts, getWithdrawalHistory } from '../api/withdrawal'
@@ -55,6 +52,9 @@ const FLOW_NOTICE: Record<string, string> = {
   error: '내 자금 흐름을 불러오지 못했어요. 지금 보이는 숫자는 시연용 예시이니 잠시 후 다시 확인해 주세요.'
 }
 
+// 계좌 개설 신청·취소는 서버 API가 아직 없어 안내만 한다
+const OPEN_NOT_READY = '계좌 개설 신청은 아직 서버에 연결되지 않아 준비 중이에요'
+
 // 내 계좌 — 1~8번째 부분: 뼈대·페이지 탭·계좌 요약·계좌 상태 + 매도 한도·세액·원금 유지·증빙서류 + 잔고 + 거래·신청 내역 + 자금 흐름 탭 박스 4개 + 입고·인출·계좌 개설 신청 창 + 매도 신청 창 + 상담 창·상단 종 알림·시연 설정
 export function AccountPage() {
   useDocumentTitle('Returns 내 계좌')
@@ -63,11 +63,11 @@ export function AccountPage() {
   const shell = useAppShell()
   const { message: toast, showToast } = useToast()
 
-  // 시연 설정(계좌 상태 등)이 바뀌면 다시 그림(원본 returns-demo 이벤트)
+  // 서버 계좌·진단 상태가 바뀌면(로그인·세션 복원 동기화) 다시 그림
   const [, redraw] = useReducer((n: number) => n + 1, 0)
   useEffect(() => {
-    window.addEventListener('returns-demo', redraw)
-    return () => window.removeEventListener('returns-demo', redraw)
+    window.addEventListener('returns-state', redraw)
+    return () => window.removeEventListener('returns-state', redraw)
   }, [])
 
   const [calcOpen, setCalcOpen] = useState(false)
@@ -77,6 +77,7 @@ export function AccountPage() {
   // 서버 값: 계좌(프로필)·세액·자산·인출 가능 금액. 박스마다 따로 받아 느린 것이 다른 박스를 막지 않는다
   const { state: profileState } = useServerData(getProfile)
   const { state: taxState, retry: retryTax } = useServerData(getCustomerTaxBriefing, NO_DATA_CODES)
+  const { state: reliefState, refresh: refreshRelief } = useServerData(fetchFundFlowRelief) // 서버 혜택 상태(취소 여부)
   const { state: assetState, retry: retryAssets, refresh: refreshAssets } = useServerData(getCustomerAssetBriefing, NO_DATA_CODES)
   const { state: availState, retry: retryAvail } = useServerData(getWithdrawalAvailability, NO_DATA_CODES)
   const { state: holdingsState, retry: retryHoldings, refresh: refreshHoldings } = useServerData(getAssetHoldings, NO_DATA_CODES)
@@ -128,40 +129,12 @@ export function AccountPage() {
     () => () => {
       shell.setChat(null)
       shell.setBotOpen(false)
-      shell.setTopBar({})
-      setAdjOverride(null)
     },
     [shell]
   )
 
-  // 상단 종 알림 — 신청이 접수될 때마다 1건 추가(누르면 해당 내역 탭으로)
-  const [alerts, setAlerts] = useState<ApplyAlert[]>([])
-  const addAlert = (title: string, tab: ApplyAlert['tab']) => setAlerts((prev) => [{ title, tab }, ...prev])
-  const goHistRef = useRef<(tab: HistTab) => void>(() => {})
-  const profLabel = RD.PROFILES[RD.CUSTOMER.profile].label
-  useEffect(() => {
-    shell.setTopBar({
-      todos: alerts.map((a) => ({
-        tag: ALERT_TAG,
-        tagColor: 'var(--color-navy)',
-        title: a.title,
-        desc: ALERT_DESC,
-        to: '#' + a.tab,
-        link: ALERT_LINK,
-        onClick: (e) => {
-          e.preventDefault()
-          goHistRef.current(a.tab)
-        }
-      })),
-      todoDate: F.short(F.today()),
-      todoAlert: alerts.length,
-      profLabel
-    })
-  }, [shell, alerts, profLabel])
-
-  // 신청 창 — 입고 / 인출 / 계좌 개설. 주소 끝이 #open이고 계좌가 없거나 반려일 때도 열림(원본 onHash)
-  const canOpenAcct = () => RD.ACCOUNT_STATE !== 'opened' && RD.ACCOUNT_STATE !== 'reviewing'
-  const [applyKind, setApplyKind] = useState<ApplyKind | null>(() => (hash === '#open' && canOpenAcct() ? 'open' : null))
+  // 신청 창 — 입고 / 인출. 계좌 개설 신청은 서버 API가 없어 열지 않는다
+  const [applyKind, setApplyKind] = useState<ApplyKind | null>(null)
   // 접수한 신청 — 거래·신청 내역 해당 탭 맨 위에 '심사 중' 줄로 보임
   // 매도 신청 창 — 접수한 매도는 매도 내역·정산 상태 맨 위에 '심사 중' 줄로 보임
   const [sellOpen, setSellOpen] = useState(false)
@@ -189,7 +162,6 @@ export function AccountPage() {
   if (seenHash !== hash) {
     setSeenHash(hash)
     if (isHistTab(hash.slice(1))) setHistTab(hash.slice(1) as HistTab)
-    if (hash === '#open' && canOpenAcct()) setApplyKind('open')
   }
 
   const opened = RD.ACCOUNT_STATE === 'opened'
@@ -269,19 +241,19 @@ export function AccountPage() {
     scrollToHist()
   }
 
-  // 신청 창 — 접수 결과를 내역에 올리고, 계좌 개설은 시연 상태를 '심사 중'으로 바꿈
-  // 접수된 신청은 상단 종 알림에도 1건 추가(원본 alerts): 입고 · 매도 · 인출 신청만(계좌 개설 신청은 원본도 토스트만)
+  // 신청 창 — 접수 결과를 내역에 올리고, 계좌 개설 신청은 서버 API가 없어 열지 않음
   const goHist = (tab: HistTab) => {
     setApplyKind(null)
     setSellOpen(false)
     pickHistTab(tab)
     scrollToHist()
   }
-  useEffect(() => {
-    goHistRef.current = goHist
-  })
   // 어떤 신청 창이든 열면 상담 창은 닫힘(원본 openM)
   const openApply = (k: ApplyKind) => {
+    if (k === 'open') {
+      showToast(OPEN_NOT_READY)
+      return
+    }
     shell.setBotOpen(false)
     setApplyKind(k)
   }
@@ -293,24 +265,7 @@ export function AccountPage() {
     shell.setBotOpen(false)
     setCalcOpen(true)
   }
-  const changeDemo = (patch: Partial<DemoSettings>) => {
-    RD.setDemo(patch)
-    if (patch.benefit !== undefined) setAdjOverride(null) // 혜택 상태를 바꾸면 조정비율은 그 상태 값으로 돌아감(원본)
-    redraw()
-  }
-  const changeAdj = (v: number) => {
-    setAdjOverride(v)
-    redraw()
-  }
-  const finishOpen = () => {
-    setApplyKind(null)
-    RD.setDemo({ account: 'reviewing' })
-    showToast('계좌 개설 신청이 접수됐어요')
-  }
-  const cancelOpen = () => {
-    RD.setDemo({ account: 'none' })
-    showToast('계좌 개설 신청을 취소했어요')
-  }
+  const cancelOpen = () => showToast(OPEN_NOT_READY)
 
   // PDF 받기 — 서버에서 발급(이미 있으면 그 발급본)해 내려받고, 발급 기록은 서버 목록을 다시 받는다
   const pdfBusy = useRef(false) // 연타로 발급 요청이 겹치지 않게
@@ -343,14 +298,14 @@ export function AccountPage() {
       <h1 className={styles.srOnly}>내 계좌</h1>
       {opened && <Tabs variant="page" ariaLabel="내 계좌 화면" items={PAGE_TABS} value={page} onChange={setPage} />}
 
-      {!opened && <AccountStateBox onOpen={() => openApply('open')} onCancel={cancelOpen} />}
+      {!opened && <AccountStateBox appliedAt={account?.appliedAt} linked={linkedState} onOpen={() => openApply('open')} onCancel={cancelOpen} />}
 
       {opened && page === 'status' && (
         <div className={styles.status}>
           <div className={styles.colLeft}>
             <AccountSummaryBox className={styles.summary} onCopy={copyAcct} account={account} assets={assetState} linked={linkedState} onRetry={() => { if (assetState.status === 'error') retryAssets(); if (linkedState.status === 'error') retryLinked() }} onApply={(k) => (k === 'sell' ? openSell() : openApply(k))} />
             <AccountLimitBox className={styles.limit} onApply={openSell} limit={sellLimit} onRetryLimit={retrySellLimit} />
-            <AccountTaxBox className={styles.tax} onOpenCalc={openCalc} tax={taxState} onRetryTax={retryTax} guide={sellGuide} onRetryGuide={retrySellGuide} />
+            <AccountTaxBox className={styles.tax} onOpenCalc={openCalc} benefitCanceled={reliefState.status === 'live' && reliefState.data.benefit === 'IMPOSSIBLE'} tax={taxState} onRetryTax={retryTax} guide={sellGuide} onRetryGuide={retrySellGuide} />
             <AccountHoldBox className={styles.hold} onHistory={goWithdraw} avail={availState} onRetry={retryAvail} />
             <AccountDocsBox className={styles.docs} issued={issued} onIssue={issue} onReissue={reissue} />
           </div>
@@ -385,17 +340,18 @@ export function AccountPage() {
       {applyKind && (
         <ApplyModal
           kind={applyKind}
+          linkedText={linkedAccountText(linkedState)}
+          riaAccountNo={formatAccountNo(account?.accountNo)}
           onClose={() => setApplyKind(null)}
           onGoHist={goHist}
           onSubmitIn={(results: SubmittedInboundResult[]) => {
             if (results.some((r) => r.status === 'ok')) retryInbounds()
-            addAlert('입고 신청 · ' + moreTitle(results.map((r) => ({ t: r.ticker }))), 'deposits')
           }}
-          onSubmitOut={(amt) => {
+          onSubmitOut={() => {
             retryWithdrawals()
-            addAlert('인출 신청 · ₩' + F.won(amt), 'withdraw')
+            refreshRelief() // 조기인출이면 서버가 혜택을 취소하므로 상태를 다시 받는다
           }}
-          onFinishOpen={finishOpen}
+          onFinishOpen={() => undefined}
         />
       )}
       {sellOpen && (
@@ -405,19 +361,16 @@ export function AccountPage() {
           remainingLimit={sellLimit.status === 'live' ? sellLimit.data.remainingLimit : null}
           onClose={() => setSellOpen(false)}
           onGoHist={() => goHist('sells')}
-          onSubmitted={(results: SellSubmitResult[]) => {
+          onSubmitted={() => {
             // 체결·거부가 한도·추천·예수금·내역에 반영되게 서버 값을 다시 받는다
             retrySellLimit()
             retrySellGuide()
             retryAssets()
             setHistVersion((n) => n + 1)
-            const done = results.filter((r) => r.status === 'EXECUTED').map((r) => ({ t: r.t }))
-            if (done.length > 0) addAlert('매도 신청 · ' + moreTitle(done), 'sells')
           }}
         />
       )}
       <TaxCalcModal open={calcOpen} onClose={() => setCalcOpen(false)} />
-      <AccountDevPanel onChange={changeDemo} onAdj={changeAdj} />
       <Toast message={toast} />
     </>
   )

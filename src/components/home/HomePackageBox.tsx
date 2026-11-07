@@ -6,34 +6,27 @@ import { Box } from '../common/Box'
 import { KkiruAvatar } from '../common/KkiruAvatar'
 import { StockIcon } from '../common/StockIcon'
 import { cx } from '../common/cx'
+import { useServerPackages } from '../invest/useServerPackages'
 import { PKG_ASK_CHIPS } from './homeRecData'
-import { spark } from './homeRecLogic'
 import styles from './HomePackageBox.module.css'
 
 const tone = (n: number) => (n > 0 ? styles.up : n < 0 ? styles.down : styles.flat)
 
-// 패키지 위험등급 = 구성 종목 등급의 평가금액 가중평균(소수 둘째 자리 내림)
-function weightedGrade(id: keyof typeof RD.PKG_HOLDINGS): string {
-  const H = RD.PKG_HOLDINGS[id] || []
-  const w = H.map((h) => h.qty * (RD.PX[h.code] || [0])[0])
-  const t = w.reduce((a, b) => a + b, 0) || 1
-  return (Math.floor((H.reduce((a, h, k) => a + (F.meta(h.code).grade ?? 0) * w[k], 0) / t) * 100) / 100).toFixed(2)
-}
-
-// 나만의 주식 패키지 박스. hasPkg는 시연 설정(패키지 있음/없음)에서 바뀌는 값 — 설정 위젯을 옮길 때 연결
-export function HomePackageBox({ className, hasPkg = true }: { className?: string; hasPkg?: boolean }) {
-  const opened = RD.ACCOUNT_STATE === 'opened'
+// 나만의 주식 패키지 박스 — 투자 화면과 같은 서버 패키지(최근 만든 3개). opened는 RIA 계좌가 개설 상태인가(서버 프로필)
+export function HomePackageBox({ className, opened }: { className?: string; opened: boolean }) {
+  const { state, views } = useServerPackages()
+  const pkgs = [...views].sort((a, b) => b.created - a.created).slice(0, 3)
+  const hasPkg = views.length > 0
   const show = opened && hasPkg
-  // 원본 홈은 예전 고정값(29,650,000)이었으나 다른 페이지와 맞추려고 데이터 계산값(RD.PKGS) 사용
-  const pkgs = RD.PKGS.slice(0, 3)
-  const total = pkgs.reduce((t, p) => t + p.amt, 0)
-  const ret = RD.PKG_TOTAL_RET
+  const total = views.reduce((t, v) => t + v.val, 0)
+  const cost = views.reduce((t, v) => t + v.evalCost, 0)
+  const ret = cost ? ((total - cost) / cost) * 100 : 0
+  const unpriced = views.some((v) => v.unpriced > 0)
 
   const head = show ? (
     <span className={styles.summary}>
-      <span>총 평가 ₩{F.won(total)}</span>
-      <span className={cx(styles.retTotal, tone(ret))}>{F.pct(ret)}</span>
-      <span className={styles.example}>예시</span>
+      <span>전체 {views.length}개 총 평가 ₩{F.won(total)}</span>
+      {unpriced ? <span className={styles.example}>수익률 확인 불가</span> : <span className={cx(styles.retTotal, tone(ret))}>{F.pct(ret)}</span>}
     </span>
   ) : null
 
@@ -61,28 +54,25 @@ export function HomePackageBox({ className, hasPkg = true }: { className?: strin
               </span>
               <span className={styles.iconRow}>
                 <span className={styles.icons}>
-                  {p.icons.map(([color, ini], i) => (
-                    <span key={i} className={styles.icon}>
-                      <StockIcon color={color} initial={ini} size={18} />
+                  {p.items.slice(0, 3).map((it) => (
+                    <span key={it.code} className={styles.icon}>
+                      <StockIcon color="var(--color-navy)" initial={String(it.name || it.code)[0]} size={18} code={it.code} />
                     </span>
                   ))}
                 </span>
-                <span className={styles.more}>외 {p.count - p.icons.length}종목</span>
+                {p.items.length > 3 && <span className={styles.more}>외 {p.items.length - 3}종목</span>}
               </span>
               <span className={styles.amtRow}>
-                <b className={styles.amt}>₩{F.won(p.amt)}</b>
-                <span className={cx(styles.ret, tone(p.ret))}>{F.pct(p.ret)}</span>
+                <b className={styles.amt}>₩{F.won(p.val)}</b>
+                {p.unpriced > 0 ? <span className={styles.flat}>수익률 확인 불가</span> : <span className={cx(styles.ret, tone(p.ret))}>{F.pct(p.ret)}</span>}
               </span>
-              <svg viewBox="0 0 200 48" preserveAspectRatio="none" className={styles.spark}>
-                <path d={spark(p.seed, p.ret >= 0)} fill="none" strokeWidth="1.5" vectorEffect="non-scaling-stroke" className={p.ret >= 0 ? styles.lineUp : styles.lineDown} />
-              </svg>
-              <span className={styles.grade}>가중평균 {weightedGrade(p.id)}등급</span>
+              <span className={styles.grade}>가중평균 {p.grade}등급</span>
             </Link>
           ))}
         </div>
       )}
 
-      {opened && !hasPkg && (
+      {opened && state === 'ready' && !hasPkg && (
         <div className={styles.empty}>
           <div className={styles.emptyTop}>
             <KkiruAvatar profile={RD.CUSTOMER.profile} size={48} />
@@ -99,6 +89,8 @@ export function HomePackageBox({ className, hasPkg = true }: { className?: strin
         </div>
       )}
 
+      {opened && state === 'loading' && <div className={styles.closed}>패키지를 불러오는 중이에요</div>}
+      {opened && (state === 'error' || state === 'unauthorized') && <div className={styles.closed}>패키지를 불러오지 못했어요. 잠시 후 다시 확인해 주세요</div>}
       {!opened && <div className={styles.closed}>계좌를 연 뒤 만들 수 있어요</div>}
     </Box>
   )

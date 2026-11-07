@@ -7,7 +7,7 @@ interface Props {
   onSnooze: () => void
 }
 
-// 최근 거래가 설문 성향보다 위험할 때(시연 상태 '거래 위험') 프로필 박스 아래에 나오는 안내
+// 최근 거래가 설문 성향보다 위험할 때(서버 거래 경향의 평균 매수 등급이 설문 허용 등급보다 위험할 때) 프로필 박스 아래에 나오는 안내
 export function MyInfoRiskyNotice({ className, onOpenAssess, onSnooze }: Props) {
   return (
     <div role="status" className={cx(styles.box, className)}>

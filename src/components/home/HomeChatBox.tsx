@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Link } from 'react-router-dom'
 import '../../styles/tokens.css'
-import { RETURNS_DATA as RD, type ChatRow } from '../../data/returns'
 import { Box } from '../common/Box'
 import { KkiruAvatar } from '../common/KkiruAvatar'
 import { StockIcon } from '../common/StockIcon'
 import { cx } from '../common/cx'
+import { useStocksData } from '../community/useStocksData'
 import {
-  CHAT_EMPTY, CHAT_TABS, DEFAULT_RECENT, DEFAULT_STOCK, HOT_SCOPES, LIVE_MIN_MS, LIVE_SPAN_MS, LIVE_START_MIN, RECENT_LIMIT,
+  CHAT_EMPTY, CHAT_ERROR, CHAT_LOADING, CHAT_TABS, DEFAULT_RECENT, DEFAULT_STOCK, HOT_SCOPES, RECENT_LIMIT,
   type ChatTabKey, type HotScope
 } from './homeChatData'
-import { chatMsgs, ddGroups, hotMsgs, type LivePost, type Seg } from './homeChatLogic'
+import { chatMsgs, ddGroups, hotMsgs, type Seg } from './homeChatLogic'
+import { useHomeChat } from './useHomeChat'
 import styles from './HomeChatBox.module.css'
 
 const toneClass = (n: number) => (n > 0 ? styles.up : n < 0 ? styles.down : styles.flat)
@@ -41,29 +42,26 @@ export function HomeChatBox({ className }: { className?: string }) {
   const [scope, setScope] = useState<HotScope>('stock')
   const [searchOpen, setSearchOpen] = useState(false)
   const [chatQ, setChatQ] = useState('')
-  const [live, setLive] = useState<LivePost[]>([])
 
   const headRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const ddInputRef = useRef<HTMLInputElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
-  const liveState = useRef({ code, watching: true, hot: false })
-  const liveN = useRef(0)
-  const liveClock = useRef(LIVE_START_MIN)
-  const stick = useRef(false)
+  const hotView = useRef(false)
+  const stick = useRef(true) // 목록 맨 아래를 보고 있으면 새 글이 와도 맨 아래를 따라감
 
-  const name = RD.SN[code]
+  const stocks = useStocksData([code, ...recent])
+  const name = stocks.stock(code)?.name ?? code
   const q = chatQ.trim()
   const view = searchOpen ? 'search' : tab
   const qOn = !!q && searchOpen
-
-  // 최신 글이 앞(index 0)
-  const all = live.filter((m) => m.code === code).map((m) => m.row).concat(RD.CHAT[code])
-  const qKey = qOn ? q : ''
-  const msgs = chatMsgs(all, code, view, qKey)
-  const hot = view === 'hot' ? hotMsgs(all, code, scope) : []
+  const chat = useHomeChat(code, view, qOn ? q : '', scope)
+  const msgs = view === 'hot' ? [] : chatMsgs(chat.items, view, qOn ? q : '')
+  const hot = view === 'hot' ? hotMsgs(chat.items, scope, stocks) : []
   const dq = ddQ.trim()
-  const dd = ddGroups(dq, code, recent)
+  const dd = ddGroups(dq, code, recent, stocks)
+  const qKey = qOn ? q : ''
+  const emptyText = chat.status === 'loading' ? CHAT_LOADING : chat.status === 'error' ? CHAT_ERROR : qOn ? '‘' + q + '’ 내용의 글이 없어요' : CHAT_EMPTY
 
   const closeDd = useCallback(() => {
     setStockOpen(false)
@@ -89,9 +87,8 @@ export function HomeChatBox({ className }: { className?: string }) {
     setRecent((r) => [c].concat(r.filter((x) => x !== c)).slice(0, RECENT_LIMIT))
   }
 
-  // 실시간 새 글이 지금 보고 있는 종목방·실시간 탭인지 알기 위한 값
   useEffect(() => {
-    liveState.current = { code, watching: !searchOpen && tab === 'live', hot: view === 'hot' }
+    hotView.current = view === 'hot'
   })
 
   // 바깥 클릭·스크롤·Esc로 닫힘
@@ -136,39 +133,17 @@ export function HomeChatBox({ className }: { className?: string }) {
   // 처음 열릴 때 맨 아래가 보이게: 글꼴 로드로 높이가 바뀌어도 다시 맞춤
   useEffect(() => {
     const settle = () => {
-      if (listRef.current && !liveState.current.hot) listRef.current.scrollTop = listRef.current.scrollHeight
+      if (listRef.current && !hotView.current) listRef.current.scrollTop = listRef.current.scrollHeight
     }
     const ts = [80, 400, 1200].map((t) => setTimeout(settle, t))
     document.fonts?.ready.then(settle)
     return () => ts.forEach(clearTimeout)
   }, [])
 
-  // 실시간 예시: 10~15초마다 새 글 1개
+  // 새 글이 오면 맨 아래를 보고 있던 경우에만 따라 내려감
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>
-    const tick = () => {
-      timer = setTimeout(() => {
-        const { code: c, watching } = liveState.current
-        const pool = RD.LIVE_POOL
-        liveN.current += 1
-        const [nick, pf, text] = pool[liveN.current % pool.length]
-        liveClock.current += 1
-        const tm = String(Math.floor(liveClock.current / 60)).padStart(2, '0') + ':' + String(liveClock.current % 60).padStart(2, '0')
-        stick.current = watching && atBottom()
-        const row: ChatRow = ['live-' + Date.now(), nick, pf, tm, text.replace('{n}', RD.SN[c]), 0, 0, 0]
-        setLive((p) => [{ code: c, row }].concat(p))
-        tick()
-      }, LIVE_MIN_MS + Math.random() * LIVE_SPAN_MS)
-    }
-    tick()
-    return () => clearTimeout(timer)
-  }, [])
-  useEffect(() => {
-    if (stick.current) {
-      stick.current = false
-      toBottom()
-    }
-  }, [live])
+    if (stick.current && view !== 'hot') toBottom()
+  }, [chat.items, view])
 
   const onDdKey = (e: KeyboardEvent<HTMLInputElement>) => {
     const n = dd.flat.length
@@ -187,7 +162,7 @@ export function HomeChatBox({ className }: { className?: string }) {
     }
   }
 
-  const cur = RD.KR[code]
+  const cur = stocks.stock(code)
   const searchPh = name + ' 채팅에서 검색'
 
   return (
@@ -195,7 +170,7 @@ export function HomeChatBox({ className }: { className?: string }) {
       <div ref={headRef} className={styles.head}>
         <h2 className={styles.title}>경제 채팅방</h2>
         <button type="button" className={styles.stockBtn} aria-expanded={stockOpen} aria-haspopup="listbox" aria-label="채팅방 종목 선택" onClick={() => (stockOpen ? closeDd() : (setStockOpen(true), setDdQ(''), setDdHi(0)))}>
-          <StockIcon color={cur[1]} initial={cur[2]} size={24} code={code} />
+          <StockIcon color={cur?.color} initial={cur?.ini ?? code.slice(0, 1)} size={24} code={code} />
           <b className={styles.stockName}>{name}</b>
           <span className={styles.stockCode}>{code}</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cx(styles.chev, stockOpen && styles.chevOpen)}>
@@ -276,7 +251,7 @@ export function HomeChatBox({ className }: { className?: string }) {
         </div>
       )}
 
-      <div ref={listRef} className={styles.list}>
+      <div ref={listRef} className={styles.list} onScroll={() => (stick.current = atBottom())}>
         {view !== 'hot' && (
           <div>
             {msgs.map((c, i) => (
@@ -294,7 +269,7 @@ export function HomeChatBox({ className }: { className?: string }) {
                 </span>
               </Link>
             ))}
-            {msgs.length === 0 && <div className={styles.empty}>{qOn ? '‘' + q + '’ 내용의 글이 없어요' : CHAT_EMPTY}</div>}
+            {msgs.length === 0 && <div className={styles.empty}>{emptyText}</div>}
           </div>
         )}
         {view === 'hot' && (
@@ -309,6 +284,7 @@ export function HomeChatBox({ className }: { className?: string }) {
                 </span>
               </Link>
             ))}
+            {hot.length === 0 && <div className={styles.empty}>{emptyText}</div>}
           </div>
         )}
       </div>

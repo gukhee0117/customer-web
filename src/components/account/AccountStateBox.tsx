@@ -5,26 +5,30 @@ import { Box } from '../common/Box'
 import { cx } from '../common/cx'
 import { StockLabel } from '../common/StockLabel'
 import { GEN_HOLDINGS } from './accountData'
+import { linkedAccountText } from './linkedAccount'
+import type { GeneralAccount } from '../../api/withdrawal'
+import type { ServerState } from './useServerData'
 import styles from './AccountStateBox.module.css'
 
 interface AccountStateBoxProps {
   className?: string
+  linked: ServerState<GeneralAccount[]> // 연결 일반계좌(서버)
+  appliedAt?: string // 서버 계좌 신청 시각(없으면 예시 신청일)
   onOpen: () => void // 계좌 개설 신청
   onCancel: () => void // 신청 취소
 }
 
 // 계좌 상태 박스(data-box="acct-state") — 계좌 없음 / 심사 중 / 반려일 때만 보임(정상 계좌에서는 화면이 그리지 않음)
-export function AccountStateBox({ className, onOpen, onCancel }: AccountStateBoxProps) {
+export function AccountStateBox({ className, appliedAt, linked, onOpen, onCancel }: AccountStateBoxProps) {
   const state = RD.ACCOUNT_STATE
   const none = state === 'none'
   const review = state === 'reviewing'
   const reject = state === 'rejected'
   const states = RD.ACCOUNT_STATES
-  const applied = states.reviewing.appliedAt ? F.short(states.reviewing.appliedAt) : ''
-  const limitRows: [string, string][] = [
-    ['이번 계좌 한도', '₩' + F.won(RD.ACCOUNT.sellLimit)],
-    ['연결 일반계좌', RD.LINKED.name + ' ' + RD.LINKED.no]
-  ]
+  const appliedDate = appliedAt?.slice(0, 10) ?? states.reviewing.appliedAt
+  const applied = appliedDate ? F.short(appliedDate) : ''
+  // 신청한 한도는 서버가 심사 전에는 알려 주지 않아 연결 일반계좌만 보인다
+  const limitRows: [string, string][] = [['연결 일반계좌', linkedAccountText(linked)]]
 
   return (
     <Box
