@@ -15,9 +15,10 @@ export interface ApplyConfig {
   histTab: HistTab | null // 완료 화면의 '내역 보기'가 여는 탭
 }
 
-export function applyConfig(kind: ApplyKind): ApplyConfig {
-  const LK = RD.LINKED.name + ' ' + RD.LINKED.no
-  const RA = RD.ACCOUNT.name + ' ' + RD.ACCOUNT.no
+// linked: 연결 일반계좌 한 줄, riaNo: RIA 계좌번호(둘 다 서버 값)
+export function applyConfig(kind: ApplyKind, linked: string, riaNo: string): ApplyConfig {
+  const LK = linked
+  const RA = RD.ACCOUNT.name + ' ' + riaNo
   if (kind === 'in') return { title: '입고 신청', steps: ['종목·수량', '확인', '완료'], from: LK, to: RA, histTab: 'deposits' }
   if (kind === 'out') return { title: '인출 신청', steps: ['금액', '확인', '완료'], from: RA, to: LK, histTab: 'withdraw' }
   return { title: '계좌 개설 신청', steps: ['조건 확인', '한도 설정', '확인', '완료'], from: '', to: '', histTab: null }
@@ -101,9 +102,7 @@ export function outNext(risky: boolean): string[] {
   return ['심사가 끝나면 일반계좌로 보내드려요(1영업일)', '결과는 알림으로 알려드려요', risky ? '1년이 지나지 않은 납입금이 포함돼 이 계좌의 세제 혜택이 취소돼요' : '세제 혜택은 그대로 유지돼요']
 }
 
-export function outDoneSum(amt: number): string {
-  return '₩' + F.won(amt) + ' → ' + RD.LINKED.name + ' ' + RD.LINKED.no
-}
+
 
 // ---- 계좌 개설 ----
 const MIN_LIMIT = 1000000
@@ -124,10 +123,9 @@ export interface OpenValues {
   next: string[]
 }
 
-export function openValues(): OpenValues {
+export function openValues(linked: string, riaNo: string): OpenValues {
   const rejected = RD.ACCOUNT_STATE === 'rejected'
   const other = rejected ? REJECTED_OTHER : 0
-  const linked = RD.LINKED.name + ' ' + RD.LINKED.no
   return {
     checks: [
       { label: '국내 거주 개인투자자', ok: true },
@@ -139,7 +137,7 @@ export function openValues(): OpenValues {
     linked,
     linkedNote: RD.LINKED.note,
     rowsFor: (limit) => [
-      ['계좌', RD.ACCOUNT.name],
+      ['계좌', RD.ACCOUNT.name + (riaNo === '-' ? '' : ' ' + riaNo)],
       ['이번 계좌 한도', '₩' + F.won(limit)],
       ['다른 증권사 RIA 한도 합계', '₩' + F.won(other)],
       ['연결 일반계좌', linked]

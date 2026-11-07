@@ -43,6 +43,8 @@ type CandidateResult =
 
 interface ApplyModalProps {
   kind: ApplyKind
+  linkedText: string // 연결 일반계좌 한 줄(서버)
+  riaAccountNo: string // RIA 계좌번호(서버, 개설 전이면 '-')
   onClose: () => void
   onGoHist: (tab: HistTab) => void
   onSubmitIn: (results: SubmittedInboundResult[]) => void
@@ -125,7 +127,7 @@ function DoneView({ title, sum, next }: { title: string; sum: string; next: stri
 
 // ---- 메인 ----
 
-export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, onFinishOpen }: ApplyModalProps) {
+export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, onSubmitIn, onSubmitOut, onFinishOpen }: ApplyModalProps) {
   const [step, setStep] = useState(0)
   const [inQ, setInQ] = useState<Record<string, string>>({})
   const [outAmt, setOutAmt] = useState('')
@@ -229,7 +231,7 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
     setFetchKey((k) => k + 1)
   }
 
-  const cfg = applyConfig(kind)
+  const cfg = applyConfig(kind, linkedText, riaAccountNo)
   const isOpen = kind === 'open'
   const last = cfg.steps.length - 1
 
@@ -306,7 +308,7 @@ export function ApplyModal({ kind, onClose, onGoHist, onSubmitIn, onSubmitOut, o
   const destLabel = selectedDest ? selectedDest.accountNo : '—'
 
   // 계좌 개설
-  const ov = openValues()
+  const ov = openValues(linkedText, riaAccountNo)
   const opLim = opLimit == null ? ov.defaultLimit : opLimit
   const opTot = opLim + ov.other
   const opOver = opTot > LIMIT_MAX

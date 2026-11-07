@@ -38,7 +38,8 @@ import type { DemoSettings } from '../data/returns'
 import { useAppShell } from '../layouts/appShell'
 import { F } from '../lib/calc'
 import { useFundFlow } from '../components/account/useFundFlow'
-import { getProfile } from '../api/profile'
+import { formatAccountNo, getProfile } from '../api/profile'
+import { linkedAccountText } from '../components/account/linkedAccount'
 import { getAssetHoldings, getCustomerAssetBriefing, getCustomerTaxBriefing } from '../api/briefing'
 import { getWithdrawalAvailability } from '../api/withdrawalAvailability'
 import { getGeneralAccounts, getWithdrawalHistory } from '../api/withdrawal'
@@ -343,7 +344,7 @@ export function AccountPage() {
       <h1 className={styles.srOnly}>내 계좌</h1>
       {opened && <Tabs variant="page" ariaLabel="내 계좌 화면" items={PAGE_TABS} value={page} onChange={setPage} />}
 
-      {!opened && <AccountStateBox onOpen={() => openApply('open')} onCancel={cancelOpen} />}
+      {!opened && <AccountStateBox appliedAt={account?.appliedAt} linked={linkedState} onOpen={() => openApply('open')} onCancel={cancelOpen} />}
 
       {opened && page === 'status' && (
         <div className={styles.status}>
@@ -385,6 +386,8 @@ export function AccountPage() {
       {applyKind && (
         <ApplyModal
           kind={applyKind}
+          linkedText={linkedAccountText(linkedState)}
+          riaAccountNo={formatAccountNo(account?.accountNo)}
           onClose={() => setApplyKind(null)}
           onGoHist={goHist}
           onSubmitIn={(results: SubmittedInboundResult[]) => {
