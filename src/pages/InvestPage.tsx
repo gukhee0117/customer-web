@@ -9,6 +9,8 @@ import type { DemoSettings } from '../data/returns'
 import { F } from '../lib/calc'
 import { useAppShell } from '../layouts/appShell'
 import { apiErrorMessage } from '../api/client'
+import { formatAccountNo, getProfile } from '../api/profile'
+import { useServerData } from '../components/account/useServerData'
 import { subscribeAssetEvents } from '../api/assetEvents'
 import { usePollTick } from '../components/common/usePollTick'
 import { createPackage, deletePackage, placeOrder, updatePackage } from '../api/stockPackage'
@@ -88,6 +90,8 @@ export function InvestPage() {
   // 내 패키지·보유·현재가·주문 내역(서버 값)과 오늘 기준 요율
   const server = useServerPackages()
   const fees = useOrderFees()
+  const { state: profile } = useServerData(getProfile)
+  const accountNo = formatAccountNo(profile.status === 'live' ? profile.data.account?.accountNo : null)
   const { views, orders, cash } = server
   const [ordOpen, setOrdOpen] = useState(true)
   const [unsuit, setUnsuit] = useState<Record<string, string>>({}) // 이 화면에서 방금 성향 밖 확인을 한 종목(종목코드 → 날짜)
@@ -491,7 +495,7 @@ export function InvestPage() {
       {tab === 'mine' && server.state === 'ready' && (
         <div className={styles.mine}>
           <div className={styles.colLeft}>
-            <InvestAssetsBox className={styles.assets} views={views} cash={cash} />
+            <InvestAssetsBox className={styles.assets} views={views} cash={cash} accountNo={accountNo} />
             <InvestPkgList className={styles.list} rows={rows} sort={sort} onSort={setSort} selected={selected} onSelect={(id) => setParams({ pkg: id }, { replace: true })} onNew={() => setNm(openNewPkg())} />
           </div>
           <div className={styles.colRight}>
@@ -522,7 +526,7 @@ export function InvestPage() {
       {tab === 'rec' && <InvestRec onAdd={pickPackage} />}
 
       {tab === 'mine' && cur && fees && trade && <InvestTradePanel trade={trade} pkg={cur} cash={cash} fees={fees} onChange={(patch) => setTrade({ ...trade, ...patch })} onClose={closePanel} onSubmit={(c) => submitTrade(trade, c)} />}
-      {tab === 'mine' && cur && fees && bulk !== null && <InvestBulkPanel pkg={cur} cash={cash} fees={fees} amt={bulk} onAmt={setBulk} onClose={closePanel} onSubmit={submitBulk} />}
+      {tab === 'mine' && cur && fees && bulk !== null && <InvestBulkPanel pkg={cur} cash={cash} accountNo={accountNo} fees={fees} amt={bulk} onAmt={setBulk} onClose={closePanel} onSubmit={submitBulk} />}
       {tab === 'mine' && cur && add && (
         <InvestAddPanel
           pkg={cur}
