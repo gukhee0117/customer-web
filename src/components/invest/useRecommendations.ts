@@ -60,17 +60,7 @@ export function useRecommendations(filter: RecommendFilter, limit: number, basis
 }
 
 // 추천 종목을 패키지에 담는 흐름(후보 보기와 같은 담기 창)이 받는 모양으로 바꾼다. 설문 기준은 성향 범위 안 상품만 오고, 거래 기준은 범위 밖(outOfProfile)이 섞일 수 있어 담을 때 확인을 거친다
-export const recToCandidate = (r: RecommendItem): CandidateItem => ({
-  domesticProductId: r.domesticProductId,
-  ticker: r.ticker,
-  name: r.name,
-  market: r.market,
-  type: r.type,
-  sectorName: r.sectorName,
-  themes: r.themes,
-  riskGrade: r.riskGrade,
-  volatilityPercent: r.volatilityPercent,
-  outOfProfile: r.outOfProfile,
-  selectable: true,
-  unselectableReason: null
-})
+export const recToCandidate = (r: RecommendItem): CandidateItem => ({ ...r, selectable: true, unselectableReason: null })
+
+// 설문 허용 등급 문구: 6등급이면 "6등급", 아니면 "5~6등급"처럼. 허용 등급이 없으면 빈 문구. 홈·오늘의 종목 화면이 함께 쓴다
+export const allowedText = (min: number | null): string => (min == null ? '' : min === 6 ? '6등급' : min + '~6등급')

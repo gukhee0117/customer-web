@@ -40,9 +40,6 @@ export function extremes(values: number[]): { hi: number; lo: number } | null {
   return values[hi] === values[lo] ? null : { hi, lo }
 }
 
-// 차트에 붙이는 가격: 천 단위 쉼표, 원 단위 반올림 (예: 19,850)
-export const priceLabel = (v: number): string => Math.round(v).toLocaleString('ko-KR')
-
 // 처음 대비 마지막 종가의 변동률(%). 점이 2개 미만이거나 처음 값이 0 이하면 null
 export function changePercent(values: number[]): number | null {
   if (values.length < 2 || !(values[0] > 0)) return null
@@ -58,6 +55,3 @@ export function pctLabel(p: number): string {
 
 // 문구와 같은 자리에서 반올림한 값(색 구분용): 문구가 0.0%이면 0
 export const roundedPct = (p: number): number => Math.round(p * 10) / 10
-
-// "2026-10-06" → "10.06"
-export const mmdd = (date: string): string => date.slice(5).replace('-', '.')
