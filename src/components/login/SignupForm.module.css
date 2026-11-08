@@ -257,6 +257,19 @@
   gap: var(--space-8);
 }
 
+.emailRow {
+  align-items: flex-end;
+}
+
+.emailRow > label {
+  flex: 1;
+}
+
+.outlineBtn:disabled {
+  cursor: default;
+  opacity: .5;
+}
+
 .codeRow {
   display: flex;
   gap: var(--space-8);

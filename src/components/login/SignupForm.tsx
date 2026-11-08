@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ChangeEvent, InputHTMLAttributes } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../styles/tokens.css'
 import { apiErrorMessage } from '../../api/client'
-import { signup } from '../../api/auth'
+import { signup, sendSignupCode, verifySignupCode } from '../../api/auth'
+import type { SignupChallenge } from '../../api/auth'
 import { useAuth } from '../../contexts/authState'
 import { profileKeyOf, submitAssessment, syncAssessState } from '../../api/investor'
 import { RETURNS_DATA } from '../../data/returns'
@@ -82,7 +83,15 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   const [step, setStep] = useState(0)
   const [terms, setTerms] = useState([false, false, false, false])
   const [info, setInfo] = useState<Info>(EMPTY_INFO)
-  const [codeSent, setCodeSent] = useState(false)
+  const [challenge, setChallenge] = useState<SignupChallenge | null>(null)
+  const [verifiedEmail, setVerifiedEmail] = useState('')
+  const [verifiedUntil, setVerifiedUntil] = useState(0)
+  const [emailBusy, setEmailBusy] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
   const [code, setCode] = useState('')
   const [ria, setRia] = useState<Ria | null>(null)
   const [riaNo, setRiaNo] = useState('')
@@ -97,11 +106,14 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   const setField = (k: InfoKey) => (e: ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value
     setInfo((st) => ({ ...st, [k]: v }))
+    if (k === 'email') { setChallenge(null); setVerifiedEmail(''); setVerifiedUntil(0); setCode('') }
   }
 
   const allOn = terms.every(Boolean)
   const checks = pwChecks(info.pw)
-  const codeOk = digits(code).length === 6
+  const emailVerified = verifiedEmail === info.email.trim() && verifiedUntil > now
+  const cooldown = challenge ? Math.max(0, Math.ceil((Date.parse(challenge.resendAvailableAt) - now) / 1000)) : 0
+  const remaining = challenge ? Math.max(0, Math.ceil((Date.parse(challenge.expiresAt) - now) / 1000)) : 0
   const acct = RETURNS_DATA.ACCOUNT
 
   // 다음 버튼이 막힌 이유(비어 있으면 다음 가능)
@@ -113,9 +125,8 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
       if (digits(info.rrn).length !== 13) return '주민등록번호 13자리를 입력해 주세요'
       if (digits(info.rrn).slice(0, 6) !== digits(info.birth).slice(2)) return '주민등록번호 앞 6자리와 생년월일이 달라요'
       if (!phoneOk(info.phone)) return '휴대폰 번호를 입력해 주세요'
-      if (!codeSent) return '휴대폰 인증번호를 받아 주세요'
-      if (!codeOk) return '인증번호 6자리를 입력해 주세요'
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.email)) return '이메일 주소를 확인해 주세요'
+      if (!emailVerified) return '이메일 인증을 완료해 주세요'
       if (!/^[A-Za-z0-9]{4,20}$/.test(info.uid.trim())) return '아이디는 영문·숫자 4~20자예요'
       if (!pwCharsOk(info.pw)) return '비밀번호에는 공백·한글을 쓸 수 없어요'
       if (info.pw.length > PW_MAX) return '비밀번호는 ' + PW_MAX + '자 이하예요'
@@ -135,7 +146,7 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
     return ''
   }
   const why = reason()
-  const nextDisabled = !!why || submitting
+  const nextDisabled = !!why || submitting || emailBusy
   const lastQuestion = !!survey.questions && qi === survey.questions.length - 1
 
   const goPrev = () => {
@@ -145,6 +156,7 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   }
   // 본인 정보와 계좌 연결 선택이 끝나면 서버에 가입한다(가입하면 바로 로그인돼 투자성향 진단을 이어서 저장할 수 있다)
   const register = async (): Promise<boolean> => {
+    if (!emailVerified) { showToast('이메일 인증을 다시 진행해 주세요'); setStep(1); return false }
     setSubmitting(true)
     try {
       const me = await signup({
@@ -201,20 +213,43 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
     if (step + 1 === 3) setQi(0)
   }
 
-  const sendCode = () => {
-    if (!phoneOk(info.phone)) {
-      showToast('휴대폰 번호를 먼저 입력해 주세요')
-      return
-    }
-    setCodeSent(true)
-    setCode('')
-    showToast('인증번호를 보냈어요')
+  const sendCode = async () => {
+    if (emailBusy || cooldown > 0) return
+    const email = info.email.trim()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('이메일 주소를 먼저 확인해 주세요'); return }
+    setEmailBusy(true)
+    setVerifiedEmail('')
+    setVerifiedUntil(0)
+    try {
+      setChallenge(await sendSignupCode(email))
+      setCode('')
+      setNow(Date.now())
+      showToast('이메일로 인증번호를 보냈어요')
+    } catch (err) { showToast(apiErrorMessage(err, '인증번호를 보내지 못했어요')) }
+    finally { setEmailBusy(false) }
+  }
+
+  const confirmCode = async () => {
+    if (emailBusy || !challenge || remaining === 0 || code.length !== 6) return
+    setEmailBusy(true)
+    try {
+      await verifySignupCode(code)
+      setVerifiedEmail(info.email.trim())
+      setVerifiedUntil(Date.now() + 600000)
+      setChallenge(null)
+      setCode('')
+      setNow(Date.now())
+      showToast('이메일 인증이 완료됐어요')
+    } catch (err) { showToast(apiErrorMessage(err, '인증번호를 확인하지 못했어요')) }
+    finally { setEmailBusy(false) }
   }
 
   const demoFill = () => {
     setInfo({ name: '김리아', birth: '1994.05.17', rrn: '9405172123456', phone: '010-1234-5678', email: 'ria@returns.co.kr', uid: 'kimria', pw: 'returns!2026', pw2: 'returns!2026' })
-    setCodeSent(true)
-    setCode('123456')
+    setChallenge(null)
+    setVerifiedEmail('')
+    setVerifiedUntil(0)
+    setCode('')
   }
 
   return (
@@ -266,42 +301,36 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
         <div className={styles.section}>
           <div className={styles.titleRow}>
             <h2 className={styles.title}>본인 정보를 입력해 주세요</h2>
-            <button type="button" className={styles.fill} onClick={demoFill}>시연용으로 채우기</button>
+            <button type="button" className={styles.fill} disabled={emailBusy || submitting} onClick={demoFill}>시연용으로 채우기</button>
           </div>
           <div className={styles.grid}>
             <Field active={active} label="이름" span={wide ? 1 : 2} type="text" placeholder="김리아" autoComplete="name" value={info.name} onChange={setField('name')} />
             <Field active={active} label="생년월일" span={wide ? 1 : 2} type="text" placeholder="1994.01.01" autoComplete="bday" inputMode="numeric" value={info.birth} onChange={setField('birth')} />
             <Field active={active} label="주민등록번호" span={2} type="password" placeholder="숫자 13자리" autoComplete="off" inputMode="numeric" value={info.rrn} onChange={setField('rrn')} />
           </div>
+          <div className={styles.grid}>
+            <Field active={active} label="휴대폰" span={2} type="tel" placeholder="010-0000-0000" autoComplete="tel" inputMode="numeric" value={info.phone} onChange={setField('phone')} />
+          </div>
           <div className={styles.fieldBlock}>
-            <span className={styles.label}>휴대폰</span>
-            <div className={styles.row}>
-              <input className={cx(styles.input, styles.grow)} type="tel" inputMode="numeric" value={info.phone} onChange={setField('phone')} placeholder="010-0000-0000" autoComplete={active ? 'tel' : 'off'} disabled={!active} aria-label="휴대폰 번호" />
-              <button type="button" className={styles.outlineBtn} onClick={sendCode}>{codeSent ? '다시 받기' : '인증번호 받기'}</button>
+            <div className={cx(styles.row, styles.emailRow)}>
+              <Field active={active && !emailBusy && !submitting} label="이메일" span={2} type="email" placeholder="ria@returns.co.kr" autoComplete="email" inputMode="email" value={info.email} onChange={setField('email')} />
+              <button type="button" className={styles.outlineBtn} disabled={!active || emailBusy || submitting || cooldown > 0 || emailVerified} onClick={() => { void sendCode() }}>
+                {emailVerified ? '인증 완료' : cooldown > 0 ? `재발송 (${cooldown}초 후)` : challenge ? '다시 받기' : '인증번호 받기'}
+              </button>
             </div>
-            {codeSent && (
-              <>
-                <div className={styles.codeRow}>
-                  <input
-                    className={cx(styles.input, styles.grow, styles.codeInput, styles.tabular)}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={code}
-                    onChange={(e) => setCode(digits(e.target.value).slice(0, 6))}
-                    placeholder="인증번호 6자리"
-                    aria-label="인증번호 6자리"
-                    autoComplete="off"
-                    disabled={!active}
-                  />
-                  <span className={styles.codeMsg}>{codeOk ? '인증됐어요' : ''}</span>
-                </div>
-                <span className={styles.hint}>시연에서는 아무 숫자 6자리나 입력하면 돼요</span>
-              </>
-            )}
+            {challenge && <>
+              <p className={styles.hint}>{challenge.maskedEmail} 주소로 보냈어요.</p>
+              <div className={styles.codeRow}>
+                <input className={cx(styles.input, styles.grow, styles.codeInput)} type="text" inputMode="numeric" maxLength={6}
+                  value={code} onChange={e => setCode(digits(e.target.value).slice(0, 6))} placeholder="인증번호 6자리"
+                  aria-label="이메일 인증번호" autoComplete="one-time-code" disabled={!active || emailBusy || remaining === 0} />
+                <button type="button" className={styles.outlineBtn} disabled={!active || emailBusy || remaining === 0 || code.length !== 6} onClick={() => { void confirmCode() }}>인증 확인</button>
+              </div>
+              <span className={styles.hint} role="status">{remaining > 0 ? `${remaining}초 남았어요` : '인증번호가 만료됐어요. 다시 받아 주세요.'}</span>
+            </>}
+            {emailVerified && <span className={styles.codeMsg} role="status">이메일 인증이 완료됐어요. 10분 안에 가입을 마쳐 주세요.</span>}
           </div>
           <div className={styles.grid}>
-            <Field active={active} label="이메일" span={2} type="email" placeholder="ria@returns.co.kr" autoComplete="email" inputMode="email" value={info.email} onChange={setField('email')} />
             <Field active={active} label="아이디" span={2} type="text" placeholder="4자 이상" autoComplete="username" value={info.uid} onChange={setField('uid')} />
             <Field active={active} label="비밀번호" span={wide ? 1 : 2} type="password" placeholder="8자 이상" autoComplete="new-password" value={info.pw} onChange={setField('pw')} />
             <Field active={active} label="비밀번호 확인" span={wide ? 1 : 2} type="password" placeholder="한 번 더 입력" autoComplete="new-password" value={info.pw2} onChange={setField('pw2')} />
