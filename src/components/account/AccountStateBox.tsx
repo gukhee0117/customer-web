@@ -5,30 +5,26 @@ import { Box } from '../common/Box'
 import { cx } from '../common/cx'
 import { StockLabel } from '../common/StockLabel'
 import { GEN_HOLDINGS } from './accountData'
+import styles from './AccountStateBox.module.css'
+import type { ProfileAccount } from '../../api/profile'
 import { linkedAccountText } from './linkedAccount'
 import type { GeneralAccount } from '../../api/withdrawal'
 import type { ServerState } from './useServerData'
-import styles from './AccountStateBox.module.css'
 
 interface AccountStateBoxProps {
   className?: string
-  linked: ServerState<GeneralAccount[]> // 연결 일반계좌(서버)
-  appliedAt?: string // 서버 계좌 신청 시각(없으면 예시 신청일)
   onOpen: () => void // 계좌 개설 신청
-  onCancel: () => void // 신청 취소
+  account: ProfileAccount | null
+  linked: ServerState<GeneralAccount[]>
 }
 
 // 계좌 상태 박스(data-box="acct-state") — 계좌 없음 / 심사 중 / 반려일 때만 보임(정상 계좌에서는 화면이 그리지 않음)
-export function AccountStateBox({ className, appliedAt, linked, onOpen, onCancel }: AccountStateBoxProps) {
-  const state = RD.ACCOUNT_STATE
-  const none = state === 'none'
-  const review = state === 'reviewing'
-  const reject = state === 'rejected'
-  const states = RD.ACCOUNT_STATES
-  const appliedDate = appliedAt?.slice(0, 10) ?? states.reviewing.appliedAt
-  const applied = appliedDate ? F.short(appliedDate) : ''
-  // 신청한 한도는 서버가 심사 전에는 알려 주지 않아 연결 일반계좌만 보인다
-  const limitRows: [string, string][] = [['연결 일반계좌', linkedAccountText(linked)]]
+export function AccountStateBox({ className, onOpen, account, linked }: AccountStateBoxProps) {
+  const none = account === null
+  const review = account?.status === 'APPLIED'
+  const reject = account?.status === 'REJECTED'
+  const closed = account?.status === 'CLOSED'
+  const applied = account?.appliedAt ? F.short(account.appliedAt.slice(0, 10)) : ''
 
   return (
     <Box
@@ -42,29 +38,21 @@ export function AccountStateBox({ className, appliedAt, linked, onOpen, onCancel
           {none && <div className={styles.none}>해외주식을 팔고 돌아올 자금을 담는 계좌예요. 신청은 3분이면 끝나요.</div>}
           {review && (
             <>
-              <div className={styles.headline}>계좌 개설 심사 중이에요 · 신청 {applied} · 보통 1~2영업일</div>
-              <div className={styles.rowsWrap}>
-                {limitRows.map(([k, v]) => (
-                  <div key={k} className={styles.row}>
-                    <span className={styles.rowKey}>{k}</span>
-                    <b className={styles.rowVal}>{v}</b>
-                  </div>
-                ))}
-              </div>
-              <button type="button" className={styles.cancel} onClick={onCancel}>
-                신청 취소
-              </button>
+              <div className={styles.headline}>계좌 개설 심사 중이에요{applied && ' · 신청 ' + applied}</div>
+              <div className={styles.row}><span className={styles.rowKey}>연결 일반계좌</span><b className={styles.rowVal}>{linkedAccountText(linked)}</b></div>
+              <p className={styles.reason}>신청 내용 확인이 필요하면 고객센터로 문의해 주세요.</p>
             </>
           )}
           {reject && (
             <>
               <div className={cx(styles.headline, styles.rejectHead)}>계좌 개설이 반려됐어요</div>
-              <div className={styles.reason}>{states.rejected.reason}</div>
+              <div className={styles.reason}>반려 사유와 재신청은 고객센터로 문의해 주세요.</div>
             </>
           )}
-          {!review && (
+          {closed && <div className={styles.headline}>해지된 계좌예요. 재개설 가능 여부는 고객센터로 문의해 주세요.</div>}
+          {none && (
             <button type="button" className={styles.open} onClick={onOpen}>
-              {reject ? '한도 줄여서 다시 신청' : '계좌 개설 신청'}
+              계좌 개설 신청
             </button>
           )}
         </div>
