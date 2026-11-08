@@ -71,3 +71,22 @@
     min-height: 44px;
   }
 }
+.verification {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  border-bottom: 1px solid var(--color-line-soft);
+  font-size: var(--font-size-13);
+}
+
+.verification input {
+  margin-left: var(--space-12);
+  padding: var(--space-6);
+  max-width: 140px;
+}
+
+.verification button {
+  cursor: pointer;
+  padding: var(--space-6) var(--space-12);
+}
