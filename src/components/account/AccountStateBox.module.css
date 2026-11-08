@@ -42,10 +42,6 @@
   line-height: 1.6;
 }
 
-.rowsWrap {
-  border-top: 1px solid var(--color-line-soft);
-}
-
 .row {
   display: flex;
   align-items: center;
@@ -66,20 +62,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.cancel {
-  all: unset;
-  cursor: pointer;
-  align-self: flex-start;
-  font-size: var(--font-size-13);
-  color: var(--color-sub);
-  text-decoration: underline;
-}
-
-.cancel:focus-visible {
-  outline: 2px solid var(--color-navy);
-  outline-offset: 2px;
 }
 
 .open {

@@ -6,11 +6,14 @@ import { F } from '../../lib/calc'
 import { cx } from '../common/cx'
 import { StockLabel } from '../common/StockLabel'
 import { ModalFrame } from './ModalFrame'
-import { IN_NEXT, IN_SUBMIT_NOTE, LIMIT_MAX, LIMIT_MIN, SUBMIT_NOTE, applyConfig, clampLimit, openValues, outNext, parseInt0 } from './accountApplyData'
+import { IN_NEXT, IN_SUBMIT_NOTE, LIMIT_MAX, SUBMIT_NOTE, applyConfig, outNext, parseInt0 } from './accountApplyData'
 import type { ApplyKind } from './accountApplyData'
 import type { HistTab } from './accountHistData'
 import styles from './ApplyModal.module.css'
 import { apiErrorMessage } from '../../api/client'
+import { applyAccount, getAccountAvailableLimit } from '../../api/account'
+import { useServerData } from './useServerData'
+import { isValidAccountLimit, isAmbiguousResponse, httpStatus } from './accountApplicationRules'
 import {
   getForeignProducts,
   getInboundCandidates,
@@ -43,13 +46,14 @@ type CandidateResult =
 
 interface ApplyModalProps {
   kind: ApplyKind
-  linkedText: string // 연결 일반계좌 한 줄(서버)
-  riaAccountNo: string // RIA 계좌번호(서버, 개설 전이면 '-')
+  linkedText: string
+  riaAccountNo: string
   onClose: () => void
   onGoHist: (tab: HistTab) => void
   onSubmitIn: (results: SubmittedInboundResult[]) => void
   onSubmitOut: (amt: number) => void
   onFinishOpen: () => void
+  onAccountChanged: () => void
 }
 
 interface DoneInfo {
@@ -62,11 +66,6 @@ interface DoneInfo {
 
 function isHttpStatus(e: unknown, code: number): boolean {
   return (e as { response?: { status?: number } })?.response?.status === code
-}
-
-function isAmbiguous(e: unknown): boolean {
-  const s = (e as { response?: { status?: number } })?.response?.status
-  return s == null || s >= 500
 }
 
 function daysUntil(dateStr: string, asOf: string): number {
@@ -127,12 +126,12 @@ function DoneView({ title, sum, next }: { title: string; sum: string; next: stri
 
 // ---- 메인 ----
 
-export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, onSubmitIn, onSubmitOut, onFinishOpen }: ApplyModalProps) {
+export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, onSubmitIn, onSubmitOut, onFinishOpen, onAccountChanged }: ApplyModalProps) {
   const [step, setStep] = useState(0)
   const [inQ, setInQ] = useState<Record<string, string>>({})
   const [outAmt, setOutAmt] = useState('')
   const [outAgree, setOutAgree] = useState(false)
-  const [opLimit, setOpLimit] = useState<number | null>(null)
+  const [opLimit, setOpLimit] = useState<string | null>(null)
   const [opAgree, setOpAgree] = useState(false)
   const [askClose, setAskClose] = useState(false)
   const [done, setDone] = useState<DoneInfo | null>(null)
@@ -156,6 +155,8 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
   const [availability, setAvailability] = useState<WithdrawalAvailability | null>(null)
   const [destAccounts, setDestAccounts] = useState<GeneralAccount[]>([])
   const [destId, setDestId] = useState<number | null>(null)
+  const { state: openLimit, retry: retryOpenLimit } = useServerData(getAccountAvailableLimit, [], kind === 'open')
+  const availableLimit = openLimit.status === 'live' ? openLimit.data : null
 
   // ---- 입고 fetch ----
   useEffect(() => {
@@ -226,6 +227,7 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
   }, [kind, fetchKey])
 
   const retry = () => {
+    if (kind === 'open') { retryOpenLimit(); return }
     setFetchError(null)
     if (kind === 'out') setOutAgree(false)
     setFetchKey((k) => k + 1)
@@ -308,17 +310,19 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
   const destLabel = selectedDest ? selectedDest.accountNo : '—'
 
   // 계좌 개설
-  const ov = openValues(linkedText, riaAccountNo)
-  const opLim = opLimit == null ? ov.defaultLimit : opLimit
-  const opTot = opLim + ov.other
-  const opOver = opTot > LIMIT_MAX
+  const opLim = opLimit == null ? availableLimit ?? 0 : parseInt0(opLimit)
+  const otherLimit = availableLimit == null ? 0 : LIMIT_MAX - availableLimit
+  const opTot = opLim + otherLimit
+  const opOver = availableLimit != null && opLim > availableLimit
+  const openReady = availableLimit != null && availableLimit >= 1
+  const openValid = isValidAccountLimit(opLim, availableLimit)
   const bar = {
     navy: ((Math.min(opTot, LIMIT_MAX) / Math.max(opTot, LIMIT_MAX)) * 100).toFixed(2) + '%',
     red: ((Math.max(0, opTot - LIMIT_MAX) / Math.max(opTot, LIMIT_MAX)) * 100).toFixed(2) + '%',
   }
 
   const nextOn = isOpen
-    ? step === 1 ? !opOver : step === 2 ? opAgree : true
+    ? !submitting && (step === 0 ? openReady : step === 1 ? openValid : step === 2 ? openValid && opAgree : true)
     : step === 0
       ? kind === 'in'
         ? pickedSubmitItems.length > 0 && !loading
@@ -326,17 +330,50 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
       : !submitting
 
   const dirty =
-    step < 2 &&
+    (kind === 'open' ? step < last && (opLimit !== null || opAgree) : step < 2 &&
     (kind === 'in'
       ? Object.keys(inQ).length > 0
       : kind === 'out'
         ? !!outAmt
-        : false)
-  const reqClose = () => (dirty ? setAskClose(true) : onClose())
+        : false))
+  const reqClose = () => {
+    if (submitting || submitLock.current) return
+    if (isOpen && step === last) onFinishOpen()
+    else if (dirty) setAskClose(true)
+    else onClose()
+  }
 
   const submit = async () => {
     if (kind === 'open') {
-      setStep(3)
+      if (!openValid || !opAgree || submitLock.current) return
+      submitLock.current = true
+      setSubmitting(true)
+      setSubmitError(null)
+      const finish = (result: DoneInfo) => {
+        setDone(result)
+        setStep(last)
+        onAccountChanged()
+      }
+      try {
+        const result = await applyAccount(opLim)
+        const opened = result.status === 'OPENED'
+        finish({
+          title: opened ? '계좌가 개설됐어요' : '계좌 개설 신청이 접수됐어요',
+          sum: '한도 ₩' + F.won(result.limitAmount) + (result.accountNo ? ' · ' + result.accountNo : ''),
+          next: opened ? ['내 계좌에서 계좌번호와 잔고를 확인할 수 있어요.'] : ['현재 심사 중이에요. 내 계좌에서 진행 상태를 확인해 주세요.'],
+        })
+      } catch (error) {
+        if (httpStatus(error) === 409) {
+          finish({ title: '이미 계좌가 있어요', sum: '내 계좌에서 계좌와 신청 상태를 확인해 주세요.', next: [] })
+        } else if (isAmbiguousResponse(error)) {
+          finish({ title: '처리 여부를 확인해 주세요', sum: '응답을 확인하지 못했어요. 내 계좌에서 신청 상태를 확인해 주세요.', next: [] })
+        } else {
+          setSubmitError(apiErrorMessage(error, '계좌 개설 신청에 실패했어요. 다시 시도해 주세요.'))
+        }
+      } finally {
+        submitLock.current = false
+        setSubmitting(false)
+      }
       return
     }
     if (kind === 'in') {
@@ -364,7 +401,7 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
           } catch (e) {
             if (isHttpStatus(e, 401)) { auth401 = true; break }
             results.push(
-              isAmbiguous(e)
+              isAmbiguousResponse(e)
                 ? { ticker: item.ticker, status: 'unknown' }
                 : { ticker: item.ticker, status: 'failed', failReason: apiErrorMessage(e, '처리 중 오류가 발생했어요') },
             )
@@ -397,7 +434,7 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
         onSubmitOut(oAmt)
         setStep(2)
       } catch (e) {
-        if (isAmbiguous(e)) {
+        if (isAmbiguousResponse(e)) {
           setDone({ title: '처리 여부를 확인해 주세요', sum: '인출 내역에서 직접 확인해 주세요', next: [] })
           setStep(2)
         } else {
@@ -413,13 +450,14 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
   const nextLabel =
     step < last - 1 ? '다음' : step === last - 1 ? (submitting ? '처리 중...' : '신청하기') : '닫기'
   const onBack = () => {
+    if (submitting || submitLock.current) return
     if (step === 0) reqClose()
     else if (step < last) setStep(step - 1)
     else if (isOpen) onFinishOpen()
     else if (cfg.histTab) onGoHist(cfg.histTab)
   }
   const onNext = () => {
-    if (!nextOn) return
+    if (!nextOn || submitLock.current) return
     if (step < last - 1) setStep(step + 1)
     else if (step === last - 1) void submit()
     else if (isOpen) onFinishOpen()
@@ -773,13 +811,20 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
   } else if (isOpen && step === 0) {
     body = (
       <div>
-        <div className={styles.secTitle}>가입 조건을 자동으로 확인했어요</div>
-        {ov.checks.map((c) => (
-          <div key={c.label} className={styles.checkRow}>
-            <span className={styles.checkLabel}>{c.label}</span>
-            <b className={cx(styles.checkRes, c.ok ? styles.green : styles.red)}>{c.ok ? '확인됐어요' : '확인이 필요해요'}</b>
+        <div className={styles.secTitle}>RIA 계좌 개설 한도를 확인해 주세요</div>
+        {openLimit.status === 'loading' && <div className={styles.loading}>설정 가능 한도를 불러오는 중...</div>}
+        {openLimit.status === 'error' && <div className={styles.fetchErr} role="alert">
+          설정 가능 한도를 불러오지 못했어요. <button type="button" className={styles.retryBtn} onClick={retry}>다시 시도</button>
+        </div>}
+        {availableLimit != null && <>
+          <div className={styles.checkRow}>
+            <span className={styles.checkLabel}>현재 설정 가능한 한도</span>
+            <b className={styles.checkRes}>₩{F.won(availableLimit)}</b>
           </div>
-        ))}
+          <p className={styles.note}>{availableLimit < 1
+            ? '현재 설정 가능한 한도가 없어요. 다른 증권사의 RIA 한도를 확인해 주세요.'
+            : '다른 증권사 RIA 설정 한도를 반영한 금액이에요. 신청 시점에 한도를 다시 확인해요.'}</p>
+        </>}
       </div>
     )
   } else if (isOpen && step === 1) {
@@ -790,25 +835,22 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
             <span className={styles.limitTitle}>이번 계좌 한도</span>
             <b className={styles.limitAmt}>₩{F.won(opLim)}</b>
           </div>
-          <input
-            className={styles.range}
-            type="range"
-            min={LIMIT_MIN}
-            max={LIMIT_MAX}
-            step={1000000}
-            value={opLim}
-            onChange={(e) => setOpLimit(clampLimit(e.target.value))}
-            aria-label="이번 계좌 한도"
-          />
-          <div className={styles.rangeLabels}>
-            <span>100만 원</span>
-            <span className={styles.rangeMax}>5,000만 원</span>
-          </div>
+          <label className={styles.amtField}>
+            <input
+              className={styles.amtInput}
+              inputMode="numeric"
+              value={opLimit ?? String(opLim || '')}
+              onChange={(e) => { setOpLimit(e.target.value.replace(/\D/g, '').slice(0, 8)); setOpAgree(false); setSubmitError(null) }}
+              aria-label="이번 계좌 한도"
+            />
+            <span className={styles.amtUnit}>원</span>
+          </label>
+          <p className={styles.note}>1원부터 ₩{F.won(availableLimit ?? 0)}까지 원 단위로 입력해 주세요.</p>
         </div>
         <div className={styles.otherRow}>
           <span className={styles.sub}>다른 증권사 RIA 한도 합계</span>
           <span className={styles.mydata}>마이데이터 조회</span>
-          <b className={cx(styles.bold, styles.sumEnd)}>₩{F.won(ov.other)}</b>
+          <b className={cx(styles.bold, styles.sumEnd)}>₩{F.won(otherLimit)}</b>
         </div>
         <div>
           <div className={styles.totRow}>
@@ -822,23 +864,17 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
           </div>
           {opOver && <div className={styles.overWarn}>합계가 5,000만 원을 넘어요. 이번 계좌 한도를 줄여 주세요.</div>}
         </div>
-        <div>
-          <div className={styles.amtTitle}>연결 일반계좌</div>
-          <div className={styles.radio} role="radio" aria-checked="true">
-            <span className={styles.radioDot} />
-            <span className={styles.radioTxt}>
-              <b className={styles.radioName}>{ov.linked}</b>
-              <span className={styles.radioNote}>{ov.linkedNote}</span>
-            </span>
-          </div>
-        </div>
       </>
     )
   } else if (isOpen && step === 2) {
     body = (
       <>
         <div>
-          {ov.rowsFor(opLim).map(([k, v]) => (
+          {[
+            ['계좌', 'Returns RIA'],
+            ['이번 계좌 한도', '₩' + F.won(opLim)],
+            ['다른 증권사 RIA 한도 합계', '₩' + F.won(otherLimit)],
+          ].map(([k, v]) => (
             <div key={k} className={styles.confirmRow}>
               <span className={cx(styles.sub, styles.noShrink)}>{k}</span>
               <b className={styles.confirmVal}>{v}</b>
@@ -848,10 +884,11 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
         <button type="button" className={cx(styles.agree, styles.agreeWrap)} aria-pressed={opAgree} onClick={() => setOpAgree(!opAgree)}>
           <Box on={opAgree} />1년 안에 원금을 인출하면 세제 혜택이 모두 취소된다는 점을 확인했어요
         </button>
+        {submitError && <div className={styles.fetchErr} role="alert">{submitError}</div>}
       </>
     )
   } else if (isOpen && step === 3) {
-    body = <DoneView title="계좌 개설 신청이 접수됐어요" sum={'한도 ₩' + F.won(opLim) + ' · ' + ov.linked} next={ov.next} />
+    body = done && <DoneView title={done.title ?? '계좌 개설 신청 결과'} sum={done.sum} next={done.next} />
   } else if (done) {
     body = <DoneView title={done.title ?? '인출 처리 완료'} sum={done.sum} next={done.next} />
   }
@@ -861,13 +898,13 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
       <ModalFrame
         title={cfg.title}
         onClose={reqClose}
-        escape={!askClose}
+        escape={!askClose && !submitting}
         steps={stepBar}
         bodyClassName={styles.body}
         footClassName={styles.foot}
         footer={
           <>
-            <button type="button" className={styles.back} onClick={onBack}>
+            <button type="button" className={styles.back} disabled={submitting} onClick={onBack}>
               {backLabel}
             </button>
             <button type="button" className={cx(styles.next, nextOn && styles.nextOn)} disabled={!nextOn} onClick={onNext}>

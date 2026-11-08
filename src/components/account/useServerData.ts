@@ -14,7 +14,8 @@ export const NO_DATA_CODES = ['ACCOUNT_NOT_FOUND', 'ACCOUNT_STATE_NOT_ALLOWED', 
 // refresh: 화면을 loading으로 돌리지 않고 이전 값을 둔 채 조용히 다시 받는다(실패해도 이전 값 유지)
 export function useServerData<T>(
   fetcher: () => Promise<T>,
-  noDataCodes: string[] = []
+  noDataCodes: string[] = [],
+  enabled = true
 ): { state: ServerState<T>; retry: () => void; refresh: () => void } {
   const [tries, setTries] = useState(0)
   const [refreshes, setRefreshes] = useState(0)
@@ -23,6 +24,7 @@ export function useServerData<T>(
   const [result, setResult] = useState<{ tries: number; state: ServerState<T> } | null>(null)
 
   useEffect(() => {
+    if (!enabled) return
     let alive = true
     // retry와 refresh가 한 번에 배치되면 사용자가 누른 retry의 실패는 숨기지 않는다
     const silent = quiet.current && tries === lastTries.current
@@ -41,7 +43,7 @@ export function useServerData<T>(
     }
     // fetcher·noDataCodes는 호출하는 쪽의 고정 값이라 다시 받기는 tries로만 일으킨다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tries, refreshes])
+  }, [tries, refreshes, enabled])
 
   const refresh = useCallback(() => {
     quiet.current = true
