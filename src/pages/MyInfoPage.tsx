@@ -152,7 +152,7 @@ export function MyInfoPage() {
           <MyInfoCommunityBox className={styles.community} onToast={showToast} nickname={prof ? prof.nickname ?? '아직 없어요' : '-'} pub={prof?.investorTypePublic} />
         </div>
         <div className={styles.col}>
-          <MyInfoNotifyBox id="notify" className={cx(styles.notify, styles.flashable, flash === 'notify' && styles.flashOn)} onToast={showToast} />
+          <MyInfoNotifyBox id="notify" className={cx(styles.notify, styles.flashable, flash === 'notify' && styles.flashOn)} onToast={showToast} email={prof?.email} />
           <div className={styles.pair}>
             <MyInfoConsentBox className={styles.consent} onToast={showToast} />
             <MyInfoThemeBox id="theme" className={cx(styles.theme, styles.flashable, flash === 'theme' && styles.flashOn)} onToast={showToast} />

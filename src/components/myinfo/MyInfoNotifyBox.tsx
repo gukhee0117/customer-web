@@ -1,4 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { fetchNotificationSettings, updateNotificationSettings } from '../../api/notificationSettings'
+import type { NotificationSettings } from '../../api/notificationSettings'
+import { apiErrorMessage } from '../../api/client'
 import { Box } from '../common/Box'
 import { cx } from '../common/cx'
 import { MyInfoSwitch } from './MyInfoSwitch'
@@ -9,13 +12,12 @@ interface Props {
   className?: string
   id?: string
   onToast: (msg: string) => void
+  email: string | null | undefined // undefined: 프로필 조회 전 또는 조회 실패
 }
 
-type Key = 'push' | 'sms' | 'email' | 'settle' | 'band' | 'reply' | 'kiru'
-type Notify = Record<Key, boolean>
+type Key = keyof NotificationSettings
 
-const KEY = 'returns-notify'
-const DEFAULTS: Notify = { push: true, sms: false, email: false, settle: true, band: true, reply: true, kiru: true }
+const DEFAULTS: NotificationSettings = { push: true, sms: false, email: false, settle: true, band: true, reply: true, kiru: true }
 const CHANNELS: [Key, string][] = [['push', '앱 푸시'], ['sms', '문자'], ['email', '이메일']]
 const KINDS: [Key, string, string][] = [
   ['settle', '정산 완료', '매도 대금이 원화로 확정·정산되면 알려드려요'],
@@ -24,56 +26,75 @@ const KINDS: [Key, string, string][] = [
   ['kiru', '끼루 답글', '끼루가 내 글에 답하면 알려드려요(커뮤니티)']
 ]
 
-// 세션 저장소에서 읽음(원본: 브라우저 탭을 닫기 전까지 유지, 없거나 깨졌으면 기본값)
-// TODO: 백엔드 연결 시 서버의 알림 설정 조회로 대체
-const read = (): Notify => {
-  try {
-    const v = JSON.parse(sessionStorage.getItem(KEY) || 'null')
-    if (v && typeof v === 'object') return { ...DEFAULTS, ...v }
-  } catch {
-    // 저장값이 깨졌으면 기본값
-  }
-  return { ...DEFAULTS }
-}
-
-// 알림 설정 — 바꾸면 바로 저장(sessionStorage) + 토스트
-export function MyInfoNotifyBox({ className, id, onToast }: Props) {
-  const [nt, setNt] = useState(read)
+export function MyInfoNotifyBox({ className, id, onToast, email }: Props) {
+  const [nt, setNt] = useState<NotificationSettings>(DEFAULTS)
+  const [ready, setReady] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const allOff = !nt.push && !nt.sms && !nt.email
 
-  const toggle = (k: Key) => {
-    const next = { ...nt, [k]: !nt[k] }
-    setNt(next)
-    try {
-      sessionStorage.setItem(KEY, JSON.stringify(next))
-    } catch {
-      // 저장 못 해도 화면은 그대로
+  useEffect(() => {
+    let active = true
+    setReady(false)
+    setLoadError(false)
+    fetchNotificationSettings()
+      .then((settings) => { if (active) { setNt(settings); setReady(true) } })
+      .catch(() => { if (active) { setLoadError(true); onToast('알림 설정을 불러오지 못했어요. 다시 시도해 주세요') } })
+    return () => { active = false }
+  }, [onToast, loadAttempt])
+
+  const toggle = async (key: Key) => {
+    if (!ready || saving) return
+    if (key === 'email' && !nt.email) {
+      if (email === undefined) {
+        onToast('이메일 등록 여부를 확인하지 못했어요. 기본 정보를 다시 불러와 주세요.')
+        return
+      }
+      if (!email?.trim()) {
+        onToast('등록된 이메일이 없습니다. 기본 정보에서 이메일을 등록해 주세요.')
+        return
+      }
     }
-    onToast('알림 설정을 저장했어요')
+    const previous = nt
+    const next = { ...nt, [key]: !nt[key] }
+    setNt(next)
+    setSaving(true)
+    try {
+      setNt(await updateNotificationSettings(next))
+      onToast('알림 설정을 저장했어요')
+    } catch (error) {
+      setNt(previous)
+      onToast(apiErrorMessage(error, '알림 설정을 저장하지 못했어요. 다시 시도해 주세요'))
+    } finally {
+      setSaving(false)
+    }
   }
 
+  const disabled = !ready || saving
   return (
-    <Box id={id} data-box="notify" className={className} title="알림 설정" head={<span className={styles.saveNote}>바꾸면 바로 저장돼요</span>}>
+    <Box id={id} data-box="notify" className={className} title="알림 설정" head={<span className={styles.saveNote}>{saving ? '저장 중…' : '바꾸면 바로 저장돼요'}</span>}>
+      {loadError && <div role="alert">알림 설정을 불러오지 못했어요. <button type="button" onClick={() => setLoadAttempt(n => n + 1)}>다시 시도</button></div>}
       <div className={styles.cols}>
         <div className={styles.col}>
           <div className={styles.colHead}>받는 방법</div>
-          {CHANNELS.map(([k, label]) => (
-            <div key={k} className={styles.channel}>
-              <span id={'nt-' + k} className={styles.channelName}>{label}</span>
-              <MyInfoSwitch on={nt[k]} labelId={'nt-' + k} onToggle={() => toggle(k)} />
+          {CHANNELS.map(([key, label]) => (
+            <div key={key} className={styles.channel}>
+              <span id={'nt-' + key} className={styles.channelName}>{label}</span>
+              <MyInfoSwitch on={nt[key]} labelId={'nt-' + key} onToggle={() => void toggle(key)} disabled={disabled} />
             </div>
           ))}
           {allOff && <div className={styles.warn}>받는 방법이 모두 꺼져 있어 알림을 받을 수 없어요</div>}
         </div>
         <div className={cx(styles.col, styles.kinds)}>
           <div className={styles.colHead}>알림 종류</div>
-          {KINDS.map(([k, label, desc]) => (
-            <div key={k} className={styles.kind}>
+          {KINDS.map(([key, label, desc]) => (
+            <div key={key} className={styles.kind}>
               <span className={row.label}>
-                <span id={'nt-' + k} className={row.name}>{label}</span>
+                <span id={'nt-' + key} className={row.name}>{label}</span>
                 <span className={row.desc}>{desc}</span>
               </span>
-              <MyInfoSwitch on={nt[k]} labelId={'nt-' + k} onToggle={() => toggle(k)} />
+              <MyInfoSwitch on={nt[key]} labelId={'nt-' + key} onToggle={() => void toggle(key)} disabled={disabled} />
             </div>
           ))}
         </div>

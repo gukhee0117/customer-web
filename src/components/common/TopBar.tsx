@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import '../../styles/tokens.css'
-import { subscribeSettlementCompleted } from '../../api/settlementEvents'
+import { useCustomerNotifications } from './useCustomerNotifications'
 import { F } from '../../lib/calc'
 import { assetUrl } from './assetUrl'
 import { cx } from './cx'
@@ -28,19 +28,6 @@ const WARN_S = 300
 const KEY_EXP = 'returns-session-exp'
 const KEY_WARNED = 'returns-session-warned'
 const KEY_LOGOUT_NOTICE = 'returns-logout-notice'
-// 관리자 정산 배치 → 고객 알림 시연(localStorage · 실제 앱은 SSE)
-// 같은 브라우저에서 계정이 바뀌어도 알림이 섞이지 않게 키 끝에 고객 번호를 붙인다
-const KEY_PUSH = 'returns-push'
-const KEY_PUSH_SHOWN = 'returns-push-shown'
-const KEY_PUSH_READ = 'returns-push-read'
-const keyOf = (base: string, uid: number | null): string => base + ':' + uid
-
-interface PushNote {
-  id: string
-  text: string
-  date: string
-}
-
 const ssGet = (k: string): string | null => {
   try {
     return sessionStorage.getItem(k)
@@ -62,35 +49,6 @@ const ssDel = (k: string) => {
     // 저장소를 못 쓰면 지울 것도 없음
   }
 }
-const lsJson = <T,>(k: string, fallback: T): T => {
-  try {
-    const v = JSON.parse(localStorage.getItem(k) || 'null')
-    return v == null ? fallback : v
-  } catch {
-    return fallback
-  }
-}
-const lsSetJson = (k: string, v: unknown) => {
-  try {
-    localStorage.setItem(k, JSON.stringify(v))
-  } catch {
-    // 저장소를 못 쓰면 이번 화면에서만 유지
-  }
-}
-
-const readPush = (uid: number | null): PushNote[] => {
-  if (uid == null) return []
-  const seen: Record<string, boolean> = {}
-  const out: PushNote[] = []
-  ;(lsJson<PushNote[]>(keyOf(KEY_PUSH, uid), []) || []).forEach((n) => {
-    if (n && n.id && !seen[n.id]) {
-      seen[n.id] = true
-      out.push(n)
-    }
-  })
-  return out
-}
-
 // 첫 화면의 만료 시각: 저장된 값을 그대로 읽음. ?session=초 로 시연용 지정 가능
 // 세션이 없거나 만료되어도 임의 30분을 새로 만들지 않음 — 만료 처리는 auth.status가 담당
 const initSession = (): number => {
@@ -136,13 +94,7 @@ export function TopBar({ active = 'home', bizDot, noSearch = false, simpleUserMe
   const [now, setNow] = useState(() => Date.now())
   const [warnOpen, setWarnOpen] = useState(false)
   const uid = auth.status === 'authenticated' ? auth.me.customerId : null
-  const [push, setPush] = useState<PushNote[]>(() => readPush(uid))
-  // 계정이 바뀌면(로그아웃·다른 고객 로그인) 현재 고객의 알림만 다시 읽는다
-  const [pushUid, setPushUid] = useState(uid)
-  if (pushUid !== uid) {
-    setPushUid(uid)
-    setPush(readPush(uid))
-  }
+  const notifications = useCustomerNotifications(uid, showToast)
 
   const notifRef = useRef<HTMLDivElement>(null)
   const userRef = useRef<HTMLDivElement>(null)
@@ -193,43 +145,6 @@ export function TopBar({ active = 'home', bizDot, noSearch = false, simpleUserMe
     return () => clearInterval(id)
   }, [exp, endSession])
 
-  // 정산 완료 푸시: 처음 보는 알림이 다른 탭에서 들어오면 토스트
-  const syncPush = useCallback(
-    (fromEvent: boolean) => {
-      const list = readPush(uid)
-      const shownKey = keyOf(KEY_PUSH_SHOWN, uid)
-      const shown = lsJson<string[]>(shownKey, [])
-      const fresh = list.filter((n) => !shown.includes(n.id))
-      if (fresh.length) {
-        lsSetJson(shownKey, shown.concat(fresh.map((n) => n.id)).slice(-50))
-        if (fromEvent) showToast('매도 대금이 원화로 확정됐어요', 5000)
-      }
-      setPush(list)
-    },
-    [showToast, uid]
-  )
-
-  useEffect(() => {
-    const onStore = (e: StorageEvent) => {
-      if (e.key === keyOf(KEY_PUSH, uid)) syncPush(true)
-    }
-    window.addEventListener('storage', onStore)
-    return () => window.removeEventListener('storage', onStore)
-  }, [syncPush, uid])
-
-  // 정산 완료 푸시(서버): 알림을 저장하고 다른 탭에도 알린다. 같은 정산 배치는 한 번만 담는다
-  useEffect(() => {
-    if (uid == null) return
-    const pushKey = keyOf(KEY_PUSH, uid)
-    return subscribeSettlementCompleted((e) => {
-      const id = 'settle-' + e.batchId
-      const list = lsJson<PushNote[]>(pushKey, []) || []
-      if (list.some((n) => n.id === id)) return
-      lsSetJson(pushKey, [{ id, text: '매도 대금 정산이 완료됐어요 · 원화로 확정됐어요', date: e.completedAt.slice(0, 10) }, ...list].slice(0, 20))
-      syncPush(true)
-    })
-  }, [uid, syncPush])
-
   useEffect(() => {
     const onResize = () => setWide(window.innerWidth >= 1100)
     const onHash = () => setSecHash(hashSection())
@@ -262,17 +177,15 @@ export function TopBar({ active = 'home', bizDot, noSearch = false, simpleUserMe
     }
   }, [])
 
-  const readIds = lsJson<string[]>(keyOf(KEY_PUSH_READ, uid), [])
-  const pushUnread = push.filter((n) => !readIds.includes(n.id)).length
-  const unread = pushUnread
-  const notifs = push.map((n) => ({ text: n.text, time: F.short(n.date), hot: true }))
+  const unread = notifications.unread
+  const notifs = notifications.items.map(n => ({ id: n.notificationId, text: n.title + ' · ' + n.content, time: F.short(n.createdAt.slice(0, 10)), hot: !n.readAt }))
 
   const rem = Math.max(0, Math.ceil((exp - now) / 1000))
   const sessText = mmss(rem)
   const sessLabel = wide ? '남은 시간 ' + sessText : sessText
 
   const toggleNotif = () => {
-    if (uid != null) lsSetJson(keyOf(KEY_PUSH_READ, uid), push.map((n) => n.id))
+    if (!notifOpen) notifications.markRead()
     setNotifOpen((o) => !o)
     setUserOpen(false)
   }
@@ -347,9 +260,10 @@ export function TopBar({ active = 'home', bizDot, noSearch = false, simpleUserMe
             {notifOpen && (
               <div className={styles.notifPanel}>
                 <div className={cx(styles.panelHead, styles.panelHeadLine)}>알림</div>
-                {notifs.length === 0 && <div className={styles.notif}>새 알림이 없어요</div>}
+                {notifications.error && <div className={styles.notif}>알림을 불러오지 못했어요. <button type="button" onClick={notifications.reload}>다시 시도</button></div>}
+                {!notifications.error && notifs.length === 0 && <div className={styles.notif}>새 알림이 없어요</div>}
                 {notifs.map((n, i) => (
-                  <div key={i} className={cx(styles.notif, i < notifs.length - 1 && styles.notifLine)}>
+                  <div key={n.id} className={cx(styles.notif, i < notifs.length - 1 && styles.notifLine)}>
                     <span className={cx(styles.dot, n.hot && styles.dotHot)} />
                     <span className={styles.notifTime}>{n.time}</span>
                     <span className={styles.notifText}>{n.text}</span>
