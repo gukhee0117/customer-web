@@ -12,6 +12,8 @@ import type { HistTab } from './accountHistData'
 import styles from './ApplyModal.module.css'
 import { apiErrorMessage } from '../../api/client'
 import { applyAccount, getAccountAvailableLimit } from '../../api/account'
+import { useServerData } from './useServerData'
+import { isValidAccountLimit, isAmbiguousResponse, httpStatus } from './accountApplicationRules'
 import {
   getForeignProducts,
   getInboundCandidates,
@@ -64,11 +66,6 @@ interface DoneInfo {
 
 function isHttpStatus(e: unknown, code: number): boolean {
   return (e as { response?: { status?: number } })?.response?.status === code
-}
-
-function isAmbiguous(e: unknown): boolean {
-  const s = (e as { response?: { status?: number } })?.response?.status
-  return s == null || s >= 500
 }
 
 function daysUntil(dateStr: string, asOf: string): number {
@@ -134,7 +131,7 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
   const [inQ, setInQ] = useState<Record<string, string>>({})
   const [outAmt, setOutAmt] = useState('')
   const [outAgree, setOutAgree] = useState(false)
-  const [opLimit, setOpLimit] = useState<number | null>(null)
+  const [opLimit, setOpLimit] = useState<string | null>(null)
   const [opAgree, setOpAgree] = useState(false)
   const [askClose, setAskClose] = useState(false)
   const [done, setDone] = useState<DoneInfo | null>(null)
@@ -158,24 +155,8 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
   const [availability, setAvailability] = useState<WithdrawalAvailability | null>(null)
   const [destAccounts, setDestAccounts] = useState<GeneralAccount[]>([])
   const [destId, setDestId] = useState<number | null>(null)
-  const [availableLimit, setAvailableLimit] = useState<number | null>(null)
-
-  useEffect(() => {
-    if (kind !== 'open') return
-    let cancelled = false
-    setLoading(true)
-    setFetchError(null)
-    setAvailableLimit(null)
-    getAccountAvailableLimit()
-      .then((amount) => {
-        if (!cancelled) setAvailableLimit(amount)
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) setFetchError(apiErrorMessage(error, '설정 가능 한도를 불러오지 못했어요. 다시 시도해 주세요.'))
-      })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [kind, fetchKey])
+  const { state: openLimit, retry: retryOpenLimit } = useServerData(getAccountAvailableLimit, [], kind === 'open')
+  const availableLimit = openLimit.status === 'live' ? openLimit.data : null
 
   // ---- 입고 fetch ----
   useEffect(() => {
@@ -246,6 +227,7 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
   }, [kind, fetchKey])
 
   const retry = () => {
+    if (kind === 'open') { retryOpenLimit(); return }
     setFetchError(null)
     if (kind === 'out') setOutAgree(false)
     setFetchKey((k) => k + 1)
@@ -328,12 +310,12 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
   const destLabel = selectedDest ? selectedDest.accountNo : '—'
 
   // 계좌 개설
-  const opLim = opLimit ?? availableLimit ?? 0
+  const opLim = opLimit == null ? availableLimit ?? 0 : parseInt0(opLimit)
   const otherLimit = availableLimit == null ? 0 : LIMIT_MAX - availableLimit
   const opTot = opLim + otherLimit
   const opOver = availableLimit != null && opLim > availableLimit
-  const openReady = availableLimit != null && availableLimit >= 1 && !loading && !fetchError
-  const openValid = openReady && Number.isInteger(opLim) && opLim >= 1 && !opOver
+  const openReady = availableLimit != null && availableLimit >= 1
+  const openValid = isValidAccountLimit(opLim, availableLimit)
   const bar = {
     navy: ((Math.min(opTot, LIMIT_MAX) / Math.max(opTot, LIMIT_MAX)) * 100).toFixed(2) + '%',
     red: ((Math.max(0, opTot - LIMIT_MAX) / Math.max(opTot, LIMIT_MAX)) * 100).toFixed(2) + '%',
@@ -348,12 +330,12 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
       : !submitting
 
   const dirty =
-    step < 2 &&
+    (kind === 'open' ? step < last && (opLimit !== null || opAgree) : step < 2 &&
     (kind === 'in'
       ? Object.keys(inQ).length > 0
       : kind === 'out'
         ? !!outAmt
-        : false)
+        : false))
   const reqClose = () => {
     if (submitting || submitLock.current) return
     if (isOpen && step === last) onFinishOpen()
@@ -367,24 +349,26 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
       submitLock.current = true
       setSubmitting(true)
       setSubmitError(null)
+      const finish = (result: DoneInfo) => {
+        setDone(result)
+        setStep(last)
+        onAccountChanged()
+      }
       try {
         const result = await applyAccount(opLim)
         const opened = result.status === 'OPENED'
-        setDone({
+        finish({
           title: opened ? '계좌가 개설됐어요' : '계좌 개설 신청이 접수됐어요',
           sum: '한도 ₩' + F.won(result.limitAmount) + (result.accountNo ? ' · ' + result.accountNo : ''),
           next: opened ? ['내 계좌에서 계좌번호와 잔고를 확인할 수 있어요.'] : ['현재 심사 중이에요. 내 계좌에서 진행 상태를 확인해 주세요.'],
         })
-        setStep(3)
-        onAccountChanged()
       } catch (error) {
-        if (isAmbiguous(error)) {
-          setDone({ title: '처리 여부를 확인해 주세요', sum: '응답을 확인하지 못했어요. 내 계좌에서 신청 상태를 확인해 주세요.', next: [] })
-          setStep(3)
-          onAccountChanged()
+        if (httpStatus(error) === 409) {
+          finish({ title: '이미 계좌가 있어요', sum: '내 계좌에서 계좌와 신청 상태를 확인해 주세요.', next: [] })
+        } else if (isAmbiguousResponse(error)) {
+          finish({ title: '처리 여부를 확인해 주세요', sum: '응답을 확인하지 못했어요. 내 계좌에서 신청 상태를 확인해 주세요.', next: [] })
         } else {
           setSubmitError(apiErrorMessage(error, '계좌 개설 신청에 실패했어요. 다시 시도해 주세요.'))
-          if (isHttpStatus(error, 409)) onAccountChanged()
         }
       } finally {
         submitLock.current = false
@@ -417,7 +401,7 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
           } catch (e) {
             if (isHttpStatus(e, 401)) { auth401 = true; break }
             results.push(
-              isAmbiguous(e)
+              isAmbiguousResponse(e)
                 ? { ticker: item.ticker, status: 'unknown' }
                 : { ticker: item.ticker, status: 'failed', failReason: apiErrorMessage(e, '처리 중 오류가 발생했어요') },
             )
@@ -450,7 +434,7 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
         onSubmitOut(oAmt)
         setStep(2)
       } catch (e) {
-        if (isAmbiguous(e)) {
+        if (isAmbiguousResponse(e)) {
           setDone({ title: '처리 여부를 확인해 주세요', sum: '인출 내역에서 직접 확인해 주세요', next: [] })
           setStep(2)
         } else {
@@ -828,9 +812,9 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
     body = (
       <div>
         <div className={styles.secTitle}>RIA 계좌 개설 한도를 확인해 주세요</div>
-        {loading && <div className={styles.loading}>설정 가능 한도를 불러오는 중...</div>}
-        {fetchError && <div className={styles.fetchErr} role="alert">
-          {fetchError} <button type="button" className={styles.retryBtn} onClick={retry}>다시 시도</button>
+        {openLimit.status === 'loading' && <div className={styles.loading}>설정 가능 한도를 불러오는 중...</div>}
+        {openLimit.status === 'error' && <div className={styles.fetchErr} role="alert">
+          설정 가능 한도를 불러오지 못했어요. <button type="button" className={styles.retryBtn} onClick={retry}>다시 시도</button>
         </div>}
         {availableLimit != null && <>
           <div className={styles.checkRow}>
@@ -855,8 +839,8 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
             <input
               className={styles.amtInput}
               inputMode="numeric"
-              value={opLim ? F.won(opLim) : ''}
-              onChange={(e) => { setOpLimit(parseInt0(e.target.value.slice(0, 12))); setOpAgree(false); setSubmitError(null) }}
+              value={opLimit ?? String(opLim || '')}
+              onChange={(e) => { setOpLimit(e.target.value.replace(/\D/g, '').slice(0, 8)); setOpAgree(false); setSubmitError(null) }}
               aria-label="이번 계좌 한도"
             />
             <span className={styles.amtUnit}>원</span>

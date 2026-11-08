@@ -27,6 +27,7 @@ function harness(client) {
   const slots = []; let cursor = 0; let dirty = false; let effects = []; let output
   const calls = { changed: 0, closed: 0 }
   const react = {
+    useCallback(fn) { return fn },
     useState(initial) {
       const i = cursor++
       slots[i] ??= { value: typeof initial === 'function' ? initial() : initial }
@@ -55,6 +56,12 @@ function harness(client) {
     if (name === './accountData') return { GEN_HOLDINGS: [] }
     throw new Error(name)
   })
+  const serverData = load('components/account/useServerData.ts', name => {
+    if (name === 'react') return react
+    if (name === 'axios') return { isAxiosError: () => true }
+    throw new Error(name)
+  })
+  const rules = load('components/account/accountApplicationRules.ts', () => { throw new Error('Unexpected import') })
   const { ApplyModal } = load('components/account/ApplyModal.tsx', name => {
     if (name === 'react') return react
     if (name === 'react/jsx-runtime') return { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }), Fragment: 'fragment' }
@@ -65,6 +72,8 @@ function harness(client) {
     if (name.endsWith('/common/StockLabel')) return { StockLabel: 'stock' }
     if (name === './ModalFrame') return { ModalFrame: 'frame' }
     if (name === './accountApplyData') return config
+    if (name === './useServerData') return serverData
+    if (name === './accountApplicationRules') return rules
     if (name.endsWith('/api/account')) return api
     if (name.endsWith('/api/client')) return { apiErrorMessage: (e, fallback) => e.response?.data?.message ?? fallback }
     if (name.endsWith('/api/inbound') || name.endsWith('/api/withdrawal')) return {}
@@ -173,4 +182,36 @@ test('lost response shows uncertainty, refreshes profile and prevents blind resu
   assert.equal(h.calls.changed, 1)
   assert.equal(h.nodes().find(n => n.type?.name === 'DoneView').props.title, '처리 여부를 확인해 주세요')
   assert.equal(h.button('신청하기'), undefined)
+})
+
+test('409 already-existing account ends submission and refreshes the account', async () => {
+  let posts = 0
+  const h = harness({ get: async () => ({ data: { data: 20_000_000 } }), post: async () => { posts++; throw { response: { status: 409 } } } })
+  h.render(); await tick(); h.render(); h.confirm(); h.click('신청하기')
+  await tick(); h.render()
+  assert.equal(h.calls.changed, 1)
+  assert.equal(h.nodes().find(n => n.type?.name === 'DoneView').props.title, '이미 계좌가 있어요')
+  assert.equal(h.button('신청하기'), undefined)
+  assert.equal(posts, 1)
+})
+
+test('closing an edited application asks before discarding input', async () => {
+  const h = harness({ get: async () => ({ data: { data: 20_000_000 } }) })
+  h.render(); await tick(); h.render(); h.click('다음')
+  h.nodes().find(n => n.type === 'input').props.onChange({ target: { value: '1234567' } })
+  h.render()
+  assert.equal(h.nodes().find(n => n.type === 'input').props.value, '1234567')
+  h.nodes().find(n => n.type === 'frame').props.onClose(); h.render()
+  assert.equal(h.calls.closed, 0)
+  assert.ok(h.nodes().some(n => n.type?.name === 'AskClose'))
+})
+
+test('limit boundaries and uncertain responses are pure shared rules', () => {
+  const rules = load('components/account/accountApplicationRules.ts', () => { throw new Error('Unexpected import') })
+  for (const [amount, available, valid] of [[1,1,true],[50000000,50000000,true],[0,10,false],[11,10,false],[1.5,10,false],[1,null,false],[NaN,10,false]]) {
+    assert.equal(rules.isValidAccountLimit(amount, available), valid)
+  }
+  assert.equal(rules.isAmbiguousResponse(new Error('network')), true)
+  assert.equal(rules.isAmbiguousResponse({ response: { status: 503 } }), true)
+  assert.equal(rules.isAmbiguousResponse({ response: { status: 409 } }), false)
 })
