@@ -58,14 +58,14 @@ test('account change clears old history immediately and ignores old inflight res
 
 test('slow old fetch cannot undo successful server read-all',async()=>{
   let list=[item(1)];const old=deferred();let calls=0
-  const h=harness({fetchCustomerNotifications:()=>++calls===2?old.promise:Promise.resolve(list),markAllCustomerNotificationsRead:async()=>{list=[item(1,'2026-11-08T11:00:00')]}})
-  h.render(1);await tick();h.render().reload();h.render().markRead();await tick();old.resolve([item(1)]);await tick()
+  const h=harness({fetchCustomerNotifications:()=>++calls===2?old.promise:Promise.resolve(list),markCustomerNotificationsRead:async()=>{list=[item(1,'2026-11-08T11:00:00')]}})
+  h.render(1);await tick();h.render().reload();h.render().markRead([1]);await tick();old.resolve([item(1)]);await tick()
   assert.equal(h.render().unread,0);h.unmount()
 })
 
 test('read-all failure keeps unread state and explains failure',async()=>{
-  const h=harness({fetchCustomerNotifications:async()=>[item(1)],markAllCustomerNotificationsRead:async()=>{throw new Error('offline')}})
-  h.render(1);await tick();h.render().markRead();await tick()
+  const h=harness({fetchCustomerNotifications:async()=>[item(1)],markCustomerNotificationsRead:async()=>{throw new Error('offline')}})
+  h.render(1);await tick();h.render().markRead([1]);await tick()
   assert.equal(h.render().unread,1);assert.match(h.toasts.at(-1),/읽음 처리에 실패/);h.unmount()
 })
 
@@ -75,4 +75,23 @@ test('reconnect and polling recover missed history without replaying push toasts
   h.streams[0].connected();await tick();assert.equal(h.render().unread,1)
   list=[item(2),item(1)];for(const timer of h.timers)timer();await tick();assert.equal(h.render().unread,2)
   assert.equal(h.toasts.length,0);h.unmount()
+})
+
+test('quiet reload superseding a realtime load preserves the pending toast',async()=>{
+  const pushed=deferred();let calls=0
+  const h=harness({fetchCustomerNotifications:()=>++calls===1?Promise.resolve([item(1)]):calls===2?pushed.promise:Promise.resolve([item(2),item(1)])})
+  h.render(1);await tick();h.render()
+  h.streams[0].changed();for(const timer of h.timers)timer();await tick()
+  pushed.resolve([item(2),item(1)]);await tick();h.render()
+  assert.deepEqual(h.toasts,['알림 2']);h.unmount()
+})
+
+test('read operation snapshots displayed ids and leaves newly arrived items unread',async()=>{
+  let list=[item(1)];const read=[]
+  const h=harness({fetchCustomerNotifications:async()=>list,markCustomerNotificationsRead:async ids=>{
+    read.push(...ids);list=list.map(n=>ids.includes(n.notificationId)?{...n,readAt:'now'}:n)
+  }})
+  h.render(1);await tick();const shown=h.render().items.map(n=>n.notificationId)
+  list=[item(2),item(1)];h.render().markRead(shown);await tick()
+  assert.deepEqual(read,[1]);assert.equal(h.render().unread,1);assert.equal(h.render().items[0].notificationId,2);h.unmount()
 })

@@ -4,12 +4,12 @@ import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 import ts from 'typescript'
 
-const defaults = { push: true, sms: false, email: false, settle: true, band: true, reply: true, kiru: true }
+const defaults = { push: true, sms: false, email: false, settle: true, band: true }
 const missingEmail = '등록된 이메일이 없습니다. 기본 정보에서 이메일을 등록해 주세요.'
 const tick = () => new Promise(resolve => setImmediate(resolve))
 
 // Run the actual component's event handlers and effects; no browser layout is simulated.
-function harness(email, initial = defaults, update = async settings => settings, fetch = async () => initial) {
+function harness(email, initial = defaults, update = async settings => settings, fetch = async () => initial, verification = {}) {
   const slots = []; let cursor = 0; let dirty = false; let effects = []; let tree
   const toasts = []; const saved = []
   const props = { email, onToast: message => toasts.push(message) }
@@ -33,12 +33,15 @@ function harness(email, initial = defaults, update = async settings => settings,
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText
   const module = { exports: {} }
-  vm.runInNewContext(compiled, { module, exports: module.exports, require(name) {
+  vm.runInNewContext(compiled, { module, exports: module.exports, setInterval: () => 1, clearInterval() {}, require(name) {
     if (name === 'react') return react
     if (name === 'react/jsx-runtime') return { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) }
     if (name.endsWith('.css')) return {}
     if (name.endsWith('/notificationSettings')) return {
       fetchNotificationSettings: fetch,
+      fetchEmailVerification: verification.fetch ?? (async () => ({ verified: true })),
+      sendEmailVerification: verification.send,
+      confirmEmailVerification: verification.confirm,
       updateNotificationSettings: async settings => { saved.push(settings); return update(settings) },
     }
     if (name.endsWith('/client')) return { apiErrorMessage: (error, fallback) => error.response?.data?.message ?? fallback }
@@ -74,7 +77,12 @@ function harness(email, initial = defaults, update = async settings => settings,
     }
     visit(tree).props.onClick(); render()
   }
-  return { render, findSwitch, retryLoad, toasts, saved, async ready() { render(); await tick(); render() },
+  function nodes(value = tree) {
+    if (!value || typeof value !== 'object') return []
+    if (Array.isArray(value)) return value.flatMap(v => nodes(v ?? null))
+    return [value, ...nodes(value.props?.children ?? null)]
+  }
+  return { render, findSwitch, retryLoad, toasts, saved, nodes: () => nodes(tree), async ready() { render(); await tick(); render() },
     async toggle(key) { const control = findSwitch(key); assert.equal(control.disabled, false); await control.onToggle(); await tick(); render() } }
 }
 
@@ -94,6 +102,21 @@ test('unknown profile cannot enable email but other switches remain usable', asy
   await h.toggle('push')
   assert.equal(h.findSwitch('push').on, false)
   assert.equal(h.saved.length, 1)
+})
+
+test('unverified email requires a code before saving the enabled preference', async () => {
+  let confirms = 0
+  const h = harness('test@example.com', defaults, async s => s, async () => defaults, {
+    fetch: async () => ({ verified: false }),
+    send: async () => ({ maskedEmail: 't***@example.com', expiresAt: new Date(Date.now()+300000).toISOString(), resendAvailableAt: new Date(Date.now()+60000).toISOString() }),
+    confirm: async code => { assert.equal(code, '123456'); confirms++; return { verified: true } },
+  })
+  await h.ready(); await h.toggle('email')
+  assert.equal(h.saved.length, 0); assert.equal(h.findSwitch('email').on, false)
+  h.nodes().find(n => n.type === 'input').props.onChange({ target: { value: '123456' } }); h.render()
+  h.nodes().find(n => n.type === 'button' && n.props.children === '인증하고 저장').props.onClick()
+  await tick(); h.render()
+  assert.equal(confirms, 1); assert.equal(h.saved.length, 1); assert.equal(h.saved[0].email, true)
 })
 
 test('registering email in basic info immediately allows enabling notifications', async () => {
@@ -132,4 +155,12 @@ test('failed initial load cannot overwrite preferences with defaults and retry r
   h.retryLoad(); await tick(); h.render()
   assert.equal(h.findSwitch('push').disabled, false)
   assert.equal(h.findSwitch('push').on, false)
+})
+
+test('community and kiru reply settings are absent even if an old server returns enabled values', async () => {
+  const h = harness('test@example.com', { ...defaults, reply: true, kiru: true }); await h.ready()
+  const labels = h.nodes().filter(n => n.type === 'switch').map(n => n.props.labelId)
+  assert.ok(!labels.includes('nt-reply'))
+  assert.ok(!labels.includes('nt-kiru'))
+  assert.ok(labels.includes('nt-settle'))
 })

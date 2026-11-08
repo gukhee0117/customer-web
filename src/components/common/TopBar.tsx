@@ -185,7 +185,7 @@ export function TopBar({ active = 'home', bizDot, noSearch = false, simpleUserMe
   const sessLabel = wide ? '남은 시간 ' + sessText : sessText
 
   const toggleNotif = () => {
-    if (!notifOpen) notifications.markRead()
+    if (!notifOpen) notifications.markRead(notifications.items.filter(item => !item.readAt).map(item => item.notificationId))
     setNotifOpen((o) => !o)
     setUserOpen(false)
   }

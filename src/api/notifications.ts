@@ -15,8 +15,8 @@ export async function fetchCustomerNotifications(): Promise<CustomerNotification
   return response.data.data
 }
 
-export async function markAllCustomerNotificationsRead(): Promise<void> {
-  await apiClient.patch('/api/customer/notifications/read-all')
+export async function markCustomerNotificationsRead(notificationIds: number[]): Promise<void> {
+  await apiClient.patch('/api/customer/notifications/read', { notificationIds })
 }
 
 export function subscribeCustomerNotifications(onChanged: () => void, onConnected: () => void): () => void {
