@@ -351,12 +351,6 @@
   margin-top: var(--space-4);
 }
 
-.ai {
-  font-size: var(--font-size-12);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-sub);
-}
-
 .why {
   font-size: var(--font-size-14);
   line-height: 1.55;

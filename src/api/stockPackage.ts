@@ -356,5 +356,10 @@ export const fetchPriceHistory = (tickers: string[], days: number) =>
 
 export const fetchRecommendations = (filter: RecommendFilter, limit: number, basis: RecommendBasis) =>
   unwrap(apiClient.get<ApiResponse<RecommendList>>(BASE + '/recommendations', { params: { filter, limit, basis } }))
-export const askRecommendation = (question: string, focusTicker: string | null, basis: RecommendBasis) =>
-  unwrap(apiClient.post<ApiResponse<RecommendAnswer>>(BASE + '/recommendations/ask', { question, focusTicker, basis }, { timeout: 20000 }))
+// limit: 지금 화면에 보이는 추천 종목 수. 서버가 화면과 같은 종목으로 답하려면 화면과 같은 값을 보내야 한다
+export const askRecommendation = (question: string, focusTicker: string | null, basis: RecommendBasis, limit: number) =>
+  unwrap(apiClient.post<ApiResponse<RecommendAnswer>>(BASE + '/recommendations/ask', { question, focusTicker, basis, limit }, { timeout: 20000 }))
+
+// 서버가 문구를 주지 않을 때 쓰는 안내. 서버의 추천 안내 문구와 같은 문장으로 맞춰 둔다
+export const REC_DISCLAIMER =
+  '교육용 프로젝트의 자체 분석 결과예요. 수익을 보장하지 않으며, 실제 금융상품 판매·권유 절차를 대체하지 않아요. 투자 판단과 책임은 본인에게 있어요.'

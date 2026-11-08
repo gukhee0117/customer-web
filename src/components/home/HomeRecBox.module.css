@@ -438,6 +438,13 @@
   white-space: pre-line;
 }
 
+.aiTag {
+  margin-right: var(--space-6);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-sub);
+}
+
 .bubbleBtn {
   margin-top: var(--space-8);
   white-space: normal;

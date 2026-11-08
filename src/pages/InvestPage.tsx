@@ -468,7 +468,8 @@ export function InvestPage() {
       },
       (err: unknown) => failDialog('추천 종목을 불러오지 못했어요', err)
     )
-    // 한 번만 실행(recHandled로 막음)
+    // 한 번만 실행(recHandled로 막음). 빠진 deps(params, setParams, pickPackage, showToast, failDialog)는 recTicker·server.state가 바뀐 그 렌더의 값을 쓰고,
+    // 이 effect는 그 렌더에서 바로 한 번 실행되므로 오래된 값을 쓰지 않는다. params를 넣으면 setParams(rec 삭제)로 effect가 다시 도는 것을 recHandled로 막아야 해서 일부러 뺐다
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recTicker, server.state])
 

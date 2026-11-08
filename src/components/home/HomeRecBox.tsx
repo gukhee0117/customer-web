@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import '../../styles/tokens.css'
-import { PROFILE_KEY, askRecommendation } from '../../api/stockPackage'
+import { PROFILE_KEY, REC_DISCLAIMER, askRecommendation } from '../../api/stockPackage'
 import type { RecommendBasis } from '../../api/stockPackage'
 import { serverState } from '../../data/returns'
 import { F } from '../../lib/calc'
@@ -12,13 +12,15 @@ import { cx } from '../common/cx'
 import { InvestStockName } from '../invest/InvestStockName'
 import { useTendency } from '../invest/useNewPkgData'
 import { useRecommendations } from '../invest/useRecommendations'
-import { ASK_CHIPS, ASK_CHIPS_EMPTY, NO_REC_TEXT } from './homeRecData'
+import { ASK_CHIPS_EMPTY, NO_REC_TEXT, askChips } from './homeRecData'
 import type { FullAskMsg } from './homeBotLogic'
 import styles from './HomeRecBox.module.css'
 
 // 대화 한 줄: 내 질문 / 끼루 답(pkg가 있으면 그 종목의 "패키지에 담기" 버튼, wait는 답을 기다리는 중)
-type AskMsg = { me: true; text: string } | { me?: false; text: string; pkg?: string; wait?: boolean }
+type AskMsg = { me: true; text: string } | { me?: false; text: string; pkg?: string; wait?: boolean; ai?: boolean }
 
+// 홈에 보이는 추천 종목 수. 추천을 부를 때와 끼루에게 물을 때 같은 값을 써야 답이 화면과 같은 종목으로 나온다
+const HOME_REC_COUNT = 3
 const tone = (n: number) => (n > 0 ? styles.up : n < 0 ? styles.down : styles.flat)
 const GRADE_WORD: Record<number, string> = { 1: '매우 높은 위험', 2: '높은 위험', 3: '다소 높은 위험', 4: '보통 위험', 5: '낮은 위험', 6: '매우 낮은 위험' }
 const BASES: [RecommendBasis, string][] = [
@@ -43,9 +45,8 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
   const [input, setInput] = useState('')
   const asking = useRef(false)
   const askRef = useRef<HTMLDivElement>(null)
-  const askCount = useRef<number | null>(null)
 
-  const rec = useRecommendations('ALL', 3, basis)
+  const rec = useRecommendations('ALL', HOME_REC_COUNT, basis)
   const tendency = useTendency()
   const survey = tendency.data?.survey
   const data = rec.data
@@ -83,15 +84,11 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
     }
   }, [open])
 
-  // 대화는 질문이 붙을 때마다 맨 아래로
+  // 대화는 질문이 붙을 때와 답이 채워질 때마다 맨 아래로(답이 같은 칸을 채우면 줄 수는 그대로여도 높이가 늘어난다)
   useEffect(() => {
     const el = askRef.current
-    if (!el) return
-    if (askCount.current !== ask.length) {
-      askCount.current = ask.length
-      el.scrollTop = el.scrollHeight
-    }
-  })
+    if (el) el.scrollTop = el.scrollHeight
+  }, [ask])
 
   // "패키지에 담기": 투자 페이지의 추천 탭에서 쓰던 담기 흐름(어느 패키지에 담을지 → 목표 비중)으로 이어 줌
   const addPkg = (ticker: string) => navigate('/invest?rec=' + encodeURIComponent(ticker))
@@ -102,9 +99,9 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
     asking.current = true
     setAsk((a) => a.concat([{ me: true, text }, { text: '', wait: true }]))
     setInput('')
-    askRecommendation(text, askFocus, basis)
+    askRecommendation(text, askFocus, basis, HOME_REC_COUNT)
       .then(
-        (res): AskMsg => ({ text: res.answer, pkg: res.ticker ?? undefined }),
+        (res): AskMsg => ({ text: res.answer, pkg: res.ticker ?? undefined, ai: res.aiGenerated }),
         (): AskMsg => ({ text: '지금은 답을 가져오지 못했어요. 잠시 뒤에 다시 물어봐 주세요.' })
       )
       .then((answer) => {
@@ -122,7 +119,7 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
 
   const msgs: AskMsg[] =
     ask.length === 0 && ready && !off ? [{ text: (recEmpty ? recEmptyT1 : '추천 종목에 대해') + ' 궁금한 걸 물어보세요.' }] : ask
-  const chips = recEmpty ? ASK_CHIPS_EMPTY : ASK_CHIPS
+  const chips = recEmpty ? ASK_CHIPS_EMPTY : askChips(recs.length)
 
   const headRight = (
     <span className={styles.headRight}>
@@ -216,7 +213,7 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
                         </div>
                       </div>
                       <div>
-                        <div className={styles.popHead}>AI 종목 정보</div>
+                        <div className={styles.popHead}>종목 정보</div>
                         <div className={styles.info}>
                           {info.map(([k, v]) => (
                             <div key={k} className={styles.infoRow}>
@@ -302,6 +299,7 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
                 <div key={i} className={styles.kk}>
                   <img className={styles.face} src={assetUrl('assets/kkiru-ai-face.png')} alt="끼루" />
                   <div className={styles.bubble}>
+                    {m.ai && <span className={styles.aiTag}>AI</span>}
                     {m.wait ? '답을 찾고 있어요…' : m.text}
                     {m.pkg && opened && (
                       <div className={styles.bubbleBtn}>
@@ -329,7 +327,7 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
               전송
             </button>
           </form>
-          <div className={styles.foot}>{data?.disclaimer ?? '교육용 프로젝트의 자체 분석 결과예요.'}</div>
+          <div className={styles.foot}>{data?.disclaimer ?? REC_DISCLAIMER}</div>
         </>
       )}
 

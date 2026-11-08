@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import '../../styles/tokens.css'
-import { PROFILE_KEY } from '../../api/stockPackage'
+import { PROFILE_KEY, REC_DISCLAIMER } from '../../api/stockPackage'
 import type { CandidateItem, RecommendBasis, RecommendFilter, RecommendItem } from '../../api/stockPackage'
 import { F } from '../../lib/calc'
 import { KkiruAvatar } from '../common/KkiruAvatar'
@@ -25,7 +25,7 @@ interface Props {
 const REC_FILTERS: [RecommendFilter, string][] = [
   ['ALL', '전체'],
   ['STOCK', '주식'],
-  ['FUND', 'ETF']
+  ['FUND', 'ETF·펀드']
 ]
 
 const ASSESS_PATH = '/myinfo#assess'
@@ -241,7 +241,7 @@ export function InvestRec({ className, onAdd }: Props) {
                     <div className={styles.mk}>추천 이유</div>
                     <div className={styles.why}>{r.reasons.join(' ')}</div>
                     <div className={cx(styles.mk, styles.mkGap)}>
-                      종목 정보 <span className={styles.ai}>AI 요약</span>
+                      종목 정보
                     </div>
                     <div className={styles.facts}>
                       {(
@@ -344,7 +344,7 @@ export function InvestRec({ className, onAdd }: Props) {
           </div>
         )}
 
-        <div className={styles.guide}>{data?.disclaimer ?? '교육용 프로젝트의 자체 분석 결과예요. 수익을 보장하지 않으며, 실제 금융상품 판매·권유 절차를 대체하지 않아요.'}</div>
+        <div className={styles.guide}>{data?.disclaimer ?? REC_DISCLAIMER}</div>
       </section>
 
       <div className={styles.side}>

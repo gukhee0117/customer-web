@@ -1,7 +1,13 @@
 // 오늘의 종목·나만의 주식 패키지 박스의 고정 문구
 
 // 오늘의 종목 박스 "끼루에게 물어보기"의 빠른 질문 버튼 (답은 서버가 만든다)
-export const ASK_CHIPS = ['세 종목 변동성 비교해줘', '위험등급은 왜 이렇게 나와?', 'ETF랑 주식 차이는?']
+// 첫 버튼은 화면에 보이는 종목 수(count)에 맞춘다
+const COUNT_WORD = ['', '', '두', '세']
+export const askChips = (count: number) => [
+  count >= 2 && count <= 3 ? COUNT_WORD[count] + ' 종목 변동성 비교해줘' : '추천 종목 변동성 알려줘',
+  '위험등급은 왜 이렇게 나와?',
+  'ETF랑 주식 차이는?'
+]
 export const ASK_CHIPS_EMPTY = ['왜 추천이 없어?', '등급은 어떻게 정해져?']
 
 export const NO_REC_TEXT = 'RIA 계좌에서 살 수 있고 위험등급이 계산된 상품 중 내 성향 범위에 맞는 것이 지금은 없어요.'
