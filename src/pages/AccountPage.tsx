@@ -34,7 +34,7 @@ import { useAppShell } from '../layouts/appShell'
 import { F } from '../lib/calc'
 import { useFundFlow } from '../components/account/useFundFlow'
 import { fetchFundFlowRelief } from '../api/fundFlow'
-import { formatAccountNo, getProfile } from '../api/profile'
+import { accountStateOf, formatAccountNo, getProfile } from '../api/profile'
 import { linkedAccountText } from '../components/account/linkedAccount'
 import { getAssetHoldings, getCustomerAssetBriefing, getCustomerTaxBriefing } from '../api/briefing'
 import { getWithdrawalAvailability } from '../api/withdrawalAvailability'
@@ -51,9 +51,6 @@ const FLOW_NOTICE: Record<string, string> = {
   demo: '시연용 예시 데이터예요. 실제 내 계좌 값이 아니에요.',
   error: '내 자금 흐름을 불러오지 못했어요. 지금 보이는 숫자는 시연용 예시이니 잠시 후 다시 확인해 주세요.'
 }
-
-// 계좌 개설 신청·취소는 서버 API가 아직 없어 안내만 한다
-const OPEN_NOT_READY = '계좌 개설 신청은 아직 서버에 연결되지 않아 준비 중이에요'
 
 // 내 계좌 — 1~8번째 부분: 뼈대·페이지 탭·계좌 요약·계좌 상태 + 매도 한도·세액·원금 유지·증빙서류 + 잔고 + 거래·신청 내역 + 자금 흐름 탭 박스 4개 + 입고·인출·계좌 개설 신청 창 + 매도 신청 창 + 상담 창·상단 종 알림·시연 설정
 export function AccountPage() {
@@ -72,16 +69,16 @@ export function AccountPage() {
 
   const [calcOpen, setCalcOpen] = useState(false)
   // 자금 흐름 탭에 들어왔을 때만 서버 값을 받아옴(실패하면 시연 데이터로 보임)
-  const { state: sellLimit, retry: retrySellLimit } = useSellLimit()
-  const { state: sellGuide, retry: retrySellGuide } = useSellGuide()
+  const { state: sellLimit, retry: retrySellLimit, refresh: refreshSellLimit } = useSellLimit()
+  const { state: sellGuide, retry: retrySellGuide, refresh: refreshSellGuide } = useSellGuide()
   // 서버 값: 계좌(프로필)·세액·자산·인출 가능 금액. 박스마다 따로 받아 느린 것이 다른 박스를 막지 않는다
-  const { state: profileState } = useServerData(getProfile)
-  const { state: taxState, retry: retryTax } = useServerData(getCustomerTaxBriefing, NO_DATA_CODES)
+  const { state: profileState, retry: retryProfile } = useServerData(getProfile)
+  const { state: taxState, retry: retryTax, refresh: refreshTax } = useServerData(getCustomerTaxBriefing, NO_DATA_CODES)
   const { state: reliefState, refresh: refreshRelief } = useServerData(fetchFundFlowRelief) // 서버 혜택 상태(취소 여부)
   const { state: assetState, retry: retryAssets, refresh: refreshAssets } = useServerData(getCustomerAssetBriefing, NO_DATA_CODES)
-  const { state: availState, retry: retryAvail } = useServerData(getWithdrawalAvailability, NO_DATA_CODES)
+  const { state: availState, retry: retryAvail, refresh: refreshAvail } = useServerData(getWithdrawalAvailability, NO_DATA_CODES)
   const { state: holdingsState, retry: retryHoldings, refresh: refreshHoldings } = useServerData(getAssetHoldings, NO_DATA_CODES)
-  const { state: linkedState, retry: retryLinked } = useServerData(getGeneralAccounts)
+  const { state: linkedState, retry: retryLinked, refresh: refreshLinked } = useServerData(getGeneralAccounts)
   const { state: inboundState, retry: retryInbounds } = useServerData(getInboundHistory)
   const { state: withdrawalState, retry: retryWithdrawals } = useServerData(getWithdrawalHistory)
   // 국내 시세·거래로 평가액이 바뀌면 서버가 알려 준다 — 브리핑·보유만 조용히 다시 받는다(거래내역은 그대로)
@@ -97,7 +94,11 @@ export function AccountPage() {
     [refreshAssets, refreshHoldings]
   )
   const account = profileState.status === 'live' ? profileState.data.account : undefined // 받는 중·실패면 undefined
-  const fundFlow = useFundFlow(RD.ACCOUNT_STATE === 'opened' && hash === '#flow')
+  useEffect(() => {
+    if (account !== undefined) RD.setServerState({ account: accountStateOf(account) })
+  }, [account])
+  const opened = account?.status === 'OPENED' || account?.status === 'CLOSURE_REQUESTED'
+  const fundFlow = useFundFlow(opened && hash === '#flow')
 
   // 끼루 AI 상담 창 — AppLayout 공유 스트림 사용, 페이지 이동 시 대화 이력 유지
   const stream = useStream()
@@ -133,8 +134,11 @@ export function AccountPage() {
     [shell]
   )
 
-  // 신청 창 — 입고 / 인출. 계좌 개설 신청은 서버 API가 없어 열지 않는다
+  // 서버에서 계좌가 없음을 확인한 경우에만 계좌 개설을 연다.
   const [applyKind, setApplyKind] = useState<ApplyKind | null>(null)
+  useEffect(() => {
+    if (hash === '#open' && account === null) setApplyKind('open')
+  }, [hash, account])
   // 접수한 신청 — 거래·신청 내역 해당 탭 맨 위에 '심사 중' 줄로 보임
   // 매도 신청 창 — 접수한 매도는 매도 내역·정산 상태 맨 위에 '심사 중' 줄로 보임
   const [sellOpen, setSellOpen] = useState(false)
@@ -164,7 +168,6 @@ export function AccountPage() {
     if (isHistTab(hash.slice(1))) setHistTab(hash.slice(1) as HistTab)
   }
 
-  const opened = RD.ACCOUNT_STATE === 'opened'
   const page: PageKey = opened && hash === '#flow' ? 'flow' : 'status'
 
   const scrollToHist = () =>
@@ -241,7 +244,7 @@ export function AccountPage() {
     scrollToHist()
   }
 
-  // 신청 창 — 접수 결과를 내역에 올리고, 계좌 개설 신청은 서버 API가 없어 열지 않음
+  // 신청 창과 거래 내역 이동
   const goHist = (tab: HistTab) => {
     setApplyKind(null)
     setSellOpen(false)
@@ -250,10 +253,7 @@ export function AccountPage() {
   }
   // 어떤 신청 창이든 열면 상담 창은 닫힘(원본 openM)
   const openApply = (k: ApplyKind) => {
-    if (k === 'open') {
-      showToast(OPEN_NOT_READY)
-      return
-    }
+    if (k === 'open' && account !== null) return
     shell.setBotOpen(false)
     setApplyKind(k)
   }
@@ -265,7 +265,21 @@ export function AccountPage() {
     shell.setBotOpen(false)
     setCalcOpen(true)
   }
-  const cancelOpen = () => showToast(OPEN_NOT_READY)
+  const finishOpen = () => {
+    setApplyKind(null)
+    if (hash === '#open') navigate({ pathname, hash: '' }, { replace: true })
+  }
+  const accountChanged = () => {
+    retryProfile()
+    refreshSellLimit()
+    refreshSellGuide()
+    refreshTax()
+    refreshAssets()
+    refreshAvail()
+    refreshHoldings()
+    refreshLinked()
+    refreshRelief()
+  }
 
   // PDF 받기 — 서버에서 발급(이미 있으면 그 발급본)해 내려받고, 발급 기록은 서버 목록을 다시 받는다
   const pdfBusy = useRef(false) // 연타로 발급 요청이 겹치지 않게
@@ -298,7 +312,11 @@ export function AccountPage() {
       <h1 className={styles.srOnly}>내 계좌</h1>
       {opened && <Tabs variant="page" ariaLabel="내 계좌 화면" items={PAGE_TABS} value={page} onChange={setPage} />}
 
-      {!opened && <AccountStateBox appliedAt={account?.appliedAt} linked={linkedState} onOpen={() => openApply('open')} onCancel={cancelOpen} />}
+      {profileState.status === 'loading' && <p role="status">계좌 정보를 불러오는 중이에요.</p>}
+      {profileState.status === 'error' && <div role="alert">
+        계좌 정보를 불러오지 못했어요. <button type="button" onClick={retryProfile}>다시 시도</button>
+      </div>}
+      {!opened && account !== undefined && <AccountStateBox account={account} linked={linkedState} onOpen={() => openApply('open')} />}
 
       {opened && page === 'status' && (
         <div className={styles.status}>
@@ -342,7 +360,7 @@ export function AccountPage() {
           kind={applyKind}
           linkedText={linkedAccountText(linkedState)}
           riaAccountNo={formatAccountNo(account?.accountNo)}
-          onClose={() => setApplyKind(null)}
+          onClose={() => applyKind === 'open' ? finishOpen() : setApplyKind(null)}
           onGoHist={goHist}
           onSubmitIn={(results: SubmittedInboundResult[]) => {
             if (results.some((r) => r.status === 'ok')) retryInbounds()
@@ -351,7 +369,8 @@ export function AccountPage() {
             retryWithdrawals()
             refreshRelief() // 조기인출이면 서버가 혜택을 취소하므로 상태를 다시 받는다
           }}
-          onFinishOpen={() => undefined}
+          onFinishOpen={finishOpen}
+          onAccountChanged={accountChanged}
         />
       )}
       {sellOpen && (
