@@ -77,7 +77,7 @@ export interface TradeView {
 const ORDER: ProfileKey[] = ['aggressive', 'active', 'neutral', 'stableSeek', 'stable']
 
 // 거래 위험: 서버가 준 평균 매수 등급이 설문 성향이 허용하는 가장 위험한 등급(allowedMinGrade)보다 더 위험할 때(등급 숫자가 더 작을 때).
-// 서버가 성향을 판정하지는 않으므로, 이 안내는 "다시 진단해 보시겠어요?"를 권하는 용도로만 쓴다(추천은 계속 설문 결과 기준)
+// 서버가 성향을 판정하지는 않으므로, 이 안내는 "다시 진단해 보시겠어요?"를 권하는 용도로만 쓴다(추천은 설문 투자성향 범위 안에서 하고, 거래 경향 기준으로도 볼 수 있다)
 export const isTradeRisky = (t: Tendency | null): boolean =>
   !!t && t.survey.available && t.survey.allowedMinGrade != null && t.trading.available && t.trading.avgBuyGrade != null && t.trading.avgBuyGrade < t.survey.allowedMinGrade
 
@@ -99,6 +99,6 @@ export const tradeViewOf = (t: Tendency): TradeView | null => {
   return {
     head: '평균 매수 등급은 ' + label + ' 범위(' + min + '등급부터)에 해당해요',
     rows: rows.map(([k, v]) => ({ k, v })),
-    desc: '거래로 본 경향은 참고 정보이고 공식 투자성향이 아니에요.' + survey + ' 추천은 설문 결과 기준으로 해요.'
+    desc: '거래로 본 경향은 참고 정보이고 공식 투자성향이 아니에요.' + survey + ' 추천은 설문 투자성향 범위 안에서 해요. 거래 경향 기준도 함께 볼 수 있어요.'
   }
 }

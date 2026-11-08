@@ -21,7 +21,7 @@ export function LandingS9({ t }: { t: LandingTexts }) {
         </li>
         <li className="l9">
           <small>02</small>
-          성향별 주식·ETF 추천
+          오늘의 종목 · 성향별 주식·ETF
         </li>
         <li className="l9">
           <small>03</small>
@@ -74,20 +74,20 @@ export function LandingS9({ t }: { t: LandingTexts }) {
             <p className="a9s">보유·관심 종목 기사만 골라 끼루가 요약해요</p>
           </div>
           <div className="a9p">
-            <h4>오늘의 추천</h4>
+            <h4>오늘의 종목</h4>
             <div className="a9kv">
               <span>투자성향</span>
               <b>적극투자형 · 2~6등급</b>
             </div>
             <div className="a9e">
               <b>국내 주식 A</b>
-              <small>위험 2등급 · RIA 계좌에서 살 수 있어요</small>
+              <small>위험 2등급 · 20일 +4.2% · 많이 산 업종</small>
             </div>
             <div className="a9e">
               <b>국내 ETF B</b>
-              <small>위험 3등급 · RIA 계좌에서 살 수 있어요</small>
+              <small>위험 3등급 · 20일 -1.8% · 많이 산 테마</small>
             </div>
-            <p className="a9s">투자성향 진단 결과에 맞는 위험등급 안에서만 추천해요</p>
+            <p className="a9s">설문·거래 경향 기준, 보유 종목은 빼고 투자성향 범위 안에서 골라요</p>
             <span className="a9btn">패키지에 담기</span>
           </div>
           <div className="a9p">

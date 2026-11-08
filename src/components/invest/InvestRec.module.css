@@ -1,4 +1,4 @@
-/* 후보 보기 탭 — 넓은 화면 8 : 4, 1280px 이하 한 줄(원본 recCols) */
+/* 넓은 화면 8 : 4, 1280px 이하 한 줄(원본 recCols) */
 .cols {
   display: grid;
   grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
@@ -12,6 +12,14 @@
   .cols {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* 오른쪽 칼럼: 위험등급 게이지 + 내 추천 기준 */
+.side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
 }
 
 .box {
@@ -47,25 +55,556 @@
   min-width: 0;
 }
 
-.body {
-  padding: var(--space-16);
+.filters {
+  margin-left: auto;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-12);
+  align-items: center;
+  gap: var(--space-6);
+  font-size: var(--font-size-12);
+  flex: none;
 }
 
-.plain {
-  margin: 0;
+.filterItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.sep {
+  color: var(--color-line-strong);
+}
+
+.filter {
+  all: unset;
+  cursor: pointer;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  color: var(--color-sub);
+  font-weight: var(--font-weight-medium);
+  border-bottom: 2px solid transparent;
+}
+
+.filterOn {
+  color: var(--color-navy);
+  font-weight: var(--font-weight-extrabold);
+  border-bottom-color: var(--color-gold);
+}
+
+.filter:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 1px;
+}
+
+/* 종목 · 현재가 · 20일 추이(72px) · 위험 · 연 변동성 · 업종 · 추천 이유(태그 2개 폭) · 화살표 — 남는 폭은 종목·업종 열이 나눠 가진다 */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(132px, 1.5fr) 96px 72px 84px 60px minmax(72px, 1fr) minmax(0, 216px) 28px;
+  gap: var(--space-12);
+  align-items: center;
+  padding: 0 var(--space-16);
+}
+
+.cols0 {
+  height: 32px;
+  border-bottom: 1px solid var(--color-line-soft);
+  font-size: var(--font-size-12);
+  color: var(--color-sub);
+}
+
+.r {
+  text-align: right;
+}
+
+.up {
+  color: var(--color-up);
+}
+
+.down {
+  color: var(--color-down);
+}
+
+.flat {
+  color: var(--color-sub);
+}
+
+.rowBox {
+  border-bottom: 1px solid var(--color-line-soft);
+}
+
+.row {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(132px, 1.5fr) 96px 72px 84px 60px minmax(72px, 1fr) minmax(0, 216px) 28px;
+  gap: var(--space-12);
+  height: 48px;
+  align-items: center;
+  padding: 0 var(--space-16);
   font-size: var(--font-size-14);
-  line-height: var(--line-height-body);
+  background: var(--color-surface);
+}
+
+/* 어느 행에도 태그가 없을 때: 추천 이유 열을 빼고 그 폭을 종목·업종 열이 나눠 갖는다(.grid·.row보다 뒤에 두어 우선 적용) */
+.grid.noReason,
+.row.noReason {
+  grid-template-columns: minmax(132px, 1.5fr) 96px 72px 84px 60px minmax(96px, 1fr) 28px;
+}
+
+/* 1100px 이하: 20일 미니 차트 열을 숨긴다(펼침 영역의 30일 차트는 그대로). 열이 빠지므로 템플릿에서도 그 칸(72px)을 뺀다 */
+@media (max-width: 1100px) {
+  .sparkCell {
+    display: none;
+  }
+
+  .grid,
+  .row {
+    grid-template-columns: minmax(132px, 1.5fr) 96px 84px 60px minmax(72px, 1fr) minmax(0, 216px) 28px;
+  }
+
+  .grid.noReason,
+  .row.noReason {
+    grid-template-columns: minmax(132px, 1.5fr) 96px 84px 60px minmax(96px, 1fr) 28px;
+  }
+}
+
+.row:hover,
+.rowOn {
+  background: var(--color-surface-sub);
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: -2px;
+}
+
+.stock {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* 종목 칸: 아이콘 옆에 이름, 그 아래 2줄째에 코드를 작은 글씨로(위험 열과 같은 방식) */
+.stockCell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.stockText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.stockName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-13);
   color: var(--color-ink);
 }
 
-/* 오른쪽: 내 투자성향 */
-.prof {
+.stockCode {
+  font-size: var(--font-size-11);
+  color: var(--color-sub);
+}
+
+.px {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.25;
+}
+
+.chg {
+  font-size: var(--font-size-12);
+}
+
+/* 위험 열: 윗줄에 등급, 2줄째에 등급 이름을 작은 글씨로 */
+.risk {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+  font-size: var(--font-size-13);
+  color: var(--color-gray-600);
+  white-space: nowrap;
+}
+
+.riskName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--font-size-11);
+  color: var(--color-sub);
+}
+
+/* 20일 미니 차트 칸 */
+.sparkCell {
+  min-width: 0;
+}
+
+.sparkNone {
+  font-size: var(--font-size-13);
+  color: var(--color-muted);
+}
+
+.vol {
+  text-align: right;
+  font-size: var(--font-size-13);
+  color: var(--color-gray-600);
+  white-space: nowrap;
+}
+
+.sector {
+  min-width: 0;
+  font-size: var(--font-size-13);
+  color: var(--color-gray-600);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 추천 이유 태그: 성향 범위 안 · 업종 · 테마 1개. 칸이 좁으면 뒤쪽이 잘린다(전체 이유는 펼침 영역) */
+.tags {
+  min-width: 0;
   display: flex;
   align-items: center;
+  gap: var(--space-4);
+  overflow: hidden;
+}
+
+.tag {
+  flex: none;
+  box-sizing: border-box;
+  height: 22px;
+  padding: 0 var(--space-8);
+  display: block;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid transparent;
+  border-radius: var(--radius-10);
+  background: var(--color-chip);
+  color: var(--color-gray-600);
+  font-size: var(--font-size-12);
+  white-space: nowrap;
+}
+
+/* 길이가 정해지지 않은 테마 태그만 칸이 모자라면 줄어들고 말줄임(짧은 태그는 그대로 둔다) */
+.tagShrink {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* 많이 산 업종·테마와 같은 태그 */
+.tagOn {
+  background: var(--color-chip-navy-strong);
+  border-color: var(--color-navy);
+  color: var(--color-navy);
+  font-weight: var(--font-weight-bold);
+}
+
+.chev {
+  display: grid;
+  place-items: center;
+  color: var(--color-sub);
+}
+
+.chevOpen {
+  transform: rotate(180deg);
+}
+
+/* 펼친 내용: 1024px 이하 한 줄 */
+.more {
+  background: var(--color-surface-sub);
+  padding: var(--space-10) var(--space-16) var(--space-12);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-16);
+}
+
+@media (max-width: 1024px) {
+  .more {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.moreCol {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.mk {
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-bold);
+}
+
+.mkGap {
+  margin-top: var(--space-4);
+}
+
+.why {
+  font-size: var(--font-size-14);
+  line-height: 1.55;
+}
+
+.facts {
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-6);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  font-size: var(--font-size-13);
+}
+
+.factLine {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.fk {
+  background: var(--color-surface-row);
+  color: var(--color-gray-600);
+  padding: 7px var(--space-10);
+}
+
+.fv {
+  padding: 7px var(--space-10);
+  font-weight: var(--font-weight-bold);
+}
+
+.gradeLine {
+  font-size: var(--font-size-13);
+}
+
+.bold {
+  font-weight: var(--font-weight-bold);
+}
+
+.asOf {
+  font-size: var(--font-size-11);
+  color: var(--color-sub);
+}
+
+.r30Head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-bold);
+}
+
+.r30 {
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-bold);
+}
+
+.spark {
+  display: block;
+  width: 100%;
+  height: 120px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-6);
+}
+
+/* 선 색은 30일 변동 방향(.up/.down/.flat의 color)을 따른다 */
+.sparkLine {
+  stroke: currentColor;
+}
+
+/* 30일 차트 위의 최고점·최저점 표시(점 + 가격). 위치는 선과 같은 0~1 좌표를 %로 쓴다 */
+.chartBox {
+  position: relative;
+}
+
+.mark {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.markDot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 6px;
+  height: 6px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 2px var(--color-surface);
+}
+
+.markLabel {
+  position: absolute;
+  white-space: nowrap;
+  font-size: var(--font-size-11);
+  line-height: 1.3;
+  color: var(--color-gray-600);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 최고점은 점 위, 최저점은 점 아래. 양 끝에 가까우면 가격 글자를 안쪽으로 정렬해 차트 밖으로 넘치지 않게 한다 */
+.labelAbove {
+  bottom: 6px;
+}
+
+.labelBelow {
+  top: 6px;
+}
+
+.labelMid {
+  left: 0;
+  transform: translateX(-50%);
+}
+
+.labelStart {
+  left: 0;
+}
+
+.labelEnd {
+  right: 0;
+}
+
+.add {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  align-self: flex-start;
+  height: 36px;
+  padding: 0 var(--space-14);
+  border-radius: var(--radius-6);
+  background: var(--color-navy);
+  color: var(--color-on-navy);
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-bold);
+  display: flex;
+  align-items: center;
+}
+
+.add:hover {
+  background: var(--color-navy-dark);
+}
+
+.add:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 2px;
+}
+
+/* 빈 상태 */
+.none {
+  height: 44px;
+  padding: 0 var(--space-16);
+  display: flex;
+  align-items: center;
+  font-size: var(--font-size-13);
+  color: var(--color-gray-600);
+  border-bottom: 1px solid var(--color-line-soft);
+}
+
+.emptyBox {
+  padding: var(--space-14) var(--space-16);
+  display: flex;
   gap: var(--space-12);
+  align-items: flex-start;
+  border-bottom: 1px solid var(--color-line-soft);
+}
+
+.emptyBody {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.emptyT1 {
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-bold);
+}
+
+.emptyT2 {
+  font-size: var(--font-size-14);
+  line-height: 1.5;
+  color: var(--color-gray-600);
+}
+
+.emptyLink,
+.againLink {
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-navy);
+  text-decoration: none;
+}
+
+.emptyLink {
+  margin-top: var(--space-6);
+}
+
+.emptyLink:hover,
+.againLink:hover {
+  text-decoration: underline;
+}
+
+.offBox {
+  padding: var(--space-16);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-10);
+  border-bottom: 1px solid var(--color-line-soft);
+}
+
+.offMsg {
+  margin: 0;
+  font-size: var(--font-size-14);
+  line-height: 1.6;
+  color: var(--color-ink);
+}
+
+.offBtn {
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 var(--space-14);
+  border-radius: var(--radius-6);
+  background: var(--color-navy);
+  color: var(--color-on-navy);
+  display: flex;
+  align-items: center;
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+}
+
+.offBtn:hover {
+  background: var(--color-navy-dark);
+}
+
+.guide {
+  padding: var(--space-10) var(--space-16);
+  font-size: var(--font-size-12);
+  color: var(--color-sub);
+}
+
+/* 내 추천 기준 */
+.prof {
+  padding: var(--space-12) var(--space-16);
+  display: flex;
+  gap: var(--space-12);
+  align-items: center;
+  border-bottom: 1px solid var(--color-line-soft);
 }
 
 .profText {
@@ -77,50 +616,112 @@
 
 .profLine {
   font-size: var(--font-size-15);
+  font-weight: var(--font-weight-extrabold);
 }
 
 .assess {
+  font-size: var(--font-size-13);
+  color: var(--color-gray-600);
+}
+
+.expired {
   font-size: var(--font-size-12);
-  color: var(--color-sub);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-red);
 }
 
-.blk {
+.rules {
+  padding: var(--space-10) var(--space-16) var(--space-4);
+}
+
+.rulesTitle {
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--space-2);
+}
+
+.rule {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding-top: var(--space-8);
-  border-top: 1px solid var(--color-line-soft);
+  gap: var(--space-8);
+  align-items: baseline;
+  min-height: 32px;
+  padding: var(--space-6) 0;
+  box-sizing: border-box;
+  font-size: var(--font-size-14);
+  line-height: 1.45;
 }
 
-.blkTitle {
-  font-size: var(--font-size-13);
+.ruleLine {
+  border-bottom: 1px solid var(--color-line-soft);
 }
 
-.fact {
+.ruleN {
   font-size: var(--font-size-13);
-  line-height: 1.5;
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-navy);
+  flex: none;
+}
+
+.again {
+  padding: var(--space-8) var(--space-16) var(--space-14);
+}
+
+/* 추천 기준 선택: 설문으로 본 성향 / 거래로 본 경향 */
+.basisRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  padding: var(--space-10) var(--space-16);
+  border-bottom: 1px solid var(--color-line-soft);
+}
+
+.basisBtn {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 var(--space-12);
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-6);
+  font-size: var(--font-size-12);
   color: var(--color-ink);
 }
 
-.defn {
+.basisBtnOn {
+  background: var(--color-navy);
+  border-color: var(--color-navy);
+  color: var(--color-surface);
+  font-weight: var(--font-weight-extrabold);
+}
+
+.basisBtn:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 1px;
+}
+
+/* 거래 경향 설명은 한 줄로 두고 길면 말줄임. 좁아서 줄이 바뀌어도 이 줄 안에서는 한 줄이다 */
+.basisNote {
+  flex: 1 1 160px;
+  min-width: 0;
   font-size: var(--font-size-12);
-  line-height: 1.5;
   color: var(--color-sub);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.defn summary {
-  cursor: pointer;
-  color: var(--color-navy);
-}
-
-.againLink {
-  align-self: flex-start;
-  font-size: var(--font-size-13);
+.basisLink {
+  flex: none;
+  font-size: var(--font-size-12);
   font-weight: var(--font-weight-bold);
   color: var(--color-navy);
   text-decoration: none;
+  white-space: nowrap;
 }
 
-.againLink:hover {
+.basisLink:hover {
   text-decoration: underline;
 }

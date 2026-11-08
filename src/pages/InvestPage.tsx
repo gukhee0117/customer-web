@@ -11,7 +11,7 @@ import { formatAccountNo, getProfile } from '../api/profile'
 import { useServerData } from '../components/account/useServerData'
 import { subscribeAssetEvents } from '../api/assetEvents'
 import { usePollTick } from '../components/common/usePollTick'
-import { createPackage, deletePackage, placeOrder, updatePackage } from '../api/stockPackage'
+import { createPackage, deletePackage, placeOrder, searchCandidates, updatePackage } from '../api/stockPackage'
 import type { CandidateItem, OrderResult, SavePackageRequest } from '../api/stockPackage'
 import { InvestAssetsBox } from '../components/invest/InvestAssetsBox'
 import { InvestDialog } from '../components/invest/InvestDialog'
@@ -45,7 +45,7 @@ type InvestTab = 'mine' | 'rec'
 
 const TABS = [
   { key: 'mine', label: '나만의 주식 패키지' },
-  { key: 'rec', label: '후보 보기' }
+  { key: 'rec', label: '오늘의 종목' }
 ]
 
 // 주문 한 줄(서버 상품 번호로 보낸다)
@@ -451,7 +451,29 @@ export function InvestPage() {
       })
     )
 
-  // 탭 전환은 기록을 쌓지 않고 바꿈(원본 replaceState): 후보 보기는 #recommend(주소 호환을 위해 그대로 둠), 나만의 패키지는 해시 없이 현재 쿼리 유지
+  // 홈 "오늘의 종목"의 "패키지에 담기"로 들어오면(?rec=종목코드) 그 종목으로 바로 "어느 패키지에 담을까요?" 창을 연다. 내 패키지를 다 받은 뒤 한 번만
+  const recTicker = params.get('rec')
+  const recHandled = useRef(false)
+  useEffect(() => {
+    if (!recTicker || recHandled.current || server.state !== 'ready') return
+    recHandled.current = true
+    const rest = new URLSearchParams(params)
+    rest.delete('rec')
+    setParams(rest, { replace: true })
+    void searchCandidates({ keyword: recTicker, includeOutOfProfile: true }).then(
+      (list) => {
+        const hit = list.items.find((i) => i.ticker === recTicker)
+        if (hit) pickPackage(hit)
+        else showToast('추천 종목을 찾지 못했어요', 2200)
+      },
+      (err: unknown) => failDialog('추천 종목을 불러오지 못했어요', err)
+    )
+    // 한 번만 실행(recHandled로 막음). 빠진 deps(params, setParams, pickPackage, showToast, failDialog)는 recTicker·server.state가 바뀐 그 렌더의 값을 쓰고,
+    // 이 effect는 그 렌더에서 바로 한 번 실행되므로 오래된 값을 쓰지 않는다. params를 넣으면 setParams(rec 삭제)로 effect가 다시 도는 것을 recHandled로 막아야 해서 일부러 뺐다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recTicker, server.state])
+
+  // 탭 전환은 기록을 쌓지 않고 바꿈(원본 replaceState): 오늘의 종목은 #recommend, 나만의 패키지는 해시 없이 현재 쿼리 유지
   const pickTab = (key: string) => navigate({ pathname: '/invest', search, hash: key === 'rec' ? '#recommend' : '' }, { replace: true })
 
   const names = useMemo(() => Object.fromEntries(views.flatMap((v) => v.items.map((i) => [i.code, i.name]))), [views])

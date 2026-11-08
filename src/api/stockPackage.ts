@@ -285,3 +285,81 @@ export const PROFILE_KEY: Record<string, string> = {
   ACTIVE: 'active',
   AGGRESSIVE: 'aggressive'
 }
+
+// ───── 성향별 추천 ─────
+// 내 투자성향 범위 안에서 RIA 계좌로 살 수 있는 상품과 이유. 이유·답변은 서버가 가진 사실(등급·변동성·테마)로만 만든다
+
+export type RecommendFilter = 'ALL' | 'STOCK' | 'FUND'
+// 추천 기준: 설문으로 본 투자성향 / 거래로 본 경향
+export type RecommendBasis = 'SURVEY' | 'TRADING'
+
+export interface RecommendItem {
+  domesticProductId: number
+  ticker: string
+  name: string
+  market: string | null
+  type: ProductType
+  sectorName: string | null
+  themes: string[]
+  riskGrade: number
+  volatilityPercent: number | null
+  outOfProfile: boolean // 내 설문 투자성향 허용 범위보다 위험한 상품. 서버가 범위 밖 상품을 추천에서 빼므로 지금은 항상 false
+  reasons: string[]
+  sectorMatched: boolean // 내가 가장 많이 산 업종과 같은 업종(거래 데이터가 없으면 false)
+  themeMatched: boolean // 내가 가장 많이 산 테마에 속함(거래 데이터가 없으면 false)
+  matchedTheme: string | null // 일치한 테마 이름(themeMatched가 false면 null)
+}
+
+export interface RecommendList {
+  items: RecommendItem[]
+  profileAvailable: boolean
+  profileLabel: string | null
+  allowedMinGrade: number | null
+  filter: RecommendFilter
+  basis: RecommendBasis
+  basisAvailable: boolean // 이 기준으로 추천을 계산할 수 있는가(설문은 진단 유효, 거래는 체결 매수 최소 건수 이상)
+  basisFacts: string[] // 거래 기준일 때 추천의 바탕이 된 경향 사실
+  tradeBuyCount: number
+  minBuyCount: number
+  subtitle: string
+  disclaimer: string
+  checkedAt: string
+  targetAdjusted: boolean // 거래 기준: 평균 매수 등급이 설문 허용 범위 밖이라 목표 등급을 허용 범위 경계로 보정했는가
+  targetGrade: number | null // 추천을 고를 때 기준으로 쓴 목표 등급(보정 뒤)
+  gradeFrom: number | null // 후보로 본 위험등급 범위(양 끝 포함, 1이 가장 위험). 추천을 계산하지 못했으면 null
+  gradeTo: number | null
+}
+
+export interface RecommendAnswer {
+  answer: string
+  ticker: string | null // 있으면 그 종목의 "패키지에 담기" 버튼을 붙인다
+  aiGenerated: boolean
+  disclaimer: string
+}
+
+// ───── 종가 이력(차트) ─────
+// 서버 업무일 이전 영업일의 저장 종가(날짜 오름차순). 현재가가 아니라서 표의 현재가와 조금 다를 수 있다
+
+export interface PricePoint {
+  date: string // 종가 기준일 YYYY-MM-DD
+  close: number
+}
+
+export interface PriceHistory {
+  ticker: string
+  available: boolean // false면 이력을 받지 못한 종목(points는 비어 있음)
+  points: PricePoint[]
+}
+
+export const fetchPriceHistory = (tickers: string[], days: number) =>
+  unwrap(apiClient.get<ApiResponse<PriceHistory[]>>(BASE + '/price-history', { params: { tickers: tickers.join(','), days }, timeout: 30000 }))
+
+export const fetchRecommendations = (filter: RecommendFilter, limit: number, basis: RecommendBasis) =>
+  unwrap(apiClient.get<ApiResponse<RecommendList>>(BASE + '/recommendations', { params: { filter, limit, basis } }))
+// limit: 지금 화면에 보이는 추천 종목 수. 서버가 화면과 같은 종목으로 답하려면 화면과 같은 값을 보내야 한다
+export const askRecommendation = (question: string, focusTicker: string | null, basis: RecommendBasis, limit: number) =>
+  unwrap(apiClient.post<ApiResponse<RecommendAnswer>>(BASE + '/recommendations/ask', { question, focusTicker, basis, limit }, { timeout: 20000 }))
+
+// 서버가 문구를 주지 않을 때 쓰는 안내. 서버의 추천 안내 문구와 같은 문장으로 맞춰 둔다
+export const REC_DISCLAIMER =
+  '교육용 프로젝트의 자체 분석 결과예요. 수익을 보장하지 않으며, 실제 금융상품 판매·권유 절차를 대체하지 않아요. 투자 판단과 책임은 본인에게 있어요.'
