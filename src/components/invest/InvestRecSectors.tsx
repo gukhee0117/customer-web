@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { RecommendItem } from '../../api/stockPackage'
 import { cx } from '../common/cx'
+import { InvestDonut } from './InvestDonut'
 import { DONUT_SHADES, shadeOf } from './investChartLogic'
 import styles from './InvestRecSectors.module.css'
 
@@ -9,8 +10,6 @@ interface Props {
   items: RecommendItem[] // 지금 표에 나온 추천 종목. 여기서 업종별 개수만 센다(추가 API 호출 없음)
 }
 
-const R = 68
-const CIRC = 2 * Math.PI * R
 const ALL_BELOW = 6 // 추천 종목이 이 수 이하면 업종을 묶지 않고 전부 보인다(최대 6조각)
 const MAX_GROUPS = 5 // 그보다 많을 때는 5조각까지: 상위 4 + "기타 업종"
 
@@ -46,41 +45,13 @@ export function InvestRecSectors({ className, items }: Props) {
   const total = groups.reduce((a, g) => a + g.count, 0)
   if (total === 0) return null
   const n = groups.length
-  const segs = groups.map((g, i) => ({
-    g,
-    shade: shadeFor(i, n),
-    len: (g.count / total) * CIRC,
-    off: -groups.slice(0, i).reduce((a, x) => a + x.count, 0) * (CIRC / total) // 앞 조각들의 비율 합 = 시작 각도
-  }))
+  const segs = groups.map((g, i) => ({ g, shade: shadeFor(i, n) }))
 
   return (
     <div className={cx(styles.box, className)} data-box="rec-sectors">
       <div className={styles.title}>추천 종목 업종 구성(종목 수 기준)</div>
       <div className={styles.body}>
-        <div className={styles.donut}>
-          <svg width="160" height="160" viewBox="0 0 160 160" className={styles.svg} aria-hidden="true">
-            <g transform="rotate(-90 80 80)">
-              <circle cx="80" cy="80" r={R} fill="none" className={styles.track} strokeWidth="24" />
-              {segs.map(({ g, shade, len, off }) => (
-                <circle
-                  key={g.name}
-                  cx="80"
-                  cy="80"
-                  r={R}
-                  fill="none"
-                  strokeWidth="24"
-                  className={styles.seg}
-                  style={{ stroke: hov === g.name ? 'var(--color-gold)' : shade }}
-                  strokeDasharray={Math.max(0, len - (n > 1 ? 1.5 : 0)).toFixed(2) + ' ' + CIRC.toFixed(2)}
-                  strokeDashoffset={off.toFixed(2)}
-                  onMouseEnter={() => setHov(g.name)}
-                  onMouseLeave={() => setHov(null)}
-                />
-              ))}
-            </g>
-          </svg>
-          <span className={styles.count}>{`${total}종목`}</span>
-        </div>
+        <InvestDonut parts={segs.map(({ g, shade }) => ({ key: g.name, shade, frac: g.count / total }))} hov={hov} onHov={setHov} label={`${total}종목`} />
         <div className={styles.legend}>
           {segs.map(({ g, shade }) => (
             <div key={g.name} className={styles.row} onMouseEnter={() => setHov(g.name)} onMouseLeave={() => setHov(null)}>

@@ -20,39 +20,6 @@
   margin-top: var(--space-4);
 }
 
-/* 160px 도넛을 90%로 줄여 왼쪽 기준으로 놓고, 줄어든 만큼 오른쪽 줄을 당김(원본과 같음) */
-.donut {
-  position: relative;
-  width: 160px;
-  height: 160px;
-  flex: none;
-  transform: scale(0.9);
-  transform-origin: left center;
-  margin-right: -16px;
-}
-
-.svg {
-  display: block;
-}
-
-.track {
-  stroke: var(--color-line-soft);
-}
-
-.seg {
-  cursor: pointer;
-}
-
-.count {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: var(--font-size-13);
-  color: var(--color-gray-600);
-  pointer-events: none;
-}
-
 .legend {
   flex: 1 1 auto;
   min-width: 0;
