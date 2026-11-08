@@ -1,6 +1,6 @@
 import styles from './InvestDonut.module.css'
 
-export interface DonutPart {
+interface DonutPart {
   key: string // 조각을 가리키는 값(마우스를 올린 조각 강조에 쓴다)
   shade: string // 조각 색
   frac: number // 전체에서 차지하는 비율(0~1, 모두 더하면 1)
