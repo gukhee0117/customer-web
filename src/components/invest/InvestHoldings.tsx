@@ -13,7 +13,7 @@ interface Props {
   pkg: PkgView
   hov: string | null // 도넛·비중 줄과 함께 강조되는 종목 코드
   onHov: (code: string | null) => void
-  onAdd?: () => void // TODO: P-7에서 종목 추가 창 연결
+  onAdd?: () => void // 종목 추가 창 열기(InvestPage의 openAdd에 연결됨)
   onBuy?: (code: string) => void
   onSell?: (code: string) => void
 }

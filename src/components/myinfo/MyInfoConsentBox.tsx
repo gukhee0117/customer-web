@@ -19,7 +19,7 @@ interface Consent {
 }
 
 // 수신 동의 — 마케팅은 끌 때 확인 창, 투자 정보 알림은 바로. 동의·철회한 날짜는 업무일(F.today)
-// TODO: 백엔드 연결 시 서버의 동의 이력 저장·조회로 대체(지금은 이 화면 안에서만 유지, 원본과 같음)
+// [시연 제외] 서버에 동의 이력 API가 없어 이 화면 안에서만 유지(새로고침하면 초기화, 원본과 같음). 시연에서 쓰지 않는다
 export function MyInfoConsentBox({ className, onToast }: Props) {
   const [mkt, setMkt] = useState<Consent>({ on: true, date: null })
   const [inv, setInv] = useState<Consent>({ on: false, date: null })
