@@ -31,7 +31,9 @@ export async function sendSignupCode(email: string): Promise<SignupChallenge> {
   return res.data.data
 }
 
-export interface SignupVerification { verifiedUntil: string }
+export interface SignupVerification {
+  verifiedUntil: string
+}
 
 export async function verifySignupCode(code: string): Promise<SignupVerification> {
   // Sending a signup code does not authenticate or rotate the cookie-based CSRF token.

@@ -122,6 +122,10 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   const emailVerified = verifiedEmail === info.email.trim() && verifiedUntil > now
   const cooldown = challenge ? Math.max(0, Math.ceil((Date.parse(challenge.resendAvailableAt) - now) / 1000)) : 0
   const remaining = challenge ? Math.max(0, Math.ceil((Date.parse(challenge.expiresAt) - now) / 1000)) : 0
+  const sendBtnLabel = emailVerified ? '인증 완료'
+    : cooldown > 0 ? `재발송 (${cooldown}초 후)`
+    : challenge ? '다시 받기'
+    : '인증번호 받기'
   const acct = RETURNS_DATA.ACCOUNT
 
   // 다음 버튼이 막힌 이유(비어 있으면 다음 가능)
@@ -180,6 +184,7 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
       await syncAssessState()
       return true
     } catch (err) {
+      // Keep this one-off code check local; extract a shared helper if another caller needs it.
       const errorCode = (err as { response?: { data?: { code?: string } } })?.response?.data?.code
       if (errorCode === 'CUSTOMER_SIGNUP_CODE_INVALID') {
         setVerifiedEmail(''); setVerifiedUntil(0); setChallenge(null); setCode('')
@@ -238,8 +243,12 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
       setCode('')
       setNow(Date.now())
       showToast('이메일로 인증번호를 보냈어요')
-    } catch (err) { showToast(apiErrorMessage(err, '인증번호를 보내지 못했어요')) }
-    finally { emailRequestBusy.current = false; setEmailBusy(false) }
+    } catch (err) {
+      showToast(apiErrorMessage(err, '인증번호를 보내지 못했어요'))
+    } finally {
+      emailRequestBusy.current = false
+      setEmailBusy(false)
+    }
   }
 
   const confirmCode = async () => {
@@ -254,8 +263,12 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
       setCode('')
       setNow(Date.now())
       showToast('이메일 인증이 완료됐어요')
-    } catch (err) { showToast(apiErrorMessage(err, '인증번호를 확인하지 못했어요')) }
-    finally { emailRequestBusy.current = false; setEmailBusy(false) }
+    } catch (err) {
+      showToast(apiErrorMessage(err, '인증번호를 확인하지 못했어요'))
+    } finally {
+      emailRequestBusy.current = false
+      setEmailBusy(false)
+    }
   }
 
   const demoFill = () => {
@@ -330,7 +343,7 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
             <div className={cx(styles.row, styles.emailRow)}>
               <Field active={active && !emailBusy && !submitting} label="이메일" span={2} type="email" placeholder="ria@returns.co.kr" autoComplete="email" inputMode="email" value={info.email} onChange={setField('email')} />
               <button type="button" className={styles.outlineBtn} disabled={!active || emailBusy || submitting || cooldown > 0 || emailVerified} onClick={() => { void sendCode() }}>
-                {emailVerified ? '인증 완료' : cooldown > 0 ? `재발송 (${cooldown}초 후)` : challenge ? '다시 받기' : '인증번호 받기'}
+                {sendBtnLabel}
               </button>
             </div>
             {challenge && <>

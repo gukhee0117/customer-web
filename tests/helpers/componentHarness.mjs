@@ -22,6 +22,7 @@ export function componentHarness(file, name, props, imports) {
     constructor(...args) { super(...(args.length ? args : [clock])) }
     static now() { return clock }
   }
+  // Mock only hooks used by these components; add new hooks alongside the first caller.
   const react = {
     useState(initial) {
       const i = cursor++; slots[i] ??= { value: typeof initial === 'function' ? initial() : initial }
