@@ -12,7 +12,7 @@ export interface Briefing {
 export interface Answer {
   articleId: string; articleVersion: string; evidence: { facts: string[]; risks: string[] }
   explanation: string; origin: 'LIVE_LLM' | 'CACHED_LLM' | 'PREPARED'
-  preparedReason: 'DEMO_DEFAULT' | 'LLM_UNAVAILABLE' | 'POLICY_REFUSAL' | null; generatedAt: string | null
+  preparedReason: 'DEMO_DEFAULT' | 'LLM_UNAVAILABLE' | 'POLICY_REFUSAL' | 'ARTICLE_EVIDENCE' | null; generatedAt: string | null
   points?: string[]; quote?: string | null; relatedStocks?: { ticker: string; name: string; sectorName?: string | null }[]
 }
 export interface Message { role: 'user' | 'assistant'; content: string }
@@ -36,9 +36,9 @@ export const newsApi = {
 
 export function answerLabel(answer: Answer): string {
   switch (answer.origin) {
-    case 'LIVE_LLM': return 'AI가 지금 생성한 답변'
-    case 'CACHED_LLM': return '이전에 AI가 생성한 답변'
-    case 'PREPARED': return answer.preparedReason === 'POLICY_REFUSAL' ? '매매 조언 제한 안내' : answer.preparedReason === 'LLM_UNAVAILABLE' ? 'AI 연결 지연 · 준비된 대체 답변' : '시연용으로 준비한 설명'
+    case 'LIVE_LLM': return ''
+    case 'CACHED_LLM': return ''
+    case 'PREPARED': return answer.preparedReason === 'ARTICLE_EVIDENCE' ? '' : answer.preparedReason === 'POLICY_REFUSAL' ? '매매 조언 제한 안내' : answer.preparedReason === 'LLM_UNAVAILABLE' ? 'AI 연결 지연 · 준비된 대체 답변' : '시연용으로 준비한 설명'
     default: return answer.origin
   }
 }

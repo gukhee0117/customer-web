@@ -16,11 +16,13 @@ function harness(api) {
   vm.runInNewContext(compiled, { exports: module.exports, module, AbortController, DOMException,
     require(name) {
       if (name.endsWith('/api/news')) return { newsApi: api }
+      if (name.endsWith('/newsSessionEvents')) return { NEWS_AUTH_EXPIRED: 'auth-expired', notifyNewsContextChanged() {} }
       if (name === './newsSummaryStore') return { newsSummaryStore: store, summaryScope }
       if (name === './NewsSummaryQueue') return { NewsSummaryQueue }
       throw new Error(name)
     },
   })
+  module.exports.initNewsSession()
   return { ...module.exports, store }
 }
 
