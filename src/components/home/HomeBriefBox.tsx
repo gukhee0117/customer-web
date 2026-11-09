@@ -157,7 +157,6 @@ export function HomeBriefBox({ className }: { className?: string }) {
       )}
       {!noAccount && cur === 'tax' && (
         <div ref={bodyRef}>
-          <div className={styles.withdrawalWarning}>1년 전에 원금을 인출하면 이 계좌의 세제 혜택이 모두 취소돼요.</div>
           <TaxTab
             state={taxState}
             expectedState={expectedState}
@@ -235,18 +234,6 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
         </span>
       </div>
 
-      <div className={styles.scenarioNotes}>
-        <div className={cx(styles.cutNote, guide && styles.hiddenNote)} aria-hidden={guide}>
-          확정된 매도 내역을 마지막 집계 시점 기준으로 계산했어요.
-        </div>
-        <div className={cx(styles.cutNote, !guide && styles.hiddenNote)} aria-hidden={!guide}>
-          지금까지 확정된 매도와 남은 보유분을 함께 계산한 전체 예상 세액이에요.
-        </div>
-      </div>
-      <div className={styles.cutNote}>
-        현재까지는 일일 집계 기준이며, 가정 매도는 조회 시점의 확정 매도분까지 포함해요.
-      </div>
-
       <div role="group" aria-label="세액 계산 기준" className={styles.seg}>
         <button
           type="button"
@@ -287,9 +274,9 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
         ) : (
           <>
             <div className={styles.chartLabels}>
-              <div><div className={styles.barCaption}>일반 과세 세액</div>{formatWon(scenario.generalTax)}</div>
+              <div aria-label="일반 과세 세액">{formatWon(scenario.generalTax)}</div>
               <div aria-hidden="true" />
-              <div><div className={styles.barCaption}>감면 후 납부세액</div>{formatWon(scenario.riaTax)}</div>
+              <div aria-label="감면 후 납부세액">{formatWon(scenario.riaTax)}</div>
             </div>
             <div key={chartMotionKey} className={styles.plot}>
               {scenario.generalTax > 0 && (
@@ -362,9 +349,6 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
       {expected && expected.additionalReliefAmount < 0 && (
         <div className={styles.warn} role="status">보유분 손익 반영으로 감면액이 {formatWon(Math.abs(expected.additionalReliefAmount))} 줄어들어요.</div>
       )}
-      <div className={styles.assetFoot}>
-        가정 매도는 확정 매도분과 보유분 손익을 합쳐 기본공제를 한 번 적용해요. 손실을 반영하면 예상 세액이나 감면액이 줄 수도 있어요.
-      </div>
     </div>
   )
 }
