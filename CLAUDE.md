@@ -26,7 +26,8 @@ Returns(리턴증권, 교육용 가상 증권사) RIA 고객 웹. Claude Design 
 - 공용 데이터 `src/data/returns.ts`(RD), 계산 `src/lib/calc.ts`(F). 같은 값은 새로 만들지 말고 여기서 가져와 페이지 간 숫자를 맞춘다(예: 패키지 총액은 홈·내 계좌가 같아야 함). 단 주식 패키지 화면은 서버 값이라 홈·내 계좌의 예시 패키지 숫자와 다를 수 있다(두 화면을 서버로 연결하면 맞춘다).
 - 원본이 직접 넣은 예시 값은 각 페이지 데이터 파일에 있고, 백엔드로 바꿀 곳은 `TODO` 주석으로 표시돼 있다. 백엔드 연결은 이 TODO를 찾아 API 호출로 바꾸는 작업이다.
 - 저장소 키: sessionStorage `returns-login`·`returns-session-exp`·`returns-session-warned`(로그인 세션, 지우기는 `clearLoginSession()`), `returns-logout-notice`(랜딩 토스트), `returns-notify`(알림 설정), `returns-landing-scroll`(랜딩 복원) / localStorage `returns-demo`(시연 설정, 홈·내 계좌·주식 패키지·내 정보 공유), `returns-assess-hist`(진단 이력).
-- 글·답글·닉네임·회원정보 변경은 원본처럼 화면 안에서만 유지(새로고침 시 초기화) → 백엔드 연결 시 교체. 주식 패키지의 주문·패키지 만들기/수정/삭제는 이미 서버(`src/api/stockPackage.ts`)에 저장된다.
+- 커뮤니티 글·답글·닉네임(`src/api/community.ts`), 회원정보 변경(`src/api/profile.ts`), 알림 설정(`src/api/notificationSettings.ts`), 주식 패키지의 주문·패키지 만들기/수정/삭제(`src/api/stockPackage.ts`)는 이미 서버에 저장된다.
+- 아직 서버에 없는 것(#33 결정): 수신 동의·로그인 기록은 시연 제외(화면 안에서만 유지, 새로고침 시 초기화), 커뮤니티 관심 종목·일반계좌 해외주식(REGISTRABLE_STOCK)·국내 종목 업종·끼루 패키지 상담은 현행 유지(예시 값). 각 파일 위쪽 `[시연 제외]`·`[현행 유지]` 주석 참고.
 
 ## 확인 방법
 - 결과 보고 맨 위에 `npm run build`, `npm run lint` 결과를 적는다. 빌드 500KB 경고가 다시 생기면 원인을 적는다.

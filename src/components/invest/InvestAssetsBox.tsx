@@ -53,7 +53,7 @@ export function InvestAssetsBox({ className, views, cash, accountNo }: { classNa
       <div className={styles.cash}>
         <span className={styles.cashLabel}>주문 가능 금액</span>
         <span className={styles.cashRight}>
-          {/* TODO: 백엔드 연결 시 주문 가능 금액 API 값으로 교체 */}
+          {/* 주문 가능 금액은 서버 값(InvestPage가 서버 패키지 데이터에서 받아 넘김) */}
           <b className={styles.cashVal}>₩{F.won(cash)}</b>
           <Link to="/account" className={styles.acctLink}>
             내 계좌 ›

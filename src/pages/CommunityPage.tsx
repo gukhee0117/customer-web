@@ -35,7 +35,7 @@ function CommunityBody() {
   const [tab, setTab] = useState<FeedTab>(() => (!params.get('thread') && params.get('tab') === 'mine' ? 'mine' : 'live'))
   const [scope, setScope] = useState<HotScope>('stock')
   const [recent, setRecent] = useState(() => loadRecent(stockFromUrl(params.get('stock'))))
-  // TODO: 관심 종목은 백엔드 연결 시 서버 값
+  // [현행 유지] 관심 종목은 서버 API가 없어 공용 예시 데이터(RD.WATCH)를 쓴다
   const [watch, setWatch] = useState(() => RD.WATCH.filter((c) => /^[0-9A-Z]{6}$/.test(c)))
   const stocks = useStocksData([code, ...watch, ...recent])
   const { message: toast, showToast } = useToast()

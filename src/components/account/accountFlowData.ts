@@ -9,7 +9,7 @@ import type { Tone } from './accountData'
 const tone = (n: number): Tone => (n > 0 ? 'up' : n < 0 ? 'down' : 'flat')
 
 // 업종 이름을 데이터(RD.KR)에서 못 찾는 국내 패키지 종목 9개의 업종 — 원본 account 화면 안의 예시 값
-// TODO: 백엔드 연결 시 종목 마스터(DOMESTIC_PRODUCT)에서 업종 받아오기
+// [현행 유지] 종목 마스터(DOMESTIC_PRODUCT)에 업종을 내려 주는 고객 API가 없어 예시 값을 쓴다
 const EXT_SECTOR: Record<string, string> = {
   '042700': '반도체',
   '058470': '반도체',

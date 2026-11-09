@@ -8,7 +8,7 @@ interface Props {
 }
 
 // [며칠 전, 시각, 기기, 지역, IP, 성공 여부] — 원본 예시 데이터. 날짜는 오늘(업무일)에서 거꾸로 셈
-// TODO: 백엔드 연결 시 서버의 로그인 기록 조회로 대체
+// [시연 제외] 서버에 로그인 기록 API가 없어 예시 데이터를 그대로 보여 준다. 시연에서 쓰지 않는다
 const LOGINS: [number, string, string, string, string, boolean][] = [
   [0, '09:12', 'Windows · Chrome', '서울', '211.***.***.12', true],
   [1, '21:40', 'iPhone · Returns 앱', '서울', '118.***.***.57', true],

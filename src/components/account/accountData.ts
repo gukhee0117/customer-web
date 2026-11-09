@@ -2,7 +2,7 @@ import { RETURNS_DATA as RD } from '../../data/returns'
 import { F } from '../../lib/calc'
 
 // 일반계좌의 해외주식: [티커, 현재 보유, 2025.12.23 기준 보유] — 원본 account 화면 안의 예시 값
-// TODO: 백엔드 연결 시 증권사 시스템(REGISTRABLE_STOCK)에서 받아오기
+// [현행 유지] 증권사 시스템(REGISTRABLE_STOCK)을 고객 API로 여는 서버 작업이 먼저 필요해 예시 값을 쓴다
 export const GEN_HOLDINGS: [ticker: string, now: number, base: number][] = [
   ['TSLA', 6, 4],
   ['AAPL', 15, 15],

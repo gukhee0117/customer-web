@@ -9,7 +9,7 @@ export const BOT_CHIPS = ['수익률이 가장 높은 패키지는?', '비중이
 
 export const botGreeting = (): BotMessage => ({ kk: true, text: '패키지에 대해 물어보세요. 수익률, 비중, 주문 가능 금액을 알려드려요.' })
 
-// TODO: 백엔드 연결 시 끼루 상담 API 응답으로 교체(지금은 원본처럼 질문 글자로 고르는 예시 답변)
+// [현행 유지] 패키지 상담은 서버 데이터(views·cash)로 계산한 답변이다. 끼루 AI 연결은 패키지 문맥을 받는 서버 API가 생기면 한다
 export function botAnswer(q: string, views: PkgView[], cur: PkgView, cash: number): string {
   if (/가장|수익률/.test(q)) {
     const best = views.slice().sort((a, b) => b.ret - a.ret)[0]
