@@ -12,13 +12,32 @@ export async function initCsrf(): Promise<void> {
   await apiClient.get('/api/customer/csrf')
 }
 
+export interface SignupChallenge {
+  maskedEmail: string
+  expiresAt: string
+  resendAvailableAt: string
+}
+
 export async function login(loginId: string, password: string): Promise<MeData> {
   await initCsrf()
-  const res = await apiClient.post<ApiResponse<MeData>>('/api/customer/auth/login', {
-    loginId,
-    password,
-  })
+  const res = await apiClient.post<ApiResponse<MeData>>('/api/customer/auth/login', { loginId, password })
   await initCsrf()
+  return res.data.data
+}
+
+export async function sendSignupCode(email: string): Promise<SignupChallenge> {
+  await initCsrf()
+  const res = await apiClient.post<ApiResponse<SignupChallenge>>('/api/customer/auth/signup/email', { email })
+  return res.data.data
+}
+
+export interface SignupVerification {
+  verifiedUntil: string
+}
+
+export async function verifySignupCode(code: string): Promise<SignupVerification> {
+  // Sending a signup code does not authenticate or rotate the cookie-based CSRF token.
+  const res = await apiClient.post<ApiResponse<SignupVerification>>('/api/customer/auth/signup/email/verify', { code })
   return res.data.data
 }
 

@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(async (loginId: string, password: string) => {
-    const me = await apiAuth.login(loginId, password) // 실패 시 throw → 호출부에서 처리
+    const me = await apiAuth.login(loginId, password)
     resetNewsSession()
     clearAssessHist()
     setLoginSession({ name: me.name, expiresAt: me.expiresAt })

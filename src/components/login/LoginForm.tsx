@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../styles/tokens.css'
 import { syncAssessState } from '../../api/investor'
+import { apiErrorMessage } from '../../api/client'
 import { useAuth } from '../../contexts/authState'
 import { cx } from '../common/cx'
 import { Toast } from '../common/Toast'
@@ -24,10 +25,6 @@ export function LoginForm({ active, onSignup }: LoginFormProps) {
   const [remember, setRemember] = useState(true)
   const [loginErr, setLoginErr] = useState('')
   const [loading, setLoading] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-
-  useEffect(() => () => clearTimeout(timer.current), [])
-
   // 탭을 바꾸면 오류 문구는 지움(입력값은 유지)
   const [prevActive, setPrevActive] = useState(active)
   if (prevActive !== active) {
@@ -47,16 +44,13 @@ export function LoginForm({ active, onSignup }: LoginFormProps) {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (loading) return
-    const id = loginId.trim() || 'user000001' // 시연 모드: 빈 입력 → 시연 계정
-    const pw = loginPw || '1234'
     setLoading(true)
     setLoginErr('')
     try {
-      await login(id, pw)
+      await login(loginId.trim(), loginPw)
       await syncAssessState()
       navigate('/home')
     } catch (err: unknown) {
-      setLoading(false)
       const code =
         err &&
         typeof err === 'object' &&
@@ -66,8 +60,10 @@ export function LoginForm({ active, onSignup }: LoginFormProps) {
       if (code === 'CUSTOMER_LOGIN_FAILED') {
         setLoginErr('아이디 또는 비밀번호를 확인해 주세요')
       } else {
-        setLoginErr('로그인 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요')
+        setLoginErr(apiErrorMessage(err, '로그인 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요'))
       }
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -86,13 +82,13 @@ export function LoginForm({ active, onSignup }: LoginFormProps) {
       <form className={styles.form} onSubmit={handleSubmit}>
         <label className={styles.field}>
           <span className={styles.label}>아이디</span>
-          <input className={inputClass} type="text" value={loginId} onChange={onId} placeholder="아이디를 입력해 주세요" autoComplete={active ? 'username' : 'off'} disabled={!active} />
+          <input className={inputClass} type="text" value={loginId} onChange={onId} placeholder="아이디를 입력해 주세요" autoComplete={active ? 'username' : 'off'} disabled={!active || loading} required />
         </label>
         <div className={styles.field}>
           <label className={styles.field}>
             <span className={styles.label}>비밀번호</span>
             <span className={styles.pwWrap}>
-              <input className={cx(inputClass, styles.pwInput)} type={showPw ? 'text' : 'password'} value={loginPw} onChange={onPw} placeholder="비밀번호를 입력해 주세요" autoComplete={active ? 'current-password' : 'off'} disabled={!active} />
+              <input className={cx(inputClass, styles.pwInput)} type={showPw ? 'text' : 'password'} value={loginPw} onChange={onPw} placeholder="비밀번호를 입력해 주세요" autoComplete={active ? 'current-password' : 'off'} disabled={!active || loading} required />
               <button type="button" className={styles.eye} onClick={() => setShowPw((v) => !v)} aria-label={showPw ? '비밀번호 숨기기' : '비밀번호 보기'}>
                 {showPw ? (
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -111,7 +107,6 @@ export function LoginForm({ active, onSignup }: LoginFormProps) {
             </span>
           </label>
           {loginErr && <span className={styles.error} role="alert">{loginErr}</span>}
-          <span className={styles.hint}>시연 계정: 입력 없이 로그인하면 user000001 / 1234로 들어가요</span>
         </div>
         <div className={styles.options}>
           <button type="button" className={styles.remember} onClick={() => setRemember((v) => !v)} aria-pressed={remember}>
