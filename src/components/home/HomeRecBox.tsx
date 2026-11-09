@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import '../../styles/tokens.css'
-import { PROFILE_KEY, REC_DISCLAIMER, askRecommendation } from '../../api/stockPackage'
+import { PROFILE_KEY, askRecommendation } from '../../api/stockPackage'
 import type { RecommendBasis } from '../../api/stockPackage'
 import { serverState } from '../../data/returns'
 import { F } from '../../lib/calc'
@@ -325,7 +325,6 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
               전송
             </button>
           </form>
-          <div className={styles.foot}>{data?.disclaimer ?? REC_DISCLAIMER}</div>
         </>
       )}
 

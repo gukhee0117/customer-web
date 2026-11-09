@@ -62,7 +62,6 @@ export function LoginScreen() {
             <SignupForm active={mode === 'signup'} wide={wide} onLogin={() => changeMode('login')} />
           </div>
         </div>
-        {!wide && <p className={styles.notice}>리턴증권은 교육용 프로젝트의 가상 증권사입니다 · 사진: Unsplash</p>}
       </main>
     </div>
   )

@@ -100,20 +100,3 @@
   height: 1.5px;
   background: var(--color-gold);
 }
-
-.sub {
-  margin: 0;
-  font-size: var(--font-size-17);
-  line-height: 1.5;
-  color: color-mix(in srgb, var(--color-on-navy) 80%, transparent);
-}
-
-.notice {
-  position: absolute;
-  left: 56px;
-  right: 56px;
-  bottom: 22px;
-  margin: 0;
-  font-size: var(--font-size-12);
-  color: color-mix(in srgb, var(--color-on-navy) 60%, transparent);
-}

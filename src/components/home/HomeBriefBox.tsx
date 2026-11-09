@@ -229,28 +229,30 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
             {guide && noHoldings ? '대상 없음' : guide && !expected ? expectedMessage : formatWon(scenario.reliefAmount)}
           </div>
         </div>
+      </div>
+
+      <div className={styles.segRow}>
+        <div role="group" aria-label="세액 계산 기준" className={styles.seg}>
+          <button
+            type="button"
+            className={cx(styles.segBtn, !guide && styles.segOn)}
+            aria-pressed={!guide}
+            onClick={() => setGuide(false)}
+          >
+            현재까지
+          </button>
+          <button
+            type="button"
+            className={cx(styles.segBtn, styles.segBtnSecond, guide && styles.segOn)}
+            aria-pressed={guide}
+            onClick={() => setGuide(true)}
+          >
+            보유 종목을 가정 매도하면
+          </button>
+        </div>
         <span className={styles.asOf}>
           {guide && noHoldings ? '가정 매도 대상 없음' : guide && !expected ? '가정 매도 예상 세액' : useExpected ? `가정 매도 결제일 ${formatDate(expected!.expectedFinalAt)}` : `집계 기준 ${formatDateTime(briefing.calculatedAt)}`}
         </span>
-      </div>
-
-      <div role="group" aria-label="세액 계산 기준" className={styles.seg}>
-        <button
-          type="button"
-          className={cx(styles.segBtn, !guide && styles.segOn)}
-          aria-pressed={!guide}
-          onClick={() => setGuide(false)}
-        >
-          현재까지
-        </button>
-        <button
-          type="button"
-          className={cx(styles.segBtn, styles.segBtnSecond, guide && styles.segOn)}
-          aria-pressed={guide}
-          onClick={() => setGuide(true)}
-        >
-          보유 종목을 가정 매도하면
-        </button>
       </div>
 
       <div className={styles.chart}>
@@ -273,12 +275,9 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
           </div>
         ) : (
           <>
-            <div className={styles.chartLabels}>
-              <div aria-label="일반 과세 세액">{formatWon(scenario.generalTax)}</div>
-              <div aria-hidden="true" />
-              <div aria-label="감면 후 납부세액">{formatWon(scenario.riaTax)}</div>
-            </div>
             <div key={chartMotionKey} className={styles.plot}>
+              <div className={cx(styles.barAmount, styles.amountGeneral, styles.chartAnnotation)} style={{ bottom: `calc(${generalHeight} + var(--space-8))` }} aria-label="일반 과세 세액">{formatWon(scenario.generalTax)}</div>
+              <div className={cx(styles.barAmount, styles.amountRia, styles.chartAnnotation)} style={{ bottom: `calc(${((scenario.riaTax + scenario.reliefAmount) / maxTax) * 100}% + var(--space-8))` }} aria-label="감면 후 납부세액">{formatWon(scenario.riaTax)}</div>
               {scenario.generalTax > 0 && (
                 <div key={`taxGuideLine:${chartMotionKey}`} className={styles.taxGuideLine} style={{ bottom: generalHeight }} aria-hidden="true" />
               )}

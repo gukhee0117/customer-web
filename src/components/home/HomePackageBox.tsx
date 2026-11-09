@@ -25,7 +25,6 @@ export function HomePackageBox({ className, opened }: { className?: string; open
 
   const head = show ? (
     <span className={styles.summary}>
-      <span>전체 {views.length}개 총 평가 ₩{F.won(total)}</span>
       {unpriced ? <span className={styles.example}>수익률 확인 불가</span> : <span className={cx(styles.retTotal, tone(ret))}>{F.pct(ret)}</span>}
     </span>
   ) : null

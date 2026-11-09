@@ -363,7 +363,12 @@ export function AccountPage() {
           onClose={() => applyKind === 'open' ? finishOpen() : setApplyKind(null)}
           onGoHist={goHist}
           onSubmitIn={(results: SubmittedInboundResult[]) => {
-            if (results.some((r) => r.status === 'ok')) retryInbounds()
+            if (results.some((r) => r.status === 'ok')) {
+              retryInbounds()
+              refreshSellGuide()
+              refreshHoldings()
+              refreshAssets()
+            }
           }}
           onSubmitOut={() => {
             retryWithdrawals()
