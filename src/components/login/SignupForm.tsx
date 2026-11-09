@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, InputHTMLAttributes } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../styles/tokens.css'
@@ -87,11 +87,18 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   const [verifiedEmail, setVerifiedEmail] = useState('')
   const [verifiedUntil, setVerifiedUntil] = useState(0)
   const [emailBusy, setEmailBusy] = useState(false)
+  const emailRequestBusy = useRef(false)
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000)
+    const expiry = challenge ? Date.parse(challenge.expiresAt) : verifiedUntil
+    if (!active || step > 2 || expiry <= 0) return
+    const timer = setInterval(() => {
+      const current = Date.now()
+      setNow(current)
+      if (current >= expiry) clearInterval(timer)
+    }, 1000)
     return () => clearInterval(timer)
-  }, [])
+  }, [active, step, challenge, verifiedUntil])
   const [code, setCode] = useState('')
   const [ria, setRia] = useState<Ria | null>(null)
   const [riaNo, setRiaNo] = useState('')
@@ -104,6 +111,7 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
 
   const soon = () => showToast('준비 중인 화면이에요')
   const setField = (k: InfoKey) => (e: ChangeEvent<HTMLInputElement>) => {
+    if (k === 'email' && emailRequestBusy.current) return
     const v = e.target.value
     setInfo((st) => ({ ...st, [k]: v }))
     if (k === 'email') { setChallenge(null); setVerifiedEmail(''); setVerifiedUntil(0); setCode('') }
@@ -172,6 +180,10 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
       await syncAssessState()
       return true
     } catch (err) {
+      const errorCode = (err as { response?: { data?: { code?: string } } })?.response?.data?.code
+      if (errorCode === 'CUSTOMER_SIGNUP_CODE_INVALID') {
+        setVerifiedEmail(''); setVerifiedUntil(0); setChallenge(null); setCode('')
+      }
       showToast(apiErrorMessage(err, '가입하지 못했어요. 잠시 뒤 다시 시도해 주세요'))
       setStep(1)
       return false
@@ -214,9 +226,10 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   }
 
   const sendCode = async () => {
-    if (emailBusy || cooldown > 0) return
+    if (emailRequestBusy.current || cooldown > 0) return
     const email = info.email.trim()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('이메일 주소를 먼저 확인해 주세요'); return }
+    emailRequestBusy.current = true
     setEmailBusy(true)
     setVerifiedEmail('')
     setVerifiedUntil(0)
@@ -226,26 +239,28 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
       setNow(Date.now())
       showToast('이메일로 인증번호를 보냈어요')
     } catch (err) { showToast(apiErrorMessage(err, '인증번호를 보내지 못했어요')) }
-    finally { setEmailBusy(false) }
+    finally { emailRequestBusy.current = false; setEmailBusy(false) }
   }
 
   const confirmCode = async () => {
-    if (emailBusy || !challenge || remaining === 0 || code.length !== 6) return
+    if (emailRequestBusy.current || !challenge || remaining === 0 || code.length !== 6) return
+    emailRequestBusy.current = true
     setEmailBusy(true)
     try {
-      await verifySignupCode(code)
+      const verified = await verifySignupCode(code)
       setVerifiedEmail(info.email.trim())
-      setVerifiedUntil(Date.now() + 600000)
+      setVerifiedUntil(Date.parse(verified.verifiedUntil))
       setChallenge(null)
       setCode('')
       setNow(Date.now())
       showToast('이메일 인증이 완료됐어요')
     } catch (err) { showToast(apiErrorMessage(err, '인증번호를 확인하지 못했어요')) }
-    finally { setEmailBusy(false) }
+    finally { emailRequestBusy.current = false; setEmailBusy(false) }
   }
 
   const demoFill = () => {
-    setInfo({ name: '김리아', birth: '1994.05.17', rrn: '9405172123456', phone: '010-1234-5678', email: 'ria@returns.co.kr', uid: 'kimria', pw: 'returns!2026', pw2: 'returns!2026' })
+    if (emailRequestBusy.current) return
+    setInfo({ name: '김리아', birth: '1994.05.17', rrn: '9405172123456', phone: '010-1234-5678', email: '', uid: 'kimria', pw: 'returns!2026', pw2: 'returns!2026' })
     setChallenge(null)
     setVerifiedEmail('')
     setVerifiedUntil(0)
@@ -326,7 +341,9 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
                   aria-label="이메일 인증번호" autoComplete="one-time-code" disabled={!active || emailBusy || remaining === 0} />
                 <button type="button" className={styles.outlineBtn} disabled={!active || emailBusy || remaining === 0 || code.length !== 6} onClick={() => { void confirmCode() }}>인증 확인</button>
               </div>
-              <span className={styles.hint} role="status">{remaining > 0 ? `${remaining}초 남았어요` : '인증번호가 만료됐어요. 다시 받아 주세요.'}</span>
+              {remaining > 0
+                ? <span className={styles.hint} aria-live="off">{remaining}초 남았어요</span>
+                : <span className={styles.hint} role="status">인증번호가 만료됐어요. 다시 받아 주세요.</span>}
             </>}
             {emailVerified && <span className={styles.codeMsg} role="status">이메일 인증이 완료됐어요. 10분 안에 가입을 마쳐 주세요.</span>}
           </div>

@@ -1,32 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import vm from 'node:vm'
-import ts from 'typescript'
+import { componentHarness } from './helpers/componentHarness.mjs'
 
-function harness({ rejectCode = false } = {}) {
-  const slots = []; let cursor = 0; let tree
+function harness({ rejectCode = false, signupError, windowMs = 600000 } = {}) {
   const calls = { send: [], verify: [], signup: [], session: [], toast: [] }
-  const react = {
-    useState(initial) {
-      const i = cursor++; slots[i] ??= { value: typeof initial === 'function' ? initial() : initial }
-      return [slots[i].value, next => { slots[i].value = typeof next === 'function' ? next(slots[i].value) : next }]
-    },
-    useEffect() {},
-  }
-  const jsx = { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) }
-  const source = readFileSync(new URL('../src/components/login/SignupForm.tsx', import.meta.url), 'utf8')
-  const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText
-  const module = { exports: {} }
-  vm.runInNewContext(compiled, { module, exports: module.exports, Date, setInterval: () => 1, clearInterval() {}, require(name) {
-    if (name === 'react') return react
-    if (name === 'react/jsx-runtime') return jsx
+  let view
+  view = componentHarness('components/login/SignupForm.tsx', 'SignupForm', { active: true, wide: true, onLogin() {} }, name => {
     if (name === 'react-router-dom') return { useNavigate: () => () => {} }
     if (name.endsWith('.css')) return {}
     if (name.endsWith('/auth')) return {
-      sendSignupCode: async email => { calls.send.push(email); return { maskedEmail: 'u***@example.com', expiresAt: new Date(Date.now() + 300000).toISOString(), resendAvailableAt: new Date(Date.now() + 60000).toISOString() } },
-      verifySignupCode: async code => { calls.verify.push(code); if (rejectCode) throw new Error('wrong') },
-      signup: async body => { calls.signup.push(body); return { customerId: 7 } },
+      sendSignupCode: async email => { calls.send.push(email); return { maskedEmail: 'u***@example.com', expiresAt: new Date(view.now() + 300000).toISOString(), resendAvailableAt: new Date(view.now() + 60000).toISOString() } },
+      verifySignupCode: async code => { calls.verify.push(code); if (rejectCode) throw new Error('wrong'); return { verifiedUntil: new Date(view.now() + windowMs).toISOString() } },
+      signup: async body => { calls.signup.push(body); if (signupError) throw signupError; return { customerId: 7 } },
     }
     if (name.endsWith('/authState')) return { useAuth: () => ({ applySession: me => calls.session.push(me) }) }
     if (name.endsWith('/investor')) return { syncAssessState: async () => {} }
@@ -41,29 +26,8 @@ function harness({ rejectCode = false } = {}) {
     if (name.endsWith('/SignupQuiz')) return { SignupQuiz: 'quiz' }
     if (name.endsWith('/SignupResult')) return { SignupResult: 'result' }
     throw new Error(name)
-  } })
-  function nodes(value) {
-    if (!value || typeof value !== 'object') return []
-    if (Array.isArray(value)) return value.flatMap(nodes)
-    return [value, ...nodes(value.props?.children)]
-  }
-  function text(value) {
-    if (typeof value === 'string' || typeof value === 'number') return String(value)
-    if (Array.isArray(value)) return value.map(text).join('')
-    return value?.props ? text(value.props.children) : ''
-  }
-  function render() { cursor = 0; tree = module.exports.SignupForm({ active: true, wide: true, onLogin() {} }) }
-  async function click(label) {
-    const button = nodes(tree).find(n => n.type === 'button' && text(n).trim() === label)
-    assert.ok(button, label); assert.ok(!button.props.disabled, label + ' disabled')
-    await button.props.onClick(); await new Promise(resolve => setImmediate(resolve)); render()
-  }
-  function field(label, value) {
-    const field = nodes(tree).find(n => n.props?.label === label || n.props?.['aria-label'] === label)
-    assert.ok(field, label); field.props.onChange({ target: { value } }); render()
-  }
-  render()
-  return { calls, click, field, nodes: () => nodes(tree), text, async begin() { await click('전체 동의'); await click('다음'); await click('시연용으로 채우기'); field('이메일', 'user@example.com') } }
+  })
+  return { ...view, calls, field: view.input, async begin() { await view.click('전체 동의'); await view.click('다음'); await view.click('시연용으로 채우기'); view.input('이메일', 'user@example.com') } }
 }
 
 test('demo values do not bypass verification and typing six digits does not verify email', async () => {
@@ -98,4 +62,46 @@ test('signup after successful confirmation applies the returned session', async 
   assert.equal(h.calls.signup.length, 1)
   assert.equal(h.calls.signup[0].email, 'user@example.com')
   assert.equal(h.calls.session.length, 1)
+})
+
+async function confirm(h) {
+  await h.begin(); await h.click('인증번호 받기'); h.field('이메일 인증번호', '123456'); await h.click('인증 확인')
+}
+
+test('lost server verification clears the completed state and permits requesting another code', async () => {
+  const h = harness({ signupError: { response: { data: { code: 'CUSTOMER_SIGNUP_CODE_INVALID' } } } })
+  await confirm(h); await h.click('다음'); await h.click('아직 없어요'); await h.click('다음')
+  assert.equal(h.button('인증번호 받기').props.disabled, false)
+  await h.click('인증번호 받기'); assert.equal(h.calls.send.length, 2)
+  assert.equal(h.calls.session.length, 0)
+})
+
+test('the server verifiedUntil controls expiration and idle form has no timer', async () => {
+  const h = harness({ windowMs: 2000 }); assert.equal(h.timerCount(), 0)
+  await confirm(h); assert.equal(h.button('다음').props.disabled, false)
+  h.advance(3000); assert.equal(h.button('다음').props.disabled, true)
+  assert.equal(h.timerCount(), 0)
+})
+
+test('same-tick duplicate send and confirmation each make only one request', async () => {
+  const h = harness(); await h.begin()
+  const send = h.button('인증번호 받기'); send.props.onClick(); send.props.onClick(); await h.flush()
+  assert.equal(h.calls.send.length, 1)
+  h.field('이메일 인증번호', '123456')
+  const confirm = h.button('인증 확인'); confirm.props.onClick(); confirm.props.onClick(); await h.flush()
+  assert.equal(h.calls.verify.length, 1)
+})
+
+test('countdown does not announce every second and expiration announces once', async () => {
+  const h = harness(); await h.begin(); await h.click('인증번호 받기')
+  const countdown = h.nodes().find(n => h.text(n).endsWith('초 남았어요') && n.type === 'span')
+  assert.equal(countdown.props['aria-live'], 'off'); assert.equal(countdown.props.role, undefined)
+  h.advance(301000)
+  assert.ok(h.nodes().some(n => n.props?.role === 'status' && h.text(n).includes('인증번호가 만료됐어요')))
+})
+
+test('demo fill leaves the recipient blank and never sends to a dummy address', async () => {
+  const h = harness(); await h.click('전체 동의'); await h.click('다음'); await h.click('시연용으로 채우기')
+  assert.equal(h.nodes().find(n => n.props?.label === '이메일').props.value, '')
+  await h.click('인증번호 받기'); assert.equal(h.calls.send.length, 0)
 })

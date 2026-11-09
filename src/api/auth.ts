@@ -31,8 +31,12 @@ export async function sendSignupCode(email: string): Promise<SignupChallenge> {
   return res.data.data
 }
 
-export async function verifySignupCode(code: string): Promise<void> {
-  await apiClient.post('/api/customer/auth/signup/email/verify', { code })
+export interface SignupVerification { verifiedUntil: string }
+
+export async function verifySignupCode(code: string): Promise<SignupVerification> {
+  // Sending a signup code does not authenticate or rotate the cookie-based CSRF token.
+  const res = await apiClient.post<ApiResponse<SignupVerification>>('/api/customer/auth/signup/email/verify', { code })
+  return res.data.data
 }
 
 export interface SignupBody {
