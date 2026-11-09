@@ -7,8 +7,6 @@ import { signup, sendSignupCode, verifySignupCode } from '../../api/auth'
 import type { SignupChallenge } from '../../api/auth'
 import { useAuth } from '../../contexts/authState'
 import { profileKeyOf, submitAssessment, syncAssessState } from '../../api/investor'
-import { RETURNS_DATA } from '../../data/returns'
-import { F } from '../../lib/calc'
 import { useInvestorSurvey } from '../assessment/useInvestorSurvey'
 import { cx } from '../common/cx'
 import { Toast } from '../common/Toast'
@@ -31,14 +29,9 @@ const TERMS = [
   ['필수', '전자금융거래 이용약관'],
   ['선택', '마케팅 정보 수신']
 ]
-const STEPS = ['약관 동의', '본인 정보', 'RIA 계좌 연결', '투자성향 진단']
-const RIA_OPTS: [Ria, string][] = [
-  ['have', '이미 Returns RIA 계좌가 있어요'],
-  ['none', '아직 없어요']
-]
+const STEPS = ['약관 동의', '본인 정보', '투자성향 진단']
 const PW_RULES = ['8자 이상', '영문+숫자', '특수문자']
 
-type Ria = 'have' | 'none'
 type InfoKey = 'name' | 'birth' | 'rrn' | 'phone' | 'email' | 'uid' | 'pw' | 'pw2'
 type Info = Record<InfoKey, string>
 
@@ -75,7 +68,7 @@ const Field = ({ active, label, span, value, onChange, type, placeholder, autoCo
   </label>
 )
 
-// 회원가입 1~3단계(약관 동의 · 본인 정보 · RIA 계좌 연결). 4단계(투자성향 진단)는 자리만
+// 약관 동의와 본인 정보 확인 후 가입하고 투자성향 진단을 진행한다.
 export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   const navigate = useNavigate()
   const { applySession } = useAuth()
@@ -91,7 +84,7 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const expiry = challenge ? Date.parse(challenge.expiresAt) : verifiedUntil
-    if (!active || step > 2 || expiry <= 0) return
+    if (!active || step > 1 || expiry <= 0) return
     const timer = setInterval(() => {
       const current = Date.now()
       setNow(current)
@@ -100,10 +93,6 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
     return () => clearInterval(timer)
   }, [active, step, challenge, verifiedUntil])
   const [code, setCode] = useState('')
-  const [ria, setRia] = useState<Ria | null>(null)
-  const [riaNo, setRiaNo] = useState('')
-  const [riaOk, setRiaOk] = useState(false)
-  const [riaTried, setRiaTried] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [qi, setQi] = useState(0)
   const survey = useInvestorSurvey()
@@ -126,7 +115,6 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
     : cooldown > 0 ? `재발송 (${cooldown}초 후)`
     : challenge ? '다시 받기'
     : '인증번호 받기'
-  const acct = RETURNS_DATA.ACCOUNT
 
   // 다음 버튼이 막힌 이유(비어 있으면 다음 가능)
   const reason = (): string => {
@@ -147,11 +135,6 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
       return ''
     }
     if (step === 2) {
-      if (!ria) return '계좌 보유 여부를 골라 주세요'
-      if (ria === 'have' && !riaOk) return '계좌번호를 확인해 주세요'
-      return ''
-    }
-    if (step === 3) {
       if (!survey.questions) return survey.error || '설문을 불러오는 중이에요'
       return survey.isAnswered(survey.questions[qi]) ? '' : survey.questions[qi].multiple ? '보기를 하나 이상 골라 주세요' : '보기를 하나 골라 주세요'
     }
@@ -163,10 +146,10 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
 
   const goPrev = () => {
     if (step === 0) onLogin()
-    else if (step === 3 && qi > 0) setQi(qi - 1)
+    else if (step === 2 && qi > 0) setQi(qi - 1)
     else setStep(step - 1)
   }
-  // 본인 정보와 계좌 연결 선택이 끝나면 서버에 가입한다(가입하면 바로 로그인돼 투자성향 진단을 이어서 저장할 수 있다)
+  // 본인 정보 확인이 끝나면 서버에 가입한다(가입하면 바로 로그인돼 투자성향 진단을 이어서 저장할 수 있다)
   const register = async (): Promise<boolean> => {
     if (!emailVerified) { showToast('이메일 인증을 다시 진행해 주세요'); setStep(1); return false }
     setSubmitting(true)
@@ -216,18 +199,18 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
   const skipQuiz = () => navigate('/home')
   const goNext = async () => {
     if (nextDisabled) return
-    if (step === 2) {
+    if (step === 1) {
       if (!(await register())) return
       survey.reset()
       void survey.load()
     }
-    if (step === 3 && lastQuestion && !(await finish())) return
-    if (step === 3 && !lastQuestion) {
+    if (step === 2 && lastQuestion && !(await finish())) return
+    if (step === 2 && !lastQuestion) {
       setQi(qi + 1)
       return
     }
     setStep(step + 1)
-    if (step + 1 === 3) setQi(0)
+    if (step + 1 === 2) setQi(0)
   }
 
   const sendCode = async () => {
@@ -379,64 +362,7 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
         </div>
       )}
 
-      {step === 2 && (
-        <div className={styles.section}>
-          <h2 className={styles.title}>RIA 계좌를 연결해 주세요</h2>
-          <div className={styles.radios} role="radiogroup" aria-label="RIA 계좌 보유 여부">
-            {RIA_OPTS.map(([k, label]) => (
-              <button key={k} type="button" role="radio" aria-checked={ria === k} className={cx(styles.radio, ria === k && styles.radioOn)} onClick={() => setRia(k)}>
-                <span className={cx(styles.dot, ria === k && styles.dotOn)} />
-                {label}
-              </button>
-            ))}
-          </div>
-          {ria === 'have' && (
-            <div className={styles.fieldBlock}>
-              <span className={styles.label}>RIA 계좌번호</span>
-              <div className={styles.row}>
-                <input
-                  className={cx(styles.input, styles.grow, styles.tabular)}
-                  type="text"
-                  inputMode="numeric"
-                  value={riaNo}
-                  onChange={(e) => {
-                    setRiaNo(e.target.value)
-                    setRiaOk(false)
-                    setRiaTried(false)
-                  }}
-                  placeholder="계좌번호 숫자만 입력"
-                  aria-label="RIA 계좌번호"
-                  autoComplete="off"
-                  disabled={!active}
-                />
-                <button
-                  type="button"
-                  className={cx(styles.outlineBtn, styles.checkBtn)}
-                  onClick={() => {
-                    setRiaTried(true)
-                    setRiaOk(digits(riaNo).length >= 8)
-                  }}
-                >
-                  확인
-                </button>
-              </div>
-              {riaOk && (
-                <div className={styles.notice} role="status">
-                  <b className={styles.bold}>{acct.name + ' ' + acct.no}</b> · 개설 {F.dot(acct.opened)} 확인됐어요
-                </div>
-              )}
-              {riaTried && !riaOk && <span className={styles.error}>계좌번호 8자리 이상을 입력해 주세요</span>}
-            </div>
-          )}
-          {ria === 'none' && (
-            <p className={cx(styles.notice, styles.noticeBody)}>
-              가입 후 <b>내 계좌</b>에서 RIA 계좌 개설을 신청할 수 있어요. 해외주식 입고와 매도도 그다음에 이어서 할 수 있어요.
-            </p>
-          )}
-        </div>
-      )}
-
-      {step === 3 && survey.questions && (
+      {step === 2 && survey.questions && (
         <SignupQuiz
           question={survey.questions[qi]}
           qi={qi}
@@ -445,26 +371,26 @@ export function SignupForm({ active, wide, onLogin }: SignupFormProps) {
           onPick={(v) => survey.pick(survey.questions![qi], v)}
         />
       )}
-      {step === 3 && !survey.questions && (
+      {step === 2 && !survey.questions && (
         <div className={styles.section}>
           <h2 className={styles.title}>{survey.error || '설문을 불러오는 중이에요'}</h2>
           {survey.error && <button type="button" className={styles.outlineBtn} onClick={() => void survey.load()}>다시 불러오기</button>}
         </div>
       )}
 
-      {step === 4 && result && <SignupResult name={info.name} profile={result} />}
+      {step === 3 && result && <SignupResult name={info.name} profile={result} />}
 
-      {step < 4 && (
+      {step < 3 && (
         <div className={styles.nav}>
           <div className={styles.navRow}>
             {/* 가입은 설문 앞에서 끝나므로 첫 문항에서는 본인 정보로 돌아갈 수 없다 */}
-            {!(step === 3 && qi === 0) && <button type="button" className={styles.prev} onClick={goPrev}>이전</button>}
+            {!(step === 2 && qi === 0) && <button type="button" className={styles.prev} onClick={goPrev}>이전</button>}
             <button type="button" className={cx(styles.next, nextDisabled && styles.nextOff)} onClick={goNext} disabled={nextDisabled} aria-disabled={nextDisabled}>
-              {step === 3 && lastQuestion ? '결과 보기' : '다음'}
+              {step === 2 && lastQuestion ? '결과 보기' : '다음'}
             </button>
           </div>
-          {why && <span className={styles.reason}>{why}</span>}
-          {step === 3 && <button type="button" className={styles.skip} onClick={skipQuiz}>건너뛰기</button>}
+          {step !== 0 && why && <span className={styles.reason}>{why}</span>}
+          {step === 2 && <button type="button" className={styles.skip} onClick={skipQuiz}>건너뛰기</button>}
         </div>
       )}
       <div className={styles.login}>

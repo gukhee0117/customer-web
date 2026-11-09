@@ -55,13 +55,15 @@ test('confirmed email permits signup and changing email invalidates the confirma
   assert.equal(h.nodes().find(n => n.type === 'button' && h.text(n) === '다음').props.disabled, true)
 })
 
-test('signup after successful confirmation applies the returned session', async () => {
+test('confirmed details create a session and proceed directly to assessment without account linking', async () => {
   const h = harness(); await h.begin(); await h.click('인증번호 받기')
   h.field('이메일 인증번호', '123456'); await h.click('인증 확인'); await h.click('다음')
-  await h.click('아직 없어요'); await h.click('다음')
   assert.equal(h.calls.signup.length, 1)
   assert.equal(h.calls.signup[0].email, 'user@example.com')
   assert.equal(h.calls.session.length, 1)
+  assert.ok(h.nodes().some(n => h.text(n).includes('설문을 불러오는 중이에요')))
+  assert.ok(!h.nodes().some(n => h.text(n).includes('RIA 계좌 연결')))
+  assert.equal(h.button('건너뛰기').props.disabled, undefined)
 })
 
 async function confirm(h) {
@@ -70,7 +72,7 @@ async function confirm(h) {
 
 test('lost server verification clears the completed state and permits requesting another code', async () => {
   const h = harness({ signupError: { response: { data: { code: 'CUSTOMER_SIGNUP_CODE_INVALID' } } } })
-  await confirm(h); await h.click('다음'); await h.click('아직 없어요'); await h.click('다음')
+  await confirm(h); await h.click('다음')
   assert.equal(h.button('인증번호 받기').props.disabled, false)
   await h.click('인증번호 받기'); assert.equal(h.calls.send.length, 2)
   assert.equal(h.calls.session.length, 0)

@@ -25,9 +25,7 @@ export function LoginPhoto({ variant }: LoginPhotoProps) {
           언제나 돌아옵니다.
         </h1>
         <span className={styles.rule} />
-        {wide && <p className={styles.sub}>국내로 잇는 투자, 내일로 이어지는 가치</p>}
       </div>
-      {wide && <p className={styles.notice}>리턴증권은 교육용 프로젝트의 가상 증권사입니다 · 사진: Unsplash</p>}
     </aside>
   )
 }
