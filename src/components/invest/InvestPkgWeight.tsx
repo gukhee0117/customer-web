@@ -1,4 +1,5 @@
 import { cx } from '../common/cx'
+import { InvestDonut } from './InvestDonut'
 import { weightRowsOf } from './investChartLogic'
 import type { PkgView } from './investPkgLogic'
 import styles from './InvestPkgWeight.module.css'
@@ -10,47 +11,14 @@ interface Props {
   onHov: (code: string | null) => void
 }
 
-const R = 68
-const CIRC = 2 * Math.PI * R
-
 // 종목 비중 — 도넛(가운데 종목 수)과 종목별 줄(지금 비중 / 목표 비중)
 export function InvestPkgWeight({ className, pkg, hov, onHov }: Props) {
   const rows = weightRowsOf(pkg)
-  const n = rows.length
-  const segs = rows.map((r, i) => ({
-    row: r,
-    len: r.frac * CIRC,
-    off: -rows.slice(0, i).reduce((a, x) => a + x.frac, 0) * CIRC // 앞 조각들의 비율 합 = 시작 각도
-  }))
-
   return (
     <div className={cx(styles.box, className)}>
       <div className={styles.title}>종목 비중</div>
       <div className={styles.body}>
-        <div className={styles.donut}>
-          <svg width="160" height="160" viewBox="0 0 160 160" className={styles.svg} aria-hidden="true">
-            <g transform="rotate(-90 80 80)">
-              <circle cx="80" cy="80" r={R} fill="none" className={styles.track} strokeWidth="24" />
-              {segs.map(({ row, len, off }) => (
-                <circle
-                  key={row.code}
-                  cx="80"
-                  cy="80"
-                  r={R}
-                  fill="none"
-                  strokeWidth="24"
-                  className={styles.seg}
-                  style={{ stroke: hov === row.code ? 'var(--color-gold)' : row.shade }}
-                  strokeDasharray={Math.max(0, len - (n > 1 ? 1.5 : 0)).toFixed(2) + ' ' + CIRC.toFixed(2)}
-                  strokeDashoffset={off.toFixed(2)}
-                  onMouseEnter={() => onHov(row.code)}
-                  onMouseLeave={() => onHov(null)}
-                />
-              ))}
-            </g>
-          </svg>
-          <span className={styles.count}>{`${pkg.items.length}종목`}</span>
-        </div>
+        <InvestDonut parts={rows.map((r) => ({ key: r.code, shade: r.shade, frac: r.frac }))} hov={hov} onHov={onHov} label={`${pkg.items.length}종목`} />
         <div className={styles.legend}>
           {rows.map((r) => (
             <div key={r.code} className={styles.row} onMouseEnter={() => onHov(r.code)} onMouseLeave={() => onHov(null)}>

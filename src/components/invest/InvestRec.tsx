@@ -11,9 +11,9 @@ import { InvestRecSectors } from './InvestRecSectors'
 import { InvestRiskGauge } from './InvestRiskGauge'
 import { InvestSpark } from './InvestSpark'
 import { toneOf } from './investPkgLogic'
-import { changePercent, extremes, mmdd, pctLabel, priceLabel, roundedPct, sparkNorm, sparkPoints } from './investSparkLogic'
+import { changePercent, extremes, pctLabel, roundedPct, sparkNorm, sparkPoints } from './investSparkLogic'
 import { usePriceHistory } from './usePriceHistory'
-import { recToCandidate, useRecommendations } from './useRecommendations'
+import { allowedText, recToCandidate, useRecommendations } from './useRecommendations'
 import { useTendency } from './useNewPkgData'
 import styles from './InvestRec.module.css'
 
@@ -33,7 +33,6 @@ const BASES: [RecommendBasis, string][] = [
   ['SURVEY', '설문으로 본 성향'],
   ['TRADING', '거래로 본 경향']
 ]
-const GRADE_WORD: Record<number, string> = { 1: '매우 높은 위험', 2: '높은 위험', 3: '다소 높은 위험', 4: '보통 위험', 5: '낮은 위험', 6: '매우 낮은 위험' }
 const TRADING_RULES = [
   '내 평균 매수 위험등급 앞뒤 1등급 안(설문 허용 범위와 겹치는 구간)',
   '많이 산 업종·테마와 같은 상품 먼저',
@@ -48,7 +47,6 @@ const RULES = (allow: string) => [
   '업종이 겹치지 않게 먼저 담기',
   '과거 3년 시세로 위험등급을 계산한 상품만'
 ]
-const allowedText = (min: number | null) => (min == null ? '' : min === 6 ? '6등급' : min + '~6등급')
 const volText = (r: RecommendItem) => (r.volatilityPercent == null ? '계산 전' : r.volatilityPercent + '%')
 // 표의 연 변동성 열: 서버 값을 소수 첫째 자리 %로. 아직 계산 전이면 "–"
 const volCell = (r: RecommendItem) => (r.volatilityPercent == null ? '–' : r.volatilityPercent.toFixed(1) + '%')
@@ -190,7 +188,7 @@ export function InvestRec({ className, onAdd }: Props) {
           const tone30 = c30 == null ? 'flat' : toneOf(roundedPct(c30)) // 30일 차트 선 색: 미니 차트와 같은 규칙(상승 빨강·하락 파랑·같음 회색)
           const norm30 = closes ? sparkNorm(closes, CHART_PAD_Y, CHART_PAD_X) : []
           const ext30 = closes ? extremes(closes) : null
-          const marks = closes && ext30 ? (['hi', 'lo'] as const).map((k) => ({ k, p: norm30[ext30[k]], price: priceLabel(closes[ext30[k]]) })) : [] // 최고점·최저점의 점과 가격
+          const marks = closes && ext30 ? (['hi', 'lo'] as const).map((k) => ({ k, p: norm30[ext30[k]], price: F.won(closes[ext30[k]]) })) : [] // 최고점·최저점의 점과 가격
           return (
             <div key={r.ticker} className={styles.rowBox}>
               <button type="button" className={cx(styles.grid, styles.row, on && styles.rowOn, !showReason && styles.noReason)} aria-expanded={on} onClick={() => setOpen(on ? null : r.ticker)}>
@@ -216,7 +214,7 @@ export function InvestRec({ className, onAdd }: Props) {
                 <span className={styles.sparkCell}>{closes ? <InvestSpark values={closes.slice(-20)} /> : h === 'failed' ? <span className={styles.sparkNone}>–</span> : null}</span>
                 <span className={styles.risk}>
                   {r.riskGrade + '등급'}
-                  <span className={styles.riskName}>{GRADE_WORD[r.riskGrade] ?? ''}</span>
+                  <span className={styles.riskName}>{F.gradeName(r.riskGrade)}</span>
                 </span>
                 <span className={styles.vol}>{volCell(r)}</span>
                 <span className={styles.sector}>{sectorText(r)}</span>
@@ -283,7 +281,7 @@ export function InvestRec({ className, onAdd }: Props) {
                             </span>
                           ))}
                         </div>
-                        <div className={styles.asOf}>{'종가 기준 ' + mmdd(h.points[0].date) + '~' + mmdd(h.points[h.points.length - 1].date)}</div>
+                        <div className={styles.asOf}>{'종가 기준 ' + F.short(h.points[0].date) + '~' + F.short(h.points[h.points.length - 1].date)}</div>
                       </>
                     ) : (
                       <div className={styles.asOf}>{h === 'failed' ? '가격 이력을 불러오지 못했어요' : '불러오는 중이에요…'}</div>

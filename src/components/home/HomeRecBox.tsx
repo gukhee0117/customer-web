@@ -11,7 +11,7 @@ import { assetUrl } from '../common/assetUrl'
 import { cx } from '../common/cx'
 import { InvestStockName } from '../invest/InvestStockName'
 import { useTendency } from '../invest/useNewPkgData'
-import { useRecommendations } from '../invest/useRecommendations'
+import { allowedText, useRecommendations } from '../invest/useRecommendations'
 import { ASK_CHIPS_EMPTY, NO_REC_TEXT, askChips } from './homeRecData'
 import type { FullAskMsg } from './homeBotLogic'
 import styles from './HomeRecBox.module.css'
@@ -22,12 +22,10 @@ type AskMsg = { me: true; text: string } | { me?: false; text: string; pkg?: str
 // 홈에 보이는 추천 종목 수. 추천을 부를 때와 끼루에게 물을 때 같은 값을 써야 답이 화면과 같은 종목으로 나온다
 const HOME_REC_COUNT = 3
 const tone = (n: number) => (n > 0 ? styles.up : n < 0 ? styles.down : styles.flat)
-const GRADE_WORD: Record<number, string> = { 1: '매우 높은 위험', 2: '높은 위험', 3: '다소 높은 위험', 4: '보통 위험', 5: '낮은 위험', 6: '매우 낮은 위험' }
 const BASES: [RecommendBasis, string][] = [
   ['SURVEY', '설문으로 본 성향'],
   ['TRADING', '거래로 본 경향']
 ]
-const allowedText = (min: number | null) => (min == null ? '' : min === 6 ? '6등급' : min + '~6등급')
 
 interface HomeRecBoxProps {
   className?: string
@@ -196,7 +194,7 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
                         <b className={styles.price}>{Object.prototype.hasOwnProperty.call(rec.quotes, r.ticker) ? '확인 불가' : '…'}</b>
                       )}
                     </span>
-                    <span className={styles.gradeText}>{'위험 ' + r.riskGrade + '등급 · ' + (GRADE_WORD[r.riskGrade] ?? '')}</span>
+                    <span className={styles.gradeText}>{'위험 ' + r.riskGrade + '등급 · ' + F.gradeName(r.riskGrade)}</span>
                   </button>
 
                   {isOpen && (
@@ -226,7 +224,7 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
                       <div className={styles.risk}>
                         <div className={styles.riskRow}>
                           <span className={styles.infoKey}>위험등급</span>
-                          <b className={styles.riskVal}>{r.riskGrade + '등급 ' + (GRADE_WORD[r.riskGrade] ?? '') + ' · 근거 과거 3년 가격 변동'}</b>
+                          <b className={styles.riskVal}>{r.riskGrade + '등급 ' + F.gradeName(r.riskGrade) + ' · 근거 과거 3년 가격 변동'}</b>
                         </div>
                         <div className={styles.riaOk}>RIA 계좌에서 살 수 있어요</div>
                       </div>

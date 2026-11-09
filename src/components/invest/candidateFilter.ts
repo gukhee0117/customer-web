@@ -1,7 +1,7 @@
 import type { CandidateRequest, CandidateSortKey, ParsedFilter, ProductType, SortDirectionKey } from '../../api/stockPackage'
 
 // 후보 보기 조건(화면 상태). 서버 요청(CandidateRequest)으로 바꿔서 쓴다.
-// 새 패키지 창의 "후보 찾기"와 "후보 보기" 탭이 같은 조건 모양을 쓴다.
+// 새 패키지 창의 "후보 찾기"가 이 조건 모양을 쓴다.
 export interface FilterState {
   types: ProductType[]
   themes: string[]
