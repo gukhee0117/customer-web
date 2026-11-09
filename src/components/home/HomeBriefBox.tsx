@@ -229,28 +229,30 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
             {guide && noHoldings ? '대상 없음' : guide && !expected ? expectedMessage : formatWon(scenario.reliefAmount)}
           </div>
         </div>
+      </div>
+
+      <div className={styles.segRow}>
+        <div role="group" aria-label="세액 계산 기준" className={styles.seg}>
+          <button
+            type="button"
+            className={cx(styles.segBtn, !guide && styles.segOn)}
+            aria-pressed={!guide}
+            onClick={() => setGuide(false)}
+          >
+            현재까지
+          </button>
+          <button
+            type="button"
+            className={cx(styles.segBtn, styles.segBtnSecond, guide && styles.segOn)}
+            aria-pressed={guide}
+            onClick={() => setGuide(true)}
+          >
+            보유 종목을 가정 매도하면
+          </button>
+        </div>
         <span className={styles.asOf}>
           {guide && noHoldings ? '가정 매도 대상 없음' : guide && !expected ? '가정 매도 예상 세액' : useExpected ? `가정 매도 결제일 ${formatDate(expected!.expectedFinalAt)}` : `집계 기준 ${formatDateTime(briefing.calculatedAt)}`}
         </span>
-      </div>
-
-      <div role="group" aria-label="세액 계산 기준" className={styles.seg}>
-        <button
-          type="button"
-          className={cx(styles.segBtn, !guide && styles.segOn)}
-          aria-pressed={!guide}
-          onClick={() => setGuide(false)}
-        >
-          현재까지
-        </button>
-        <button
-          type="button"
-          className={cx(styles.segBtn, styles.segBtnSecond, guide && styles.segOn)}
-          aria-pressed={guide}
-          onClick={() => setGuide(true)}
-        >
-          보유 종목을 가정 매도하면
-        </button>
       </div>
 
       <div className={styles.chart}>
