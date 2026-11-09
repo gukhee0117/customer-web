@@ -11,7 +11,7 @@ export function LandingS6() {
       </div>
       <div className="beam" id="beam6" />
       <div className="ttl" id="tt6">
-        <div className="h2">
+        <div className="h" style={{ fontSize: 'clamp(40px,4.8vw,68px)' }}>
           <span className="ml">
             <span>다른 계좌의 해외주식 순매수도</span>
           </span>
@@ -21,10 +21,6 @@ export function LandingS6() {
         </div>
         <p className="p2" id="p6">
           2026년 1월부터 12월까지, RIA가 아닌 계좌에서 해외주식을 순매수하면 그 금액에 비례해 공제가 줄어요.
-          <span className="addl">
-            {' '}
-            줄어든 비율은 내 계좌 세액에서 금액·비율로만 보여드려요.
-          </span>
         </p>
       </div>
       <div id="list6">
@@ -55,7 +51,7 @@ export function LandingS6() {
           공제 인정 비율
           <span className="ex">예시</span>
         </div>
-        <small>RIA 외 계좌의 해외주식 순매수 금액에 비례해 공제가 줄어요.</small>
+
       </div>
     </section>
   )

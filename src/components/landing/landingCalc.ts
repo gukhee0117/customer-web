@@ -26,9 +26,9 @@ export interface LandingCalc {
   remain: number
 }
 
-export function calc(A: number = MY.A, r: number = MY.r, today: string = getBusinessToday()): LandingCalc {
+export function calc(A: number = MY.A, r: number = MY.r, today: string = getBusinessToday(), wOverride?: number): LandingCalc {
   const G = gainOf(A, r)
-  const w = F.band(today).rate
+  const w = wOverride ?? F.band(today).rate
   const general = Math.max(0, G - BASIC_DED) * TAX
   const ria = Math.max(0, G - BASIC_DED - G * w) * TAX
   return { G, w, general, ria, save: general - ria, remain: LIMIT - A }

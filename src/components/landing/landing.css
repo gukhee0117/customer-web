@@ -332,7 +332,7 @@ html.lenis,html.lenis body{height:auto}
 .landing .a9p h4{font:700 19px Pretendard;letter-spacing:-.02em}
 .landing .a9c{border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:4px}
 .landing .a9c small,.landing .a9kv span,.landing .a9r span{font-size:14px;color:var(--sub)}
-.landing .a9c b{font:800 26px/1.2 Pretendard;font-variant-numeric:tabular-nums}
+.landing .a9c b{font:800 32px/1.2 Pretendard;font-variant-numeric:tabular-nums}
 .landing .a9c p{font-size:15px;color:var(--landing-text-sub)}
 .landing .a9kv{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0}
 .landing .a9kv b,.landing .a9r b{font:700 17px Pretendard;font-variant-numeric:tabular-nums}
