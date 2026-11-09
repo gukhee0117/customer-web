@@ -6,7 +6,14 @@ import ts from 'typescript'
 import React from 'react'
 import * as jsx from 'react/jsx-runtime'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { NEWS_Q } from '../src/components/home/newsData.ts'
 import { newsStockChange } from '../src/components/home/newsStockChange.ts'
+
+const newsModule = { exports: {} }
+const newsSource = readFileSync(new URL('../src/api/news.ts', import.meta.url), 'utf8')
+vm.runInNewContext(ts.transpileModule(newsSource, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText,
+  { module: newsModule, exports: newsModule.exports, require: () => ({ apiClient: {} }) })
+const { answerLabel } = newsModule.exports
 
 const source = readFileSync(new URL('../src/components/home/NewsAnswerBubble.tsx', import.meta.url), 'utf8')
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText
@@ -14,7 +21,7 @@ const module = { exports: {} }
 vm.runInNewContext(compiled, { exports: module.exports, module, require(name) {
   if (name === 'react/jsx-runtime') return jsx
   if (name === './newsStockChange') return { newsStockChange }
-  if (name.endsWith('/api/news')) return { answerLabel: () => '실제 AI 답변' }
+  if (name.endsWith('/api/news')) return { answerLabel }
   if (name.endsWith('/assetUrl')) return { assetUrl: value => value }
   if (name.endsWith('.css')) return { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) }
   throw new Error(`Unexpected import ${name}`)
@@ -22,13 +29,14 @@ vm.runInNewContext(compiled, { exports: module.exports, module, require(name) {
 const Bubble = module.exports.NewsAnswerBubble
 const base = { articleId: 'a', articleVersion: 'v1', evidence: { facts: [], risks: [] }, explanation: '핵심 설명', origin: 'LIVE_LLM', preparedReason: null, generatedAt: null }
 
-test('summary renders three readable bullet points and verified stock names/codes', () => {
+test('summary renders three bullet points without automatic risks or stock cards', () => {
   const html = renderToStaticMarkup(React.createElement(Bubble, { summary: true, answer: { ...base,
+    evidence: { facts: [], risks: ['우려를 일축했다'] },
     points: ['생산능력 확대 계획', '공급 협의 진행', '계약은 아직 미확정'], relatedStocks: [{ ticker: '000660', name: 'SK하이닉스' }],
   } }))
   assert.match(html, /이 기사 3줄로 요약/)
   assert.equal((html.match(/<li>/g) ?? []).length, 3)
-  assert.match(html, /SK하이닉스/); assert.match(html, /000660/)
+  assert.doesNotMatch(html, /SK하이닉스|000660|뉴스 관련 종목|함께 확인할 위험|우려를 일축했다/)
 })
 
 test('numeric answer renders a list and a separate original-text quotation', () => {
@@ -51,7 +59,7 @@ test('missing numeric data is shown plainly and model text cannot inject HTML', 
 
 
 test('stock card renders database sector and signed daily change without stock icon', () => {
-  const html = renderToStaticMarkup(React.createElement(Bubble, { summary: true,
+  const html = renderToStaticMarkup(React.createElement(Bubble, { showRelatedStocks: true,
     quotes: { '000660': { ticker: '000660', available: true, price: 110, previousClose: 100 } },
     answer: { ...base, relatedStocks: [{ ticker: '000660', name: 'SK하이닉스', sectorName: '반도체' }] },
   }))
@@ -60,7 +68,7 @@ test('stock card renders database sector and signed daily change without stock i
 })
 
 test('missing prices and sectors are explicit; loading does not block the summary', () => {
-  const props = { summary: true, answer: { ...base, relatedStocks: [{ ticker: '000660', name: 'SK하이닉스' }] } }
+  const props = { showRelatedStocks: true, answer: { ...base, relatedStocks: [{ ticker: '000660', name: 'SK하이닉스' }] } }
   let html = renderToStaticMarkup(React.createElement(Bubble, props))
   assert.match(html, /확인 불가/); assert.match(html, /분류 미제공/); assert.doesNotMatch(html, /0.00%/)
   html = renderToStaticMarkup(React.createElement(Bubble, { ...props, quotesPending: true }))
@@ -75,4 +83,22 @@ test('daily change validates zero, unavailable and invalid prices and formats al
   for (const change of [{ previousClose: 0 }, { previousClose: null }, { price: NaN }, { price: 0 }, { available: false }]) {
     assert.equal(newsStockChange({ ...quote, ...change }), null)
   }
+})
+
+
+test('cached AI metadata and generation timestamp are hidden while fallback notices remain', () => {
+  const html = renderToStaticMarkup(React.createElement(Bubble, { summary: true, answer: {
+    ...base, origin: 'CACHED_LLM', generatedAt: '2026-11-09T00:25:54Z', points: ['핵심'],
+  } }))
+  assert.doesNotMatch(html, /이전에 AI|2026|9:25|AI가 지금/)
+  const fallback = renderToStaticMarkup(React.createElement(Bubble, { answer: {
+    ...base, origin: 'PREPARED', preparedReason: 'LLM_UNAVAILABLE',
+  } }))
+  assert.match(fallback, /대체 답변/)
+})
+
+test('quick questions omit redundant easy explanation and expose figures and related stocks', () => {
+  assert.ok(!NEWS_Q.some(question => question.includes('쉽게')))
+  assert.ok(NEWS_Q.some(question => question.includes('수치')))
+  assert.ok(NEWS_Q.some(question => question.includes('관련 종목')))
 })

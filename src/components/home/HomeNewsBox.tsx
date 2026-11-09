@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type FormEvent } from 'react'
+import { useMemo, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import type { Article } from '../../api/news'
 import { useAuth } from '../../contexts/authState'
 import { Box } from '../common/Box'
@@ -21,7 +21,8 @@ function formatPublishedAt(value: string) {
 
 function ArticleConversation({ customerId, article, summaries }: { customerId: number; article: Article; summaries: NewsSummaryQueue }) {
   const conversation = useNewsConversation(customerId, article, summaries)
-  const stockQuotes = useNewsStockQuotes(article.relatedStocks?.map(stock => stock.ticker) ?? [])
+  const tickers = useMemo(() => [...new Set(conversation.turns.flatMap(turn => turn.answer.relatedStocks?.map(stock => stock.ticker) ?? []))], [conversation.turns])
+  const stockQuotes = useNewsStockQuotes(tickers)
   const [input, setInput] = useState('')
   const conversationRef = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
@@ -36,7 +37,7 @@ function ArticleConversation({ customerId, article, summaries }: { customerId: n
       <h3 className={styles.articleTitle}>{article.title}</h3>
       <div className={styles.articleMeta}>{article.source} · {formatPublishedAt(article.publishedAt)}</div>
       <div className={styles.headTag}>
-        {article.demo ? '실제 보도가 아닌 직접 작성한 시연 기사' : '실제 뉴스 · 기사 내용을 바탕으로 AI가 설명해 드려요'}
+        {article.demo && '실제 보도가 아닌 직접 작성한 시연 기사'}
         {!article.demo && article.url && /^https?:\/\//i.test(article.url) && <a className={styles.orig} href={article.url} target="_blank" rel="noopener noreferrer"> 원문 보기 ›</a>}
       </div>
     </div>
@@ -48,7 +49,7 @@ function ArticleConversation({ customerId, article, summaries }: { customerId: n
       </div>}
       {conversation.turns.map((turn, index) => <div key={index} className={styles.turn}>
         <div className={styles.meRow}><span className={styles.me}>{turn.question}</span></div>
-        <NewsAnswerBubble answer={turn.answer} quotes={stockQuotes.quotes} quotesPending={stockQuotes.pending} />
+        <NewsAnswerBubble answer={turn.answer} showRelatedStocks quotes={stockQuotes.quotes} quotesPending={stockQuotes.pending} />
       </div>)}
       {conversation.pendingQuestion && <div className={styles.turn}>
         <div className={styles.meRow}><span className={styles.me}>{conversation.pendingText}</span></div>

@@ -30,6 +30,8 @@ function harness(file, exportName, api) {
       return slots[i].value
     },
   }
+  // This harness flushes both effect types after rendering; it does not model browser paint timing.
+  react.useEffect = react.useLayoutEffect
   const source = readFileSync(new URL(`../src/components/home/${file}.ts`, import.meta.url), 'utf8')
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
   const module = { exports: {} }
@@ -39,6 +41,7 @@ function harness(file, exportName, api) {
       if (name.endsWith('/api/news')) return { newsApi: api }
       if (name.endsWith('/api/stockPackage')) return { fetchQuotes: api.fetchQuotes }
       if (name.endsWith('/api/client')) return { apiErrorMessage: (_, fallback) => fallback }
+      if (name.endsWith('/newsSessionEvents')) return { NEWS_CONTEXT_CHANGED: 'news-context-changed' }
       if (name === './newsRequestGate') return { NewsRequestGate }
       if (name === './NewsSummaryQueue') return { NewsSummaryQueue }
       if (name === './newsSummaryStore') return { newsSummaryStore: store, summaryScope, summaryArticleKey }
@@ -136,15 +139,15 @@ test('standalone request gate cancellation and continuous requests invalidate al
   gate.cancel(); assert.equal(b.current(), false); assert.equal(b.signal.aborted, true)
 })
 
-test('API and UI origin labels distinguish live/cached/prepared responses', () => {
+test('AI cache labels are hidden while prepared fallback notices stay explicit', () => {
   const source = readFileSync(new URL('../src/api/news.ts', import.meta.url), 'utf8')
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
   const module = { exports: {} }
   vm.runInNewContext(compiled, { exports: module.exports, module, require: () => ({ apiClient: {} }) })
   const label = module.exports.answerLabel
   assert.equal(label({ origin: 'PREPARED', preparedReason: 'POLICY_REFUSAL' }), '매매 조언 제한 안내')
-  assert.equal(label({ origin: 'LIVE_LLM' }), 'AI가 지금 생성한 답변')
-  assert.equal(label({ origin: 'CACHED_LLM' }), '이전에 AI가 생성한 답변')
+  assert.equal(label({ origin: 'LIVE_LLM' }), '')
+  assert.equal(label({ origin: 'CACHED_LLM' }), '')
   assert.equal(label({ origin: 'PREPARED', preparedReason: 'DEMO_DEFAULT' }), '시연용으로 준비한 설명')
   assert.match(label({ origin: 'PREPARED', preparedReason: 'LLM_UNAVAILABLE' }), /준비된 대체/)
 })

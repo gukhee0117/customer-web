@@ -74,12 +74,6 @@
   padding-bottom: var(--space-4);
 }
 
-.cutNote {
-  font-size: var(--font-size-12);
-  color: var(--color-sub);
-  margin-top: var(--space-2);
-}
-
 .seg {
   margin-top: var(--space-12);
   display: inline-flex;
@@ -347,11 +341,6 @@
   color: var(--color-navy);
 }
 
-.withdrawalWarning {
-  margin: var(--space-12) var(--space-16) 0;
-  font-size: var(--font-size-12);
-  color: var(--color-sub);
-}
 .chartLabels {
   display: grid;
   grid-template-columns: 40% 20% 40%;
@@ -387,9 +376,6 @@
 
 .zeroNote { grid-area: 1 / 1; }
 
-/* 두 설명의 높이를 함께 확보해 시나리오를 바꿔도 그래프가 움직이지 않는다. */
-.scenarioNotes { display: grid; }
-.scenarioNotes > div { grid-area: 1 / 1; }
 .hiddenNote { visibility: hidden; }
 
 .barRelief {
