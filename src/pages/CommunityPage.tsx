@@ -147,7 +147,7 @@ function CommunityBody() {
           thread={thread}
         />
       </div>
-      <p className={styles.notice}>끼루 AI는 정보를 안내하며 투자 판단은 고객님께 있어요 · 금액은 다른 계좌의 해외주식 순매수가 없다고 가정한 예시예요</p>
+      <p className={styles.notice}>끼루 AI는 정보를 안내하며 투자 판단은 고객님께 있어요</p>
       <Toast message={toast} />
     </StocksContext.Provider>
   )

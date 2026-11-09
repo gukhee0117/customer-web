@@ -178,7 +178,6 @@ export function CommunityRight({ code, nick, pubOn, myPf, myPostN, myRepN, watch
             <span className={styles.knob} />
           </button>
         </div>
-        <div className={styles.pubHint}>기본은 비공개예요. 공개하면 내 글에 성향 이름이 보여요.</div>
       </Box>
 
       <div ref={watchRef} className={styles.watch}>
@@ -242,8 +241,7 @@ export function CommunityRight({ code, nick, pubOn, myPf, myPostN, myRepN, watch
 
       <div className={styles.policy}>
         특정 종목 매수·매도를 권유하는 글, 수익 보장 표현은 삭제될 수 있어요.{' '}
-        <a href="#" onClick={(e) => { e.preventDefault(); onToast('준비 중인 화면이에요') }}>운영 정책</a> ·{' '}
-        <a href="#" onClick={(e) => { e.preventDefault(); onToast('글 오른쪽 위 … 메뉴에서 신고할 수 있어요') }}>신고하기</a>
+        <a href="#" onClick={(e) => { e.preventDefault(); onToast('준비 중인 화면이에요') }}>운영 정책</a>
       </div>
 
       {pd && <PubDialog agree={pd.agree} onToggle={() => setPd({ agree: !pd.agree })} onCancel={() => setPd(null)} onOk={() => { if (pd.agree) { setPd(null); onPub(true) } }} />}
