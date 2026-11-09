@@ -273,12 +273,9 @@ function TaxTab({ state, expectedState, guide, setGuide, onRetry, onRetryExpecte
           </div>
         ) : (
           <>
-            <div className={styles.chartLabels}>
-              <div aria-label="일반 과세 세액">{formatWon(scenario.generalTax)}</div>
-              <div aria-hidden="true" />
-              <div aria-label="감면 후 납부세액">{formatWon(scenario.riaTax)}</div>
-            </div>
             <div key={chartMotionKey} className={styles.plot}>
+              <div className={cx(styles.barAmount, styles.amountGeneral, styles.chartAnnotation)} style={{ bottom: `calc(${generalHeight} + var(--space-8))` }} aria-label="일반 과세 세액">{formatWon(scenario.generalTax)}</div>
+              <div className={cx(styles.barAmount, styles.amountRia, styles.chartAnnotation)} style={{ bottom: `calc(${((scenario.riaTax + scenario.reliefAmount) / maxTax) * 100}% + var(--space-8))` }} aria-label="감면 후 납부세액">{formatWon(scenario.riaTax)}</div>
               {scenario.generalTax > 0 && (
                 <div key={`taxGuideLine:${chartMotionKey}`} className={styles.taxGuideLine} style={{ bottom: generalHeight }} aria-hidden="true" />
               )}
