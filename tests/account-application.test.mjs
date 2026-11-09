@@ -23,7 +23,24 @@ function deferred() {
   return { promise, resolve, reject }
 }
 
-function harness(client) {
+const CONSENT_URL = '/api/customer/account/mydata-consent'
+
+// consent: 서버에 이미 있는 마이데이터 조회 동의. 동의 API는 여기서 처리하고 나머지만 테스트가 준 client로 보낸다.
+function harness(rawClient, { consent = true } = {}) {
+  const consentState = { agreed: consent, puts: [], failPut: false }
+  const client = {
+    ...rawClient,
+    get: async (url, ...rest) => {
+      if (url === CONSENT_URL) return { data: { data: consentState.agreed } }
+      return rawClient.get(url, ...rest)
+    },
+    put: async (url, body) => {
+      assert.equal(url, CONSENT_URL)
+      if (consentState.failPut) throw { response: { status: 500, data: { message: '저장 실패' } } }
+      consentState.puts.push(body); consentState.agreed = body.agreed
+      return { data: { data: body.agreed } }
+    },
+  }
   const slots = []; let cursor = 0; let dirty = false; let effects = []; let output
   const calls = { changed: 0, closed: 0 }
   const react = {
@@ -109,7 +126,7 @@ function harness(client) {
     const agreement = nodes().find(n => n.type === 'button' && 'aria-pressed' in n.props)
     agreement.props.onClick(); render()
   }
-  return { render, nodes, button, click, confirm, calls }
+  return { render, nodes, button, click, confirm, calls, consentState }
 }
 
 test('limit loading/failure prevents progressing and retry recovers', async () => {
@@ -120,7 +137,7 @@ test('limit loading/failure prevents progressing and retry recovers', async () =
     return { data: { data: 20_000_000 } }
   } })
   h.render(); assert.equal(h.button('다음').props.disabled, true)
-  await tick(); h.render(); assert.equal(h.button('다음').props.disabled, true)
+  await tick(); h.render(); await tick(); h.render(); assert.equal(h.button('다음').props.disabled, true)
   h.click('다시 시도'); await tick(); h.render()
   assert.equal(h.button('다음').props.disabled, false)
   assert.equal(requests, 2)
@@ -133,12 +150,12 @@ for (const status of ['OPENED', 'APPLIED']) {
       get: async url => { assert.equal(url, '/api/customer/account/available-limit'); return { data: { data: 1234567 } } },
       post: (url, body) => { posts.push({ url, body }); return pending.promise },
     })
-    h.render(); await tick(); h.render(); h.confirm()
+    h.render(); await tick(); h.render(); await tick(); h.render(); h.confirm()
     const submit = h.button('신청하기').props.onClick
     submit(); submit(); h.render()
     assert.equal(posts.length, 1)
     assert.equal(posts[0].url, '/api/customer/account/applications')
-    assert.equal(JSON.stringify(posts[0].body), '{"limitAmount":1234567}')
+    assert.equal(JSON.stringify(posts[0].body), '{"limitAmount":1234567,"mydataConsent":true}')
     h.nodes().find(n => n.type === 'frame').props.onClose()
     assert.equal(h.calls.closed, 0)
     pending.resolve({ data: { data: { status, limitAmount: 1234567, accountNo: status === 'OPENED' ? '7311234567' : null } } })
@@ -153,14 +170,14 @@ for (const status of ['OPENED', 'APPLIED']) {
 
 test('zero available limit blocks application', async () => {
   const h = harness({ get: async () => ({ data: { data: 0 } }) })
-  h.render(); await tick(); h.render()
+  h.render(); await tick(); h.render(); await tick(); h.render()
   assert.equal(h.button('다음').props.disabled, true)
 })
 
 for (const amount of ['0', '20000001']) {
   test(`invalid limit ${amount} blocks progression`, async () => {
     const h = harness({ get: async () => ({ data: { data: 20_000_000 } }) })
-    h.render(); await tick(); h.render(); h.click('다음')
+    h.render(); await tick(); h.render(); await tick(); h.render(); h.click('다음')
     h.nodes().find(n => n.type === 'input').props.onChange({ target: { value: amount } })
     h.render(); assert.equal(h.button('다음').props.disabled, true)
   })
@@ -168,7 +185,7 @@ for (const amount of ['0', '20000001']) {
 
 test('definite failure keeps confirmation visible and does not report success', async () => {
   const h = harness({ get: async () => ({ data: { data: 20_000_000 } }), post: async () => { throw { response: { status: 400, data: { message: '신청 불가' } } } } })
-  h.render(); await tick(); h.render(); h.confirm(); h.click('신청하기')
+  h.render(); await tick(); h.render(); await tick(); h.render(); h.confirm(); h.click('신청하기')
   await tick(); h.render()
   assert.equal(h.calls.changed, 0)
   assert.equal(h.button('신청하기').props.disabled, false)
@@ -177,7 +194,7 @@ test('definite failure keeps confirmation visible and does not report success', 
 
 test('lost response shows uncertainty, refreshes profile and prevents blind resubmission', async () => {
   const h = harness({ get: async () => ({ data: { data: 20_000_000 } }), post: async () => { throw new Error('network') } })
-  h.render(); await tick(); h.render(); h.confirm(); h.click('신청하기')
+  h.render(); await tick(); h.render(); await tick(); h.render(); h.confirm(); h.click('신청하기')
   await tick(); h.render()
   assert.equal(h.calls.changed, 1)
   assert.equal(h.nodes().find(n => n.type?.name === 'DoneView').props.title, '처리 여부를 확인해 주세요')
@@ -187,7 +204,7 @@ test('lost response shows uncertainty, refreshes profile and prevents blind resu
 test('409 already-existing account ends submission and refreshes the account', async () => {
   let posts = 0
   const h = harness({ get: async () => ({ data: { data: 20_000_000 } }), post: async () => { posts++; throw { response: { status: 409 } } } })
-  h.render(); await tick(); h.render(); h.confirm(); h.click('신청하기')
+  h.render(); await tick(); h.render(); await tick(); h.render(); h.confirm(); h.click('신청하기')
   await tick(); h.render()
   assert.equal(h.calls.changed, 1)
   assert.equal(h.nodes().find(n => n.type?.name === 'DoneView').props.title, '이미 계좌가 있어요')
@@ -197,7 +214,7 @@ test('409 already-existing account ends submission and refreshes the account', a
 
 test('closing an edited application asks before discarding input', async () => {
   const h = harness({ get: async () => ({ data: { data: 20_000_000 } }) })
-  h.render(); await tick(); h.render(); h.click('다음')
+  h.render(); await tick(); h.render(); await tick(); h.render(); h.click('다음')
   h.nodes().find(n => n.type === 'input').props.onChange({ target: { value: '1234567' } })
   h.render()
   assert.equal(h.nodes().find(n => n.type === 'input').props.value, '1234567')
@@ -214,4 +231,42 @@ test('limit boundaries and uncertain responses are pure shared rules', () => {
   assert.equal(rules.isAmbiguousResponse(new Error('network')), true)
   assert.equal(rules.isAmbiguousResponse({ response: { status: 503 } }), true)
   assert.equal(rules.isAmbiguousResponse({ response: { status: 409 } }), false)
+})
+
+test('consent not given yet: nothing is requested from myData until the customer agrees', async () => {
+  const requests = []
+  const h = harness({ get: async url => { requests.push(url); return { data: { data: 20_000_000 } } } }, { consent: false })
+  h.render(); await tick(); h.render(); await tick(); h.render()
+  assert.deepEqual(requests, [])
+  assert.equal(h.button('다음').props.disabled, true)
+  assert.equal(h.button('동의하고 한도 확인').props.disabled, true)
+  h.nodes().find(n => n.type === 'button' && 'aria-pressed' in n.props).props.onClick(); h.render()
+  assert.equal(h.button('동의하고 한도 확인').props.disabled, false)
+  h.click('동의하고 한도 확인'); await tick(); h.render(); await tick(); h.render()
+  assert.equal(JSON.stringify(h.consentState.puts), '[{"agreed":true}]')
+  assert.deepEqual(requests, ['/api/customer/account/available-limit'])
+  assert.equal(h.button('다음').props.disabled, false)
+})
+
+test('declined consent keeps the application blocked and cancel closes without any request', async () => {
+  const requests = []
+  const h = harness({ get: async url => { requests.push(url); return { data: { data: 20_000_000 } } } }, { consent: false })
+  h.render(); await tick(); h.render(); await tick(); h.render()
+  assert.equal(h.button('다음').props.disabled, true)
+  h.click('취소')
+  assert.equal(h.calls.closed, 1)
+  assert.deepEqual(h.consentState.puts, [])
+  assert.deepEqual(requests, [])
+})
+
+test('consent save failure shows the error and does not load the limit', async () => {
+  const requests = []
+  const h = harness({ get: async url => { requests.push(url); return { data: { data: 20_000_000 } } } }, { consent: false })
+  h.consentState.failPut = true
+  h.render(); await tick(); h.render()
+  h.nodes().find(n => n.type === 'button' && 'aria-pressed' in n.props).props.onClick(); h.render()
+  h.click('동의하고 한도 확인'); await tick(); h.render()
+  assert.equal(h.nodes().find(n => n.props.role === 'alert').props.children, '저장 실패')
+  assert.equal(h.button('다음').props.disabled, true)
+  assert.deepEqual(requests, [])
 })

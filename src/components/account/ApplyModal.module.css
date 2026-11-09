@@ -713,6 +713,33 @@
   background: var(--color-navy);
 }
 
+/* ---- 마이데이터 조회 동의 ---- */
+.consentBtn {
+  all: unset;
+  box-sizing: border-box;
+  margin-top: var(--space-12);
+  height: 44px;
+  width: 100%;
+  border-radius: var(--radius-6);
+  display: grid;
+  place-items: center;
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-bold);
+  background: var(--color-navy);
+  color: var(--color-on-navy);
+  cursor: pointer;
+}
+
+.consentBtn:disabled {
+  background: var(--color-line-strong);
+  cursor: default;
+}
+
+.consentBtn:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 2px;
+}
+
 /* ---- 작성 중 닫기 확인 ---- */
 .askBackdrop {
   position: fixed;

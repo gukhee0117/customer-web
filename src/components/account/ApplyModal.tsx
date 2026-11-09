@@ -11,7 +11,7 @@ import type { ApplyKind } from './accountApplyData'
 import type { HistTab } from './accountHistData'
 import styles from './ApplyModal.module.css'
 import { apiErrorMessage } from '../../api/client'
-import { applyAccount, getAccountAvailableLimit } from '../../api/account'
+import { applyAccount, getAccountAvailableLimit, getMydataConsent, setMydataConsent } from '../../api/account'
 import { useServerData } from './useServerData'
 import { isValidAccountLimit, isAmbiguousResponse, httpStatus } from './accountApplicationRules'
 import {
@@ -155,7 +155,14 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
   const [availability, setAvailability] = useState<WithdrawalAvailability | null>(null)
   const [destAccounts, setDestAccounts] = useState<GeneralAccount[]>([])
   const [destId, setDestId] = useState<number | null>(null)
-  const { state: openLimit, retry: retryOpenLimit } = useServerData(getAccountAvailableLimit, [], kind === 'open')
+  // 마이데이터 조회 동의: 서버에 동의가 있어야 한도를 조회한다(동의 전에는 조회하지 않는다)
+  const { state: consentState, retry: retryConsent } = useServerData(getMydataConsent, [], kind === 'open')
+  const [consentChecked, setConsentChecked] = useState(false)
+  const [consentSaved, setConsentSaved] = useState(false)
+  const [consentBusy, setConsentBusy] = useState(false)
+  const [consentError, setConsentError] = useState<string | null>(null)
+  const mydataAgreed = consentSaved || (consentState.status === 'live' && consentState.data)
+  const { state: openLimit, retry: retryOpenLimit } = useServerData(getAccountAvailableLimit, [], kind === 'open' && mydataAgreed)
   const availableLimit = openLimit.status === 'live' ? openLimit.data : null
 
   // ---- 입고 fetch ----
@@ -225,6 +232,20 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
       })
     return () => { cancelled = true }
   }, [kind, fetchKey])
+
+  const saveConsent = async () => {
+    if (!consentChecked || consentBusy) return
+    setConsentBusy(true)
+    setConsentError(null)
+    try {
+      await setMydataConsent(true)
+      setConsentSaved(true)
+    } catch (error) {
+      setConsentError(apiErrorMessage(error, '동의를 저장하지 못했어요. 다시 시도해 주세요.'))
+    } finally {
+      setConsentBusy(false)
+    }
+  }
 
   const retry = () => {
     if (kind === 'open') { retryOpenLimit(); return }
@@ -355,7 +376,7 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
         onAccountChanged()
       }
       try {
-        const result = await applyAccount(opLim)
+        const result = await applyAccount(opLim, mydataAgreed)
         const opened = result.status === 'OPENED'
         finish({
           title: opened ? '계좌가 개설됐어요' : '계좌 개설 신청이 접수됐어요',
@@ -812,7 +833,19 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
     body = (
       <div>
         <div className={styles.secTitle}>RIA 계좌 개설 한도를 확인해 주세요</div>
-        {openLimit.status === 'loading' && <div className={styles.loading}>설정 가능 한도를 불러오는 중...</div>}
+        {consentState.status === 'loading' && <div className={styles.loading}>동의 여부를 확인하는 중...</div>}
+        {consentState.status === 'error' && <div className={styles.fetchErr} role="alert">
+          동의 여부를 확인하지 못했어요. <button type="button" className={styles.retryBtn} onClick={retryConsent}>다시 시도</button>
+        </div>}
+        {consentState.status === 'live' && !mydataAgreed && <>
+          <p className={styles.note}>다른 증권사의 RIA 설정 한도를 확인하려고 마이데이터를 조회해요. 동의하지 않으면 계좌를 개설할 수 없어요.</p>
+          <button type="button" className={cx(styles.agree, styles.agreeWrap)} aria-pressed={consentChecked} onClick={() => setConsentChecked(!consentChecked)}>
+            <Box on={consentChecked} />마이데이터 조회에 동의해요
+          </button>
+          <button type="button" className={styles.consentBtn} disabled={!consentChecked || consentBusy} onClick={saveConsent}>동의하고 한도 확인</button>
+          {consentError && <div className={styles.fetchErr} role="alert">{consentError}</div>}
+        </>}
+        {mydataAgreed && openLimit.status === 'loading' && <div className={styles.loading}>설정 가능 한도를 불러오는 중...</div>}
         {openLimit.status === 'error' && <div className={styles.fetchErr} role="alert">
           설정 가능 한도를 불러오지 못했어요. <button type="button" className={styles.retryBtn} onClick={retry}>다시 시도</button>
         </div>}
