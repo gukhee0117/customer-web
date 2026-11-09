@@ -31,7 +31,7 @@ function Segs({ segs, hlClass }: { segs: Seg[]; hlClass: string }) {
   )
 }
 
-// 경제 채팅방 박스: 종목 고르기 + 실시간·인기글·내가 쓴 댓글 + 이 종목 채팅 검색
+// 커뮤니티 박스: 종목 고르기 + 실시간·인기글·내가 쓴 댓글 + 이 종목 채팅 검색
 export function HomeChatBox({ className }: { className?: string }) {
   const [code, setCode] = useState(DEFAULT_STOCK)
   const [stockOpen, setStockOpen] = useState(false)
@@ -168,7 +168,7 @@ export function HomeChatBox({ className }: { className?: string }) {
   return (
     <Box shadow className={className}>
       <div ref={headRef} className={styles.head}>
-        <h2 className={styles.title}>경제 채팅방</h2>
+        <h2 className={styles.title}>커뮤니티</h2>
         <button type="button" className={styles.stockBtn} aria-expanded={stockOpen} aria-haspopup="listbox" aria-label="채팅방 종목 선택" onClick={() => (stockOpen ? closeDd() : (setStockOpen(true), setDdQ(''), setDdHi(0)))}>
           <StockIcon color={cur?.color} initial={cur?.ini ?? code.slice(0, 1)} size={24} code={code} />
           <b className={styles.stockName}>{name}</b>
