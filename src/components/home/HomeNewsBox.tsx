@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type FormEvent } from 'react'
+import { useMemo, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import type { Article } from '../../api/news'
 import { useAuth } from '../../contexts/authState'
 import { Box } from '../common/Box'
@@ -21,7 +21,8 @@ function formatPublishedAt(value: string) {
 
 function ArticleConversation({ customerId, article, summaries }: { customerId: number; article: Article; summaries: NewsSummaryQueue }) {
   const conversation = useNewsConversation(customerId, article, summaries)
-  const stockQuotes = useNewsStockQuotes(conversation.turns.flatMap(turn => turn.answer.relatedStocks?.map(stock => stock.ticker) ?? []))
+  const tickers = useMemo(() => [...new Set(conversation.turns.flatMap(turn => turn.answer.relatedStocks?.map(stock => stock.ticker) ?? []))], [conversation.turns])
+  const stockQuotes = useNewsStockQuotes(tickers)
   const [input, setInput] = useState('')
   const conversationRef = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {

@@ -30,6 +30,7 @@ function harness(file, exportName, api) {
       return slots[i].value
     },
   }
+  // This harness flushes both effect types after rendering; it does not model browser paint timing.
   react.useEffect = react.useLayoutEffect
   const source = readFileSync(new URL(`../src/components/home/${file}.ts`, import.meta.url), 'utf8')
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
