@@ -172,7 +172,6 @@ export function HomeChatBox({ className }: { className?: string }) {
         <button type="button" className={styles.stockBtn} aria-expanded={stockOpen} aria-haspopup="listbox" aria-label="채팅방 종목 선택" onClick={() => (stockOpen ? closeDd() : (setStockOpen(true), setDdQ(''), setDdHi(0)))}>
           <StockIcon color={cur?.color} initial={cur?.ini ?? code.slice(0, 1)} size={24} code={code} />
           <b className={styles.stockName}>{name}</b>
-          <span className={styles.stockCode}>{code}</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cx(styles.chev, stockOpen && styles.chevOpen)}>
             <path d="m6 9 6 6 6-6" />
           </svg>
@@ -198,7 +197,6 @@ export function HomeChatBox({ className }: { className?: string }) {
                       <StockIcon color={o.color} initial={o.ini} size={24} code={o.code} />
                       <span className={styles.optMain}>
                         <span className={styles.optName}><Segs segs={o.nameSegs} hlClass={styles.optNameHl} /></span>
-                        <span className={styles.optCode}><Segs segs={o.codeSegs} hlClass={styles.optCodeHl} /></span>
                         <span className={styles.optSector}>{o.sector}</span>
                       </span>
                       <span className={styles.optSide}>

@@ -56,11 +56,6 @@
   text-overflow: ellipsis;
 }
 
-.stockCode {
-  font-size: var(--font-size-13);
-  color: var(--color-sub);
-  flex: none;
-}
 
 .chev {
   flex: none;
@@ -207,16 +202,7 @@
   font-weight: var(--font-weight-extrabold);
 }
 
-.optCode {
-  font-size: var(--font-size-12);
-  color: var(--color-sub);
-  font-weight: var(--font-weight-regular);
-}
 
-.optCodeHl {
-  color: var(--color-navy);
-  font-weight: var(--font-weight-bold);
-}
 
 .optSector {
   font-size: var(--font-size-11);
