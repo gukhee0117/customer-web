@@ -21,7 +21,6 @@ export function LandingClosing({ t, loggedIn }: { t: LandingTexts, loggedIn: boo
             <span>TOMORROW</span>
           </span>
         </div>
-        <p id="sub11">좋은 가치는, 언제나 돌아옵니다</p>
         <div id="sum11">
           <i id="sum11bg" />
           <div id="sum11c">
@@ -56,9 +55,6 @@ export function LandingClosing({ t, loggedIn }: { t: LandingTexts, loggedIn: boo
                 </b>
               </div>
             </div>
-            <p className="s11a" data-l="assume">
-              {t.l.assume}
-            </p>
             <Link id="cta11" to={loggedIn ? '/home' : '/login#signup'}>
               {loggedIn ? '홈으로 가기' : '이 금액으로 RIA 계좌 개설하기'}
               <Icon name="arrow-right" />

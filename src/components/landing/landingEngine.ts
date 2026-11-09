@@ -134,7 +134,7 @@ export function mountLanding(root: HTMLElement, opts: LandingMountOptions): () =
     timers.add(id)
     return id
   }
-  const my = { A: MY.A, r: MY.r }
+  const my = { A: MY.A, r: MY.r, w: 1 as number }
   const calc = (A = my.A, r = my.r) => calcAt(A, r)
   const disp = { A: my.A, save: calc().save, remain: calc().remain }
   const K = { v: 1, last: -1 }   // S1 limit count-up
@@ -178,9 +178,10 @@ export function mountLanding(root: HTMLElement, opts: LandingMountOptions): () =
     sp.forEach((s_, i) => { const k = e3o(seg(t, t0 + i * 0.06, t0 + i * 0.06 + 0.22)); s_.style.transform = `translateY(${(1 - k) * 112}%)` })
   }
   const L$: Record<string, HTMLElement> = {}
-  ;['late', 'lb5', 'lb6', 'lb7', 'lb8', 'lb9', 's5', 's6', 's7', 's8', 's9', 'tt5', 'd5', 'big5', 'd5b', 'seal5', 'rail5', 'rf5', 'dot5', 'cnt5', 'warn5',
-    'ph11', 'w11', 'sub11', 'sum11', 'sum11bg', 'sum11c', 'ph6a', 'ph6b', 'beam6', 'beam6b', 'tt6', 'p6', 'list6', 'big6', 'pct6', 'col7', 'tt7', 'big7', 'note7', 'rul7', 'rul7in', 'today7', 'rc7', 'paper', 'strike', 'save7', 'fn7',
-    'tt8', 'p8', 'fl8', 'svg8', 'pm8', 'flyW', 'fly8', 'big8', 'tt9', 'list9', 'app9', 'kiroo', 'bub9', 'disc9', 'lkT', 'passD'].forEach((id) => { L$[id] = byId(id) })
+  ;['late', 'lb5', 'lb6', 'lb7', 'lb8', 'lb9', 's5', 's6', 's7', 's8', 's9', 'tt5', 'd5', 'big5', 'd5b', 'seal5', 'rail5', 'rf5', 'dot5', 'cnt5',
+    'ph11', 'w11', 'sum11', 'sum11bg', 'sum11c', 'ph6a', 'ph6b', 'beam6', 'beam6b', 'tt6', 'p6', 'list6', 'big6', 'pct6', 'col7', 'tt7', 'big7', 'rul7', 'rul7in', 'today7', 'rc7', 'paper', 'strike', 'save7',
+
+    'tt8', 'fl8', 'svg8', 'pm8', 'flyW', 'fly8', 'big8', 'tt9', 'list9', 'app9', 'kiroo', 'bub9', 'disc9', 'lkT', 'passD'].forEach((id) => { L$[id] = byId(id) })
   const LL = (n: string) => $$(`[data-l="${n}"]`)
   const ticks5 = $$('.tk5') // S5 rail ticks (13개, 마크업에서 그린 것)
   const rows6 = $$('.r6'), ems6 = rows6.map((r) => r.querySelector('em') as HTMLElement), items7 = $$('.i7')
@@ -313,7 +314,7 @@ export function mountLanding(root: HTMLElement, opts: LandingMountOptions): () =
     Object.assign(L$.bub9.style, { left: (ap.x + 40) + 'px', top: (ap.y + ap.h - 92) + 'px' })
   }
   function paintLate() {
-    const c = calc(disp.A, my.r), lt = lateTexts(disp.A, my.r)
+    const c = calcAt(disp.A, my.r, undefined, my.w), lt = lateTexts(disp.A, my.r, my.w)
     for (const k in lt) LL(k).forEach((e) => setT(e, lt[k]))
     return c
   }
@@ -345,7 +346,6 @@ export function mountLanding(root: HTMLElement, opts: LandingMountOptions): () =
       setT(L$.cnt5, `보유 ${Math.round(365 * k)}일`); L$.cnt5.style.color = (r.y + dy) / vh > 0.5 ? 'var(--ink)' : 'var(--color-on-navy)'
       ticks5.forEach((tk, i) => tk.classList.toggle('on', k >= i / 12 - 0.001 && t >= 11.1))
       const sk = seg(t, 12.0, 12.15); vis(L$.seal5, sk * (1 - out), `rotate(-12deg) scale(${2.2 - 1.2 * e3o(sk)})`)
-      const wk = seg(t, 12.0, 12.2); vis(L$.warn5, wk * (1 - out), `translateY(${(1 - e3o(wk)) * 10}px)`)
     }
     /* S6 — scan beam over the security photo */
     const on6 = t >= 12.2 && t < 14.5; vis(L$.s6, on6 ? 1 : 0)
@@ -367,7 +367,7 @@ export function mountLanding(root: HTMLElement, opts: LandingMountOptions): () =
       L$.s7.style.clipPath = x2 < vw ? `inset(0 ${vw - x2}px 0 0)` : ''
       const out = seg(t, 16.2, 16.35)
       revL(L$.tt7, 14.5, t); vis(L$.tt7, t >= 14.5 ? 1 : 0)
-      const bi = e3o(seg(t, 14.55, 14.8)); vis(L$.big7, bi, `translateY(${(1 - bi) * 20}px)`); L$.note7.style.opacity = String(seg(t, 14.65, 14.85))
+      const bi = e3o(seg(t, 14.55, 14.8)); vis(L$.big7, bi, `translateY(${(1 - bi) * 20}px)`)
       L$.col7.style.opacity = String(1 - out)
       vis(L$.rul7, (t >= 14.8 ? 1 : 0) * (1 - out)); L$.rul7in.style.clipPath = `inset(-40px ${(1 - e2io(seg(t, 14.8, 15.1))) * 100}% -10px 0)`
       const td = seg(t, 15.0, 15.15); L$.today7.style.transform = `scaleY(${td})`; L$.today7.style.opacity = String(td)
@@ -386,7 +386,7 @@ export function mountLanding(root: HTMLElement, opts: LandingMountOptions): () =
       const k = e2io(seg(t, 16.2, 16.5)), src = LG.sv!, tg = LG.fly!, sc = LG.flyH ? src.h / LG.flyH : 1
       L$.fly8.style.transform = `translate(${(src.x - tg.x) * (1 - k)}px,${(src.y - tg.y) * (1 - k)}px) scale(${sc + (1 - sc) * k})`
       setT(L$.fly8, won(c.save)); FLY.lab.style.visibility = 'visible'; FLY.lab.querySelector<HTMLElement>('small')!.style.opacity = String(seg(t, 16.5, 16.65))
-      revL(L$.tt8, 16.5, t); vis(L$.tt8, t >= 16.5 ? 1 : 0); L$.p8.style.opacity = String(seg(t, 16.6, 16.8))
+      revL(L$.tt8, 16.5, t); vis(L$.tt8, t >= 16.5 ? 1 : 0)
       const fp = seg(t, 16.8, 17.7)
       L$.pm8.style.strokeDashoffset = String(1 - seg(fp, 0, 0.35))
       lanes8.forEach((p_) => { p_.style.strokeDashoffset = String(1 - seg(fp, 0.35, 1)) })
@@ -459,8 +459,6 @@ export function mountLanding(root: HTMLElement, opts: LandingMountOptions): () =
     paintLate()
     L$.ph11.style.clipPath = `inset(${(1 - e3o(seg(p, 0, 0.3))) * 100}% 0 0 0)`
     words11.forEach((s_, i) => { const k = e3o(seg(p, 0.3 + i * 0.3, 0.3 + i * 0.3 + 0.22)); s_.style.transform = `translateY(${(1 - k) * 112}%)` })
-    L$.sub11.style.top = (L$.w11.offsetTop + L$.w11.offsetHeight + 20) + 'px'
-    L$.sub11.style.opacity = String(seg(p, 1.2, 1.4))
     const k = e3o(seg(p, 1.2, 1.5)), c = L$.sum11, w = c.offsetWidth || 380, h = c.offsetHeight || 360
     const dx = (LG.pad || 96) - 24, dy = innerHeight * 0.08 - 24
     vis(c, p >= 1.2 ? 1 : 0, `translate(${dx * (1 - k)}px,${dy * (1 - k)}px) scale(${72 / w + (1 - 72 / w) * k},${88 / h + (1 - 88 / h) * k})`)
@@ -489,7 +487,7 @@ export function mountLanding(root: HTMLElement, opts: LandingMountOptions): () =
   const stageEl = $('#stage')
   const rel = (el: Element) => { const s = stageEl.getBoundingClientRect(), r = el.getBoundingClientRect(); return { x: r.left - s.left, y: r.top - s.top, w: r.width, h: r.height } }
   const r$ = (s: string) => rel($(s))
-  const ANIM = '#hdr,#c0,#scrim,#bg1,#bg2,#bg2 img,#bg3,#bg4,#s1,#c1,#c1p,#card1,#seal,.kv b,.gln,#c2,#c2p,#card2,.c2r,.c2res,.c2n,#board,#c3,#mon,#monUI,#c4,#c4a,#c4b,#c4lab,#hero,#hero img,#slogan,#pass,.ml>span'
+  const ANIM = '#hdr,#c0,#scrim,#bg1,#bg2,#bg2 img,#bg3,#bg4,#s1,#c1,#c1p,#card1,#seal,.kv b,.gln,#c2,#c2p,#card2,.c2r,.c2res,.c2n,#board,#c3,#mon,#monUI,#c4,#c4a,#c4lab,#hero,#hero img,#slogan,#pass,.ml>span'
 
   function build() {
     const prog = st ? st.progress : 0
@@ -521,7 +519,7 @@ export function mountLanding(root: HTMLElement, opts: LandingMountOptions): () =
     Object.assign(C, { cx: MW / 2, cy: MH / 2, z: 1 })
     Object.assign(A, { sw: -0.2, krDot: 0, ro: 0, krLit: 0, lit: 0, dimOn: 0 }); P.v = 0; K.v = 0; K.last = -1
 
-    gsap.set(['#bg1', '#bg2', '#bg3', '#bg4', '#s1', '#c1', '#c1p', '#card1', '#seal', '.kv b', '#c2', '#c2p', '#card2', '.c2res', '.c2n', '#board', '#c3', '#mon', '#monUI', '#c4', '#c4a', '#c4b', '#c4lab', '#hero', '#slogan', '#pass'], { autoAlpha: 0 })
+    gsap.set(['#bg1', '#bg2', '#bg3', '#bg4', '#s1', '#c1', '#c1p', '#card1', '#seal', '.kv b', '#c2', '#c2p', '#card2', '.c2res', '.c2n', '#board', '#c3', '#mon', '#monUI', '#c4', '#c4a', '#c4lab', '#hero', '#slogan', '#pass'], { autoAlpha: 0 })
     gsap.set('.ml>span', { yPercent: 0 })
 
     tl = gsap.timeline({ paused: true, defaults: { ease: 'none' }, onUpdate: onTL })
@@ -585,17 +583,17 @@ export function mountLanding(root: HTMLElement, opts: LandingMountOptions): () =
     tl.set(A, { krDot: 0, sw: 2, ro: 1, dimOn: 1 }, 8.7)
 
     /* S4 — inflight map: NY & Tokyo → Seoul */
-    tl.set('#c4', { autoAlpha: 1 }, 9.15); IN(9.15, '#c4lab'); REV(9.2, '#c4a'); OUT(9.85, '#c4a')
+    tl.set('#c4', { autoAlpha: 1 }, 9.15); IN(9.15, '#c4lab'); REV(9.2, '#c4a')
     tl.fromTo(P, { v: 0 }, { v: 1, duration: 1.15, ease: 'power1.inOut', immediateRender: false }, 9.2)
     tl.fromTo(A, { krLit: 0 }, { krLit: 1.15, duration: 0.4, immediateRender: false }, 10.0)
-    REV(10.0, '#c4b')
+
     const kb = Mp.krB || [[1000, 300], [1030, 330]], kh = kb[1][1] - kb[0][1], kcx = (kb[0][0] + kb[1][0]) / 2, kcy = (kb[0][1] + kb[1][1]) / 2
     const kz = (SCR.h * 0.8 / kh) / (SCR.w * 0.9 / MW)
     tl.to(A, { ro: 0, duration: 0.2 }, 10.35)
     tl.to(C, { cx: kcx, cy: kcy, z: kz, duration: 0.7, ease: 'power2.inOut' }, 10.35)
     tl.to(A, { lit: 1.06, duration: 0.5 }, 10.6)
     /* → screen grows to full frame (11.15), ₩ fade while Seoul at night appears */
-    OUT(11.1, ['#c4b', '#c4lab'])
+    OUT(11.1, ['#c4a', '#c4lab'])
     tl.to('#hero', { autoAlpha: 1, duration: 0.4 }, 11.3)
     tl.fromTo('#hero img', { scale: 1.15 }, { scale: 1, duration: 0.85, ease: 'power1.out' }, 11.3)
     // L-6 이후: S5~S9(renderLate)
@@ -797,11 +795,8 @@ export function mountLanding(root: HTMLElement, opts: LandingMountOptions): () =
   /* ===== live numbers ===== */
   const kick = () => ctx.add(() => { gsap.to({}, { duration: 0.7, onUpdate: () => { if (tl) renderLate(tl.time()); if (tl2) render11(tl2.time()) } }) })
   on(amt, 'input', kick)
-  $$('#rates button').forEach((b) => on(b, 'click', () => {
-    $$('#rates7 button').forEach((x) => x.classList.toggle('on', x.dataset.r === b.dataset.r)); kick()
-  }))
   $$('#rates7 button').forEach((b) => on(b, 'click', () => {
-    my.r = +b.dataset.r!; $$('#rates button, #rates7 button').forEach((x) => x.classList.toggle('on', x.dataset.r === b.dataset.r)); refreshNums(); kick()
+    my.w = +b.dataset.w!; $$('#rates7 button').forEach((x) => x.classList.toggle('on', x === b)); refreshNums(); kick()
   }))
   cleanups.push(() => gsap.killTweensOf(disp))
 

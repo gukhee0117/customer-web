@@ -19,28 +19,7 @@ export function LandingS7({ t }: { t: LandingTexts }) {
           <b data-l="rate">
             {t.l.rate}
           </b>
-          <p>
-            지금 매도하면
-            <span>
-              <span data-l="zone">
-                {t.l.zone}
-              </span>
-              {' '}
-              구간 · 마감
-              {' '}
-              <span data-l="dday">
-                {t.l.dday}
-              </span>
-            </span>
-          </p>
         </div>
-        <p id="note7">
-          <span className="addl">
-            홈의 끼루 브리핑이 지금까지 줄어든 세금과 남은 한도까지 팔면 줄어들 세금을 범위로 보여드리고, 증빙서류는 2027년부터 내 계좌에서 받을 수 있어요.
-            {' '}
-          </span>
-          언제 매도할지는 고객님의 선택이에요.
-        </p>
       </div>
       <div id="rul7">
         <div id="rul7in">
@@ -52,11 +31,10 @@ export function LandingS7({ t }: { t: LandingTexts }) {
       </div>
       <div id="rc7">
         <div className="rates" id="rates7">
-          <small>수익률</small>
-          <button data-r="0.1">10%</button>
-          <button data-r="0.3">30%</button>
-          <button data-r="0.5" className="on">50%</button>
-          <button data-r="1">100%</button>
+          <small>공제율</small>
+          <button data-w="1" className="on">100%</button>
+          <button data-w="0.8">80%</button>
+          <button data-w="0.5">50%</button>
         </div>
         <div id="paper">
           <div className="phd">
@@ -119,13 +97,6 @@ export function LandingS7({ t }: { t: LandingTexts }) {
             <b id="save7" />
           </div>
         </div>
-        <p className="fn7" id="fn7">
-          근거 · 세율·기본공제·계산 순서: RIA 상품 가이드라인
-          <br />
-          <span data-l="assume">
-            {t.l.assume}
-          </span>
-        </p>
       </div>
     </section>
   )

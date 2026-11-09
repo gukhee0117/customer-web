@@ -37,7 +37,6 @@ export function LandingScene2() {
             <em>주</em>
           </b>
         </div>
-        <p className="c2n">초과 20주는 일반계좌로 반환돼요</p>
       </div>
     </div>
   )

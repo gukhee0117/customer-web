@@ -12,11 +12,7 @@ export function LandingScene1({ t }: { t: LandingTexts }) {
             </span>
           </div>
           <div className="p" id="c1p">
-            증권사별 1개 계좌를 만들 수 있고, 매도 한도는 전 증권사를 합쳐 5,000만 원까지예요.
-            <span className="addl">
-              {' '}
-              리턴증권에서는 다른 증권사 한도까지 합쳐 확인하고 화면에서 바로 신청해요.
-            </span>
+            증권사별 1개 계좌를 만들 수 있고,<br />매도 한도는 전 증권사를 합쳐 5,000만 원까지예요.
           </div>
         </div>
         <div id="card1">
@@ -55,7 +51,6 @@ export function LandingScene1({ t }: { t: LandingTexts }) {
                 <small>매도 한도</small>
                 <div className="big num" id="limBig">₩30,000,000</div>
                 <input id="amt" type="range" min="0" max="55000000" step="1000000" defaultValue="30000000" aria-label="매도 예정 금액" style={{ '--p': '54.54545454545454%' } as CSSProperties} />
-                <div className="msg" id="amtMsg">입력하지 않아도 3,000만 원 기준으로 보여드려요</div>
                 <div className="rates" id="rates">
                   <small>수익률</small>
                   <button data-r="0.1">10%</button>

@@ -37,9 +37,9 @@ function buildRuler(today: string): LandingRuler {
 }
 
 // S5~S9 마크업의 data-l 자리 글자 — 원본 paintLate()의 값. 금액(A)·수익률(r)이 바뀔 때마다 다시 만든다(날짜는 getBusinessToday() 기준)
-export function lateTexts(A: number, r: number): Record<string, string> {
+export function lateTexts(A: number, r: number, wOverride?: number): Record<string, string> {
   const today = getBusinessToday()
-  const c = calc(A, r)
+  const c = calc(A, r, today, wOverride)
   const rm = Math.max(0, LIMIT - A)
   const r1 = Math.round(rm * 0.375), r2 = Math.round(rm * 0.5) // 450:600:150, 합 = 남은 한도
   return {

@@ -55,13 +55,6 @@ export function LandingS5({ t }: { t: LandingTexts }) {
         </i>
         <LandingRailTicks />
       </div>
-      <p id="warn5">
-        1년이 지나기 전에 원금을 인출하면, 이 계좌의 세제 혜택이 모두 취소돼요.
-        <span className="addl">
-          {' '}
-          내 계좌에서 납입건별 인출 가능일을 확인할 수 있어요.
-        </span>
-      </p>
     </section>
   )
 }
