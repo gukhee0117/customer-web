@@ -44,7 +44,6 @@ export function MyInfoSecurityBox({ className, onToast, onOpenPw }: Props) {
       <div className={cx(styles.row, styles.plain)}>
         <span className={styles.text}>
           <span className={styles.name}>자동 로그아웃</span>
-          <span className={styles.desc}>로그인 30분 뒤 · 상단 바에서 연장</span>
         </span>
       </div>
       <button type="button" className={cx(styles.row, styles.last)} onClick={() => setAsk(true)}>

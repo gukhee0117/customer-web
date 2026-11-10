@@ -18,7 +18,6 @@ export function MyInfoTradeBox({ className, onOpenAssess }: Props) {
       data-box="trade-profile"
       className={cx(styles.box, className)}
       title="거래로 본 성향"
-      head={<span className={styles.sub}>참고용</span>}
     >
       {tp ? (
         <>

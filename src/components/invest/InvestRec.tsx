@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import '../../styles/tokens.css'
-import { PROFILE_KEY, REC_DISCLAIMER } from '../../api/stockPackage'
+import { PROFILE_KEY } from '../../api/stockPackage'
 import type { CandidateItem, RecommendBasis, RecommendFilter, RecommendItem } from '../../api/stockPackage'
 import { F } from '../../lib/calc'
 import { KkiruAvatar } from '../common/KkiruAvatar'
@@ -53,7 +53,6 @@ const volCell = (r: RecommendItem) => (r.volatilityPercent == null ? '–' : r.v
 // 30일 차트 여백(비율): 최고점 가격은 점 위에, 최저점 가격은 점 아래에 들어갈 만큼 위아래를 비우고, 양 끝 점이 테두리 밖으로 나가지 않게 좌우도 조금 비운다
 const CHART_PAD_Y = 0.2
 const CHART_PAD_X = 0.03
-const gradeRangeText = (from: number, to: number) => (from === to ? from + '등급' : from + '~' + to + '등급')
 // 업종 열: 펀드·ETF는 업종이 없어 유형으로 보인다
 const sectorText = (r: RecommendItem) => (r.type === 'FUND' ? '펀드·ETF' : (r.sectorName ?? '–'))
 
@@ -100,21 +99,12 @@ export function InvestRec({ className, onAdd }: Props) {
   const tend = tendency.state === 'ready' ? tendency.data : null
   const tradeOn = trading && data?.basisAvailable === true
   const recRange: [number, number] | null = tradeOn && data.gradeFrom != null && data.gradeTo != null ? [data.gradeFrom, data.gradeTo] : null
-  // 부제목에 실제 추천 범위(서버 gradeFrom~gradeTo)를 한 번 보여 준다. 범위를 못 받으면 서버 부제목 그대로
-  const range = data?.basisAvailable && data.gradeFrom != null && data.gradeTo != null ? gradeRangeText(data.gradeFrom, data.gradeTo) : null
-  const subtitle =
-    range == null
-      ? (data?.subtitle ?? '')
-      : trading
-        ? '내 거래 경향 · ' + range + ' 안에서 (투자성향 허용 범위 안)'
-        : (label || '내 성향') + ' · ' + range + ' 안에서'
 
   return (
     <div className={cx(styles.cols, className)}>
       <section className={styles.box} data-box="rec">
         <div className={styles.head}>
           <h2 className={styles.title}>오늘의 종목</h2>
-          <span className={styles.sub}>{subtitle}</span>
           <span className={styles.filters}>
             {REC_FILTERS.map(([k, name], i) => (
               <span key={k} className={styles.filterItem}>
@@ -151,9 +141,6 @@ export function InvestRec({ className, onAdd }: Props) {
           ))}
           {trading && data?.basisAvailable && (
             <>
-              <span className={styles.basisNote} title={data.basisFacts.join(' ')}>
-                {data.basisFacts.join(' ')}
-              </span>
               <Link className={styles.basisLink} to="/myinfo">
                 내 정보에서 거래로 본 성향 보기 ›
               </Link>
@@ -342,7 +329,6 @@ export function InvestRec({ className, onAdd }: Props) {
           </div>
         )}
 
-        <div className={styles.guide}>{data?.disclaimer ?? REC_DISCLAIMER}</div>
       </section>
 
       <div className={styles.side}>

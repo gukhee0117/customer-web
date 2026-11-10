@@ -45,14 +45,9 @@ export function InvestCheckResult({ result: r, stale = false }: Props) {
                 {f}
               </span>
             ))}
-            <details className={styles.defn}>
-              <summary>뜻 보기</summary>
-              <span>{b.definition}</span>
-            </details>
           </div>
         ))}
       </div>
-      <div className={styles.disclaimer}>{r.disclaimer}</div>
     </div>
   )
 }

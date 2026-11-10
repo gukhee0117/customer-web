@@ -115,7 +115,7 @@ export function MyInfoNotifyBox({ className, id, onToast, email }: Props) {
 
   const disabled = !ready || saving || challenge !== null
   return (
-    <Box id={id} data-box="notify" className={className} title="알림 설정" head={<span className={styles.saveNote}>{saving ? '저장 중…' : '바꾸면 바로 저장돼요'}</span>}>
+    <Box id={id} data-box="notify" className={className} title="알림 설정" head={saving ? <span className={styles.saveNote}>저장 중…</span> : undefined}>
       {loadError && <div role="alert">알림 설정을 불러오지 못했어요. <button type="button" onClick={() => setLoadAttempt(n => n + 1)}>다시 시도</button></div>}
       {nt.email && emailVerified !== true && !challenge && <div role="status">
         이메일 주소 확인이 필요해요. 확인은 30일 동안 유지되며 주소를 바꾸면 다시 확인해 주세요.

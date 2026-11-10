@@ -104,6 +104,12 @@
   font-weight: var(--font-weight-bold);
 }
 
+.availableCash {
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink);
+}
+
 .hint {
   font-size: var(--font-size-12);
   color: var(--color-sub);
@@ -643,10 +649,4 @@
 .nextOn {
   background: var(--color-navy);
   cursor: pointer;
-}
-
-.makeNote {
-  font-size: var(--font-size-12);
-  color: var(--color-sub);
-  text-align: right;
 }

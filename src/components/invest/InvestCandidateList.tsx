@@ -73,13 +73,6 @@ export function InvestCandidateList({ state, data, addedCodes, actionLabel, onPi
           })}
         </div>
       )}
-      {data && (
-        <div className={styles.summary}>
-          {data.summary.map((s) => (
-            <span key={s}>{s}</span>
-          ))}
-        </div>
-      )}
     </>
   )
 }

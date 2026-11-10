@@ -121,13 +121,6 @@
   font-weight: var(--font-weight-medium);
 }
 
-.summary {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  font-size: var(--font-size-12);
-  color: var(--color-sub);
-}
 
 .note {
   font-size: var(--font-size-11);

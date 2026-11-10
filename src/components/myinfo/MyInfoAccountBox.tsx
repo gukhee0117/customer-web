@@ -56,7 +56,6 @@ export function MyInfoAccountBox({ className, onToast, account, loaded }: Props)
                 다시 시도
               </button>
             )}
-            <span className={styles.linkedNote}>입고·인출은 이 계좌로만</span>
           </span>
         </div>
       ) : (
