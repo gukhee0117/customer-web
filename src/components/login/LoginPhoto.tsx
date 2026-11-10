@@ -24,7 +24,6 @@ export function LoginPhoto({ variant }: LoginPhotoProps) {
           <br />
           언제나 돌아옵니다.
         </h1>
-        <span className={styles.rule} />
       </div>
     </aside>
   )

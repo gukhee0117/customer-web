@@ -209,8 +209,12 @@
 /* ---- 입고 ---- */
 .inCols {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) 52px 64px 96px;
+  grid-template-columns: 20px minmax(0, 1fr) 72px 88px 96px;
   gap: var(--space-10);
+}
+
+.inCols.thead > span {
+  white-space: nowrap;
 }
 
 .inRow {
@@ -296,11 +300,6 @@
   margin-top: var(--space-2);
 }
 
-.outLabel2 {
-  font-size: var(--font-size-12);
-  color: var(--color-sub);
-  margin-top: var(--space-2);
-}
 
 .payCols {
   display: grid;
@@ -323,11 +322,6 @@
   font-size: var(--font-size-14);
 }
 
-.fifo {
-  font-size: var(--font-size-12);
-  color: var(--color-sub);
-  margin-top: var(--space-6);
-}
 
 .amtTitle {
   font-size: var(--font-size-14);
@@ -418,16 +412,7 @@
   line-height: 1.55;
 }
 
-.riskCut {
-  display: flex;
-  font-size: var(--font-size-14);
-}
 
-.riskAmt {
-  margin-left: auto;
-  font-weight: var(--font-weight-extrabold);
-  color: var(--color-red-strong);
-}
 
 .sumRow {
   display: flex;

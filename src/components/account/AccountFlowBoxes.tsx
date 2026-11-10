@@ -35,7 +35,6 @@ export function FlowStepsBox({ className, live }: { className?: string; live?: F
             </li>
           ))}
         </ul>
-        {v.investedNone && <div className={styles.convHint}>예수금 ₩{v.cash}이 아직 국내에 투자되지 않았어요</div>}
       </div>
       <button type="button" className={styles.fold} aria-expanded={open} aria-controls="flow-calc" onClick={() => setOpen((x) => !x)}>
         계산 자세히 보기 <span aria-hidden="true">{open ? '▴' : '▾'}</span>
@@ -56,13 +55,6 @@ export function FlowStepsBox({ className, live }: { className?: string; live?: F
               ))}
             </div>
           </div>
-          {/* 서버 값은 account.amount(계좌 예수금)이라 주문 가능 금액을 보장하지 않는다. 시연 데이터만 원래 문구 유지 */}
-          <div className={styles.formula}>
-            {v.cashLabel} <b className={styles.bold}>₩{v.cash}</b> <span className={styles.formulaTxt}>= {v.cashFormula}</span>
-          </div>
-          <div className={styles.formula}>
-            국내 주식에서 일하는 비율 <b className={styles.bold}>{v.pct}%</b> <span className={styles.formulaTxt}>= {v.formula}</span>
-          </div>
         </div>
       )}
     </Box>
@@ -81,7 +73,6 @@ function FlowScheduleBox() {
   const shown = many && !showAll ? v.rows.slice(-SCHEDULE_FIRST) : v.rows
   return (
     <Box data-box="schedule" title="인출 가능 일정">
-      <p className={styles.schedSub}>납입일부터 1년이 지나야 세제 혜택을 유지한 채 인출할 수 있어요</p>
       {v.mode === 'notOpened' && <p className={styles.empty}>계좌 개설이 완료되면 인출 일정을 볼 수 있어요</p>}
       {v.mode === 'loading' && <p className={styles.empty}>불러오는 중이에요</p>}
       {v.mode === 'error' && (
@@ -152,7 +143,6 @@ function FlowScheduleBox() {
               {showAll ? '접기' : '더 보기 (' + (v.rows.length - SCHEDULE_FIRST) + '건)'}
             </button>
           )}
-          <p className={styles.schedFoot}>1년 전에 인출하면 감면세액이 추징돼요</p>
         </>
       )}
     </Box>
@@ -265,7 +255,7 @@ export function FlowMainColumn({ live }: { live?: FlowLive }) {
 export function FlowAllocBox({ className, allocation }: { className?: string; allocation?: FundFlowAllocation | null }) {
   const a = compositionView(allocation)
   return (
-    <Box data-box="alloc" className={className} title="국내 투자 구성" actions={<span className={styles.basis}>{a.basis}</span>}>
+    <Box data-box="alloc" className={className} title="국내 투자 구성">
       {a.empty ? (
         <p className={styles.empty}>국내 주식을 사면 업종별 비중이 여기에 나와요</p>
       ) : (

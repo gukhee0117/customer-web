@@ -17,7 +17,7 @@ import { BOT_CHIPS, botGreeting } from '../components/account/accountBotData'
 import type { IssueRecord } from '../components/account/accountTaxData'
 import { AccountStateBox } from '../components/account/AccountStateBox'
 import { AccountSummaryBox } from '../components/account/AccountSummaryBox'
-import { FOOT_FLOW, FOOT_STATUS, PAGE_TABS } from '../components/account/accountData'
+import { PAGE_TABS } from '../components/account/accountData'
 import type { PageKey } from '../components/account/accountData'
 import type { ApplyKind } from '../components/account/accountApplyData'
 import type { SubmittedInboundResult } from '../components/account/ApplyModal'
@@ -31,7 +31,6 @@ import { Toast } from '../components/common/Toast'
 import { useToast } from '../components/common/useToast'
 import { RETURNS_DATA as RD } from '../data/returns'
 import { useAppShell } from '../layouts/appShell'
-import { F } from '../lib/calc'
 import { useFundFlow } from '../components/account/useFundFlow'
 import { fetchFundFlowRelief } from '../api/fundFlow'
 import { accountStateOf, formatAccountNo, getProfile } from '../api/profile'
@@ -336,9 +335,7 @@ export function AccountPage() {
 
       {opened && page === 'flow' && (
         <div className={styles.flow}>
-          {fundFlow.source === 'live' ? (
-            <div className={styles.asOf}>{F.asOf(RD.C.BUSINESS_DATE)} · 매일 새벽 집계</div>
-          ) : (
+          {fundFlow.source !== 'live' && (
             <div className={fundFlow.source === 'error' ? styles.flowNoticeError : styles.flowNotice} role="status">
               {FLOW_NOTICE[fundFlow.source] ?? FLOW_NOTICE.demo}
             </div>
@@ -354,7 +351,6 @@ export function AccountPage() {
         </div>
       )}
 
-      <p className={styles.foot}>{opened && page === 'flow' ? FOOT_FLOW : FOOT_STATUS}</p>
       {applyKind && (
         <ApplyModal
           kind={applyKind}

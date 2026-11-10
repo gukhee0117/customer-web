@@ -77,7 +77,6 @@ export function LoginForm({ active, onSignup }: LoginFormProps) {
     <div className={styles.wrap} hidden={!active}>
       <div>
         <h2 className={styles.title}>다시 만나서 반가워요</h2>
-        <p className={styles.lead}>로그인하고 내 RIA 계좌를 이어서 관리하세요</p>
       </div>
       <form className={styles.form} onSubmit={handleSubmit}>
         <label className={styles.field}>

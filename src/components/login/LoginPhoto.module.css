@@ -93,10 +93,3 @@
 .narrow .title {
   font-size: var(--font-size-30);
 }
-
-.rule {
-  display: block;
-  width: 48px;
-  height: 1.5px;
-  background: var(--color-gold);
-}

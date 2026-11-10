@@ -59,7 +59,6 @@ export function AccountBalanceBox({ className, onSell, holdings, onRetryHoldings
       }
       actions={
         <>
-          <span className={styles.evalTxt}>평가 {tab === 'kr' ? (kr.sum === '확인 불가' ? kr.sum : '₩' + kr.sum) : (fr.sum === '확인 불가' ? fr.sum : '₩' + fr.sum)}</span>
           {tab === 'kr' && (
             <Link to="/invest" className={styles.link}>
               패키지별로 보기 ›
