@@ -269,7 +269,7 @@ export function InvestNewPkg({ nm, cash, fees, onPatch, onClose, onMake, onDialo
                 <input className={styles.amtInput} value={buy.amt ? F.won(buy.amt) : ''} onChange={(e) => onPatch({ amt: e.target.value.replace(/\D/g, '').slice(0, 11) })} inputMode="numeric" placeholder="0" aria-label="살 금액" />
                 <span className={styles.amtUnit}>원</span>
               </label>
-              <div className={styles.hint}>주문 가능 ₩{F.won(cash)} · 목표 비중대로 종목별 주 수를 계산해요</div>
+              <div className={styles.availableCash}>주문 가능 금액 ₩{F.won(cash)}</div>
               <div>
                 <div className={cx(styles.buyGrid, styles.buyHead)}>
                   <span>종목</span>
@@ -314,7 +314,6 @@ export function InvestNewPkg({ nm, cash, fees, onPatch, onClose, onMake, onDialo
               {nextLabel}
             </button>
           </div>
-          {showMake && <div className={styles.makeNote}>주문 전에 지금 구성으로 다시 검사하고 결과를 보여드려요.</div>}
         </div>
       </div>
     </div>,

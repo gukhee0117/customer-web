@@ -161,7 +161,6 @@ export function MyInfoPage() {
           <MyInfoLoginsBox className={styles.logins} />
         </div>
       </div>
-      <p className={styles.note}>개인정보는 화면에 일부만 보여드려요 · 리턴증권은 교육용 프로젝트의 가상 증권사입니다</p>
       {asOpen && <MyInfoAssessDialog onClose={() => setAsOpen(false)} onSave={saveAssess} />}
       {pwOpen && (
         <MyInfoPwDialog

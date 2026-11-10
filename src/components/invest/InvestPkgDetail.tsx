@@ -213,11 +213,6 @@ export function InvestPkgDetail({ className, pkg, risk, onRecheck, onBuy, onAdd,
             </div>
           </div>
         )}
-        <div className={styles.guide}>
-          위험등급은 금투협 가이드라인 VaR 방식을 참고한 리턴증권 자체 산정이에요.
-          <br />
-          교육용 프로젝트의 자체 분석 결과예요. 수익을 보장하지 않으며, 실제 금융상품 판매·권유 절차를 대체하지 않아요.
-        </div>
       </div>
 
       {!noItems && (

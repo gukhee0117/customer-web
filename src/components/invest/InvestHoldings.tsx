@@ -148,7 +148,6 @@ export function InvestHoldings({ pkg, hov, onHov, onAdd, onBuy, onSell }: Props)
                     위험등급 <b className={styles.gradeB}>{it.grade ?? '-'}</b>
                     {it.out === true && ' · 내 투자성향 범위를 벗어난 종목이에요'}
                   </div>
-                  <div className={styles.asOf}>시가총액·PER 등 재무 정보는 아직 연결 전이에요 · 현재가는 한국투자증권 시세 기준</div>
                 </div>
               )}
             </div>
