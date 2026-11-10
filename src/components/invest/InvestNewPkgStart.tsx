@@ -120,10 +120,6 @@ export function InvestNewPkgStart({ tendency, addedCodes, ask, onPick }: Props) 
                     {f}
                   </span>
                 ))}
-                <details className={styles.defn}>
-                  <summary>뜻 보기</summary>
-                  <span>{b.definition}</span>
-                </details>
               </div>
             ))}
           </>
@@ -132,7 +128,7 @@ export function InvestNewPkgStart({ tendency, addedCodes, ask, onPick }: Props) 
 
       {/* 말로 조건 찾기 */}
       <div className={styles.box}>
-        <div className={styles.boxTitle}>말로 조건 찾기</div>
+        <div className={styles.boxTitle}>조건찾기</div>
         <form className={styles.kkForm} onSubmit={onSubmit}>
           <input className={styles.kkInput} value={text} onChange={(e) => setText(e.target.value.slice(0, 60))} placeholder="예: 배당 ETF만 보여줘, 반도체 테마로 3등급부터 5등급까지" aria-label="끼루에게 조건 말하기" />
           <button type="submit" className={styles.send} disabled={parse.phase === 'loading'}>
@@ -146,7 +142,6 @@ export function InvestNewPkgStart({ tendency, addedCodes, ask, onPick }: Props) 
         )}
         {parse.phase === 'done' && <Bubble profile={profile} lines={parse.result.messages} />}
         {parse.phase === 'error' && <Bubble profile={profile} lines={[parse.why === 'unauthorized' ? '로그인이 필요해요.' : '지금은 말로 조건을 찾을 수 없어요. 아래에서 직접 골라 볼 수 있어요.']} />}
-        <div className={styles.note}>끼루는 말을 조건으로 바꾸고 결과를 설명만 해요. 종목을 추천하거나 비중을 제안하지 않아요.</div>
       </div>
 
       <InvestCandidateFilters filter={filter} onChange={setFilter} themes={themes} canIncludeOut={!!survey?.available} />

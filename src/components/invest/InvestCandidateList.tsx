@@ -80,9 +80,6 @@ export function InvestCandidateList({ state, data, addedCodes, actionLabel, onPi
           ))}
         </div>
       )}
-      <div className={styles.note}>
-        {data?.disclaimer ?? '투자 권유가 아닌 정보 제공이에요'} · 위험등급은 금투협 가이드라인 VaR 방식을 참고한 리턴증권 자체 산정이에요. 과거 3년 데이터 기준이며 미래 수익 예측이 아니에요. 교육용 프로젝트의 자체 분석 결과예요.
-      </div>
     </>
   )
 }
