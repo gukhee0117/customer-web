@@ -1,6 +1,7 @@
 .box {
   min-width: 0;
-  height: 200px;
+  /* 종목이 많으면 줄 수만큼 늘어나야 아래 보유 종목 표와 겹치지 않는다(고정 높이일 때 7종목부터 넘쳤다) */
+  min-height: 200px;
   padding: var(--space-12) var(--space-16);
   box-sizing: border-box;
   display: flex;
