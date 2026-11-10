@@ -58,6 +58,13 @@ function maxBuyOf(cash: number, price: number, fees: OrderFees): number {
   return q
 }
 
+// 목표 비중 한도 안에서 더 살 수 있는 주 수: (패키지 총액 × 목표 비중 − 이미 담은 원금) ÷ 현재가. 총액이 없으면 한도를 걸지 않는다(서버도 같다)
+function weightMaxOf(pkg: PkgView, it: PkgView['items'][number] | null, price: number): number {
+  if (!it || pkg.total == null || !price) return Infinity
+  const room = Math.floor((pkg.total * it.target) / 100) - it.cost
+  return room > 0 ? Math.floor(room / price) : 0
+}
+
 export function tradeCalc(t: TradeState, pkg: PkgView, cash: number, fees: OrderFees): TradeCalc {
   const buy = t.side === 'buy'
   const items = pkg.items
@@ -72,11 +79,13 @@ export function tradeCalc(t: TradeState, pkg: PkgView, cash: number, fees: Order
   const fee = rateOf(amount, fees.commissionRatePercent)
   const tax = !buy && it?.taxable ? rateOf(amount, fees.securitiesTaxRatePercent) : 0
   const total = buy ? amount + fee : amount - fee - tax
-  const maxBuy = maxBuyOf(cash, price, fees)
+  const cashMax = maxBuyOf(cash, price, fees)
+  const weightMax = weightMaxOf(pkg, it, price)
+  const maxBuy = Math.min(cashMax, weightMax)
   const noPrice = !price && qty > 0 ? '현재가를 받지 못해 지금은 주문할 수 없어요' : ''
   const err =
     noPrice ||
-    (!qty ? '' : buy ? (amount + fee > cash ? '주문 가능 금액을 넘었어요 · 최대 ' + maxBuy + '주까지 살 수 있어요' : '') : qty > sellable ? '매도 가능 수량을 넘었어요 · 최대 ' + sellable + '주까지 팔 수 있어요' : '')
+    (!qty ? '' : buy ? (amount + fee > cash ? '주문 가능 금액을 넘었어요 · 최대 ' + maxBuy + '주까지 살 수 있어요' : qty > weightMax ? '목표 비중(' + (it?.target ?? 0) + '%)을 넘어요 · 최대 ' + weightMax + '주까지 살 수 있어요' : '') : qty > sellable ? '매도 가능 수량을 넘었어요 · 최대 ' + sellable + '주까지 팔 수 있어요' : '')
   // 주문 후 이 종목 비중
   const dv = qty * price * (buy ? 1 : -1)
   const after = items.map((i) => (i.code === t.code ? Math.max(0, i.val + dv) : i.val))

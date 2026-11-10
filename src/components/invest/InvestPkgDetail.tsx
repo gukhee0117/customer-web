@@ -48,6 +48,10 @@ export function InvestPkgDetail({ className, pkg, risk, onRecheck, onBuy, onAdd,
   const [hov, setHov] = useState<string | null>(null) // 도넛·줄에서 마우스를 올린 종목(보유 종목 표 줄과 함께 강조)
   const d = detailOf(pkg)
   const noItems = pkg.items.length === 0
+  // 종목별 수익률(%) = (현재가 - 평균 매입가) / 평균 매입가. 보유하고 현재가가 있는 종목만, 막대 길이는 가장 큰 절댓값 기준
+  const held = pkg.items.filter((i) => i.qty > 0 && i.priced && i.cost > 0).map((i) => ({ code: i.code, name: i.name, ret: ((i.val - i.cost) / i.cost) * 100 }))
+  const retMax = Math.max(1, ...held.map((r) => Math.abs(r.ret)))
+  const retRows = held.map((r) => ({ ...r, width: Math.max(2, (Math.abs(r.ret) / retMax) * 100) }))
 
   useEffect(() => {
     if (!editing) return
@@ -216,8 +220,23 @@ export function InvestPkgDetail({ className, pkg, risk, onRecheck, onBuy, onAdd,
         <div className={styles.charts}>
           <InvestPkgWeight pkg={pkg} hov={hov} onHov={setHov} />
           <div className={styles.chartNote}>
-            <div className={styles.chartNoteTitle}>패키지 수익률</div>
-            <p className={styles.chartNoteBody}>기간별 수익률 추이는 평가 이력이 쌓이면 보여드려요. 지금은 위 평가금액·손익과 아래 보유 종목 표로 확인할 수 있어요.</p>
+            <div className={styles.chartNoteTitle}>
+              패키지 수익률{' '}
+              <b className={cx(styles.retTotal, pkg.unpriced === 0 && styles[toneOf(pkg.pnl)])}>{pkg.unpriced > 0 ? '-' : F.pct(pkg.ret)}</b>
+            </div>
+            <div className={styles.retList}>
+              {retRows.map((r) => (
+                <div key={r.code} className={styles.retRow}>
+                  <span className={styles.retName}>{r.name}</span>
+                  <span className={styles.retTrack}>
+                    <span className={cx(styles.retBar, styles[toneOf(r.ret)])} style={{ width: r.width + '%' }} />
+                  </span>
+                  <b className={cx(styles.retPct, styles[toneOf(r.ret)])}>{F.pct(r.ret)}</b>
+                </div>
+              ))}
+              {retRows.length === 0 && <p className={styles.chartNoteBody}>아직 보유한 종목이 없어서 수익률을 계산할 수 없어요.</p>}
+            </div>
+            <p className={styles.chartNoteBody}>종목별 수익률은 평균 매입가 대비 현재가예요. 기간별 추이는 평가 이력이 쌓이면 보여드려요.</p>
           </div>
         </div>
       )}
