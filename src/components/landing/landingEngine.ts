@@ -410,7 +410,7 @@ export function mountLanding(root: HTMLElement, opts: LandingMountOptions): () =
         p_.style.visibility = kin > 0 && kout < 1 ? 'visible' : 'hidden'; p_.style.transform = `translateY(${((1 - kin) - kout) * 100}%)`
       })
       tabs9.forEach((e, i) => e.classList.toggle('on', i === TABS9[live ? idx : 0]))
-      vis(L$.kiroo, seg(t, 18.7, 18.85)); vis(L$.bub9, seg(t, 18.8, 18.9) * (1 - seg(t, 19.1, 19.2)))
+      vis(L$.kiroo, seg(t, 18.7, 18.85)); vis(L$.bub9, seg(t, 20.4, 20.5) * (1 - seg(t, 20.7, 20.8)))
       L$.disc9.style.opacity = String(seg(t, 18.8, 19.0))
     }
   }
