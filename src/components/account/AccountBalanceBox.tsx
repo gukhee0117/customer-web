@@ -179,7 +179,7 @@ export function AccountBalanceBox({ className, onSell, holdings, onRetryHoldings
             {fr.rows.map((r, i) => (
               <div key={r.id} className={cx(styles.row, styles.frCols, styles.body, i === fr.rows.length - 1 && styles.noLine)}>
                 <span className={styles.stock}>
-                  <StockIcon color={`var(--stock-${r.t.toLowerCase()}, var(--color-muted))`} initial={r.t[0]} size={20} />
+                  <StockIcon color={`var(--stock-${r.t.toLowerCase()}, var(--color-muted))`} initial={r.t[0]} size={20} code={r.t} />
                   <b>{r.t}</b>
                   <span className={styles.sub}>{r.name}</span>
                 </span>
