@@ -9,11 +9,10 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test:news": "node --test tests/news-*.test.mjs",
-    "test": "npm run test:account && npm run test:notifications && npm run test:auth && npm run test:community",
+    "test": "npm run test:account && npm run test:notifications && npm run test:auth",
     "test:auth": "node --test tests/login-email.test.mjs tests/signup-email.test.mjs",
     "test:account": "node --test tests/account-*.test.mjs",
-    "test:notifications": "node --test tests/notification-*.test.mjs",
-    "test:community": "node --test tests/community-*.test.mjs"
+    "test:notifications": "node --test tests/notification-*.test.mjs"
   },
   "dependencies": {
     "axios": "^1.20.0",

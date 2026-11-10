@@ -121,3 +121,10 @@ test('confirmation response from previous customer never alters new customer sta
   read.resolve(['005930']); await write; await h.flush()
   assert.deepEqual([...h.value().watch], ['000660']); assert.equal(h.toast.length, 0)
 })
+
+
+test('checking authentication reports loading instead of asking an authenticated user to log in', async () => {
+  const h = harness(); h.props.customerId = null; h.props.checking = true; h.render()
+  await h.value().add('005930'); assert.match(h.toast.at(-1), /로그인 상태를 확인/)
+  assert.equal(h.calls.length, 0)
+})

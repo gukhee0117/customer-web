@@ -5,8 +5,8 @@ import { CommunityTop10 } from '../components/community/CommunityTop10'
 import { BAR_H_FALLBACK, FIXED_MIN_HEIGHT, MID_MIN, RECENT_KEY, TOAST_MS, WIDE_MIN, rowHeight, stockFromUrl } from '../components/community/communityData'
 import { loadRecent, pushRecent } from '../components/community/communityLogic'
 import { useMyCommunity } from '../components/community/useMyCommunity'
-import { StocksContext } from '../components/community/stocksContext'
-import { useStocksData } from '../components/community/useStocksData'
+import { StocksContext, stockName } from '../components/community/stocksContext'
+import { DOMESTIC_CODE, useStocksData } from '../components/community/useStocksData'
 import { Toast } from '../components/common/Toast'
 import { useToast } from '../components/common/useToast'
 import { cx } from '../components/common/cx'
@@ -39,8 +39,8 @@ function CommunityBody() {
   const { message: toast, showToast } = useToast()
   const { auth } = useAuth()
   const customerId = auth.status === 'authenticated' ? auth.me.customerId : null
-  const watchlist = useCommunityWatchlist({ customerId, onToast: text => showToast(text, TOAST_MS) })
-  const watch = watchlist.watch
+  const watchlist = useCommunityWatchlist({ customerId, checking: auth.status === 'checking', onToast: (text, ticker) => showToast(ticker ? stockName(stocks, ticker) + ' ' + text : text, TOAST_MS) })
+  const watch = watchlist.watch.filter(ticker => DOMESTIC_CODE.test(ticker))
   const stocks = useStocksData([code, ...watch, ...recent])
   // 내 닉네임·성향·공개 여부·글/답글 수(서버)
   const my = useMyCommunity((t) => showToast(t, TOAST_MS))
@@ -108,7 +108,7 @@ function CommunityBody() {
   return (
     <StocksContext.Provider value={stocks}>
       <h1 className={styles.srOnly}>커뮤니티</h1>
-      {watchlist.failed && <div role="status">관심종목을 불러오지 못했어요. <button type="button" onClick={watchlist.retry}>다시 시도</button></div>}
+      {watchlist.failed && <div className={styles.watchlistError} role="status">관심종목을 불러오지 못했어요. <button type="button" onClick={watchlist.retry}>다시 시도</button></div>}
       <div
         ref={gridRef}
         data-grid3="1"

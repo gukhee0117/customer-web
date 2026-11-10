@@ -1,4 +1,4 @@
-// Opt-in against local seeded server: WATCHLIST_HTTP_TEST=1 WATCHLIST_TEST_PASSWORD=... npm run test:community
+// Opt-in against local seeded server: WATCHLIST_HTTP_TEST=1 WATCHLIST_TEST_PASSWORD=... node --test tests/community-*.test.mjs
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { componentHarness } from './helpers/componentHarness.mjs'
@@ -74,5 +74,27 @@ test('real persisted add/delete with lost response reconciles frontend hook to d
     assert.deepEqual([...h.nodes()[0].watch].sort(), (await api(path)).sort()); assert.ok(!h.nodes()[0].watch.includes(ticker))
   } finally {
     await api(`${path}/${ticker}`, 'DELETE'); assert.deepEqual(await api(path), original)
+  }
+})
+
+
+test('real MariaDB: 100-item boundary allows duplicate and deletion, blocks item 101', { skip: !live }, async () => {
+  const api = await customer('user000001'), original = await api(path)
+  assert.ok(original.length < 100, 'Use a seeded account below the limit')
+  const candidates = (await api('/api/customer/community/tickers')).map(x => x.ticker).filter(x => !original.includes(x))
+  const required = 100 - original.length, filling = candidates.slice(0, required), extra = candidates[required]
+  assert.ok(extra, 'Need enough distinct catalog tickers for boundary verification')
+  const added = new Set([...filling, extra])
+  try {
+    for(let i=0;i<filling.length;i+=10) await Promise.all(filling.slice(i,i+10).map(code => api(`${path}/${code}`, 'PUT')))
+    assert.equal((await api(path)).length, 100)
+    await api(`${path}/${filling[0]}`, 'PUT')
+    await assert.rejects(api(`${path}/${extra}`, 'PUT'), e => e.status === 409)
+    assert.equal((await api(path)).length, 100)
+    await api(`${path}/${filling[0]}`, 'DELETE'); await api(`${path}/${extra}`, 'PUT')
+    assert.equal((await api(path)).length, 100)
+  } finally {
+    for(const code of added) await api(`${path}/${code}`, 'DELETE')
+    assert.deepEqual(await api(path), original)
   }
 })
