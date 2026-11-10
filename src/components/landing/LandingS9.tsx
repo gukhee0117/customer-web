@@ -17,23 +17,23 @@ export function LandingS9({ t }: { t: LandingTexts }) {
       <ol id="list9">
         <li className="l9">
           <small>01</small>
-          끼루 뉴스 브리핑
-        </li>
-        <li className="l9">
-          <small>02</small>
-          오늘의 종목 · 성향별 주식·ETF
-        </li>
-        <li className="l9">
-          <small>03</small>
-          주식 패키지 만들기 도우미
-        </li>
-        <li className="l9">
-          <small>04</small>
           매도 가이드
         </li>
         <li className="l9">
+          <small>02</small>
+          놓치지 않는 알림
+        </li>
+        <li className="l9">
+          <small>03</small>
+          오늘의 종목 · 성향별 주식·ETF
+        </li>
+        <li className="l9">
+          <small>04</small>
+          주식 패키지 만들기 도우미
+        </li>
+        <li className="l9">
           <small>05</small>
-          커뮤니티와 끼루 답변
+          끼루 뉴스 브리핑
         </li>
         <li className="l9">
           <small>06</small>
@@ -41,7 +41,7 @@ export function LandingS9({ t }: { t: LandingTexts }) {
         </li>
         <li className="l9">
           <small>07</small>
-          놓치지 않는 알림
+          커뮤니티와 끼루 답변
         </li>
       </ol>
       <div id="app9">
@@ -61,15 +61,53 @@ export function LandingS9({ t }: { t: LandingTexts }) {
         </div>
         <div className="a9body">
           <div className="a9p">
-            <h4>뉴스 브리핑</h4>
-            <div className="a9c">
-              <small>내 보유 종목 뉴스</small>
-              <b>3분기 영업이익,<br />시장 예상 웃돌아</b>
-              <p>끼루 요약 3줄 · 원문 보기</p>
+            <h4>매도 가이드</h4>
+            <div className="a9kv">
+              <span>남은 한도</span>
+              <b data-l="remainMan">
+                {t.l.remainMan}
+              </b>
             </div>
-            <div className="ba">
-              주력 사업 매출이 예상보다 빠르게 회복됐어요. 비용 절감 효과도 함께 반영됐어요.
-              <small>기사 내용 기준</small>
+            <div className="a9kv">
+              <span>이번 구간 마감</span>
+              <b data-l="dday">
+                {t.l.dday}
+              </b>
+            </div>
+            <p className="a9s">남은 한도 안에서 공제가 가장 커지는 조합</p>
+            <div className="a9r">
+              <span>해외주식 A · 차익률 52%</span>
+              <b data-l="R1">
+                {t.l.R1}
+              </b>
+            </div>
+            <div className="a9r">
+              <span>해외주식 B · 31%</span>
+              <b data-l="R2">
+                {t.l.R2}
+              </b>
+            </div>
+            <div className="a9r">
+              <span>해외주식 C · 28% · 한도까지만</span>
+              <b data-l="R3">
+                {t.l.R3}
+              </b>
+            </div>
+            <span className="a9btn">이 안으로 채우기</span>
+          </div>
+          <div className="a9p lock">
+            <div className="lk">
+              <b id="lkT">
+                {t.lkT}
+              </b>
+              <small>잠금 화면</small>
+            </div>
+            <div className="nt">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+              <div>
+                <b>정산 완료 안내 메일을 보냈어요</b>
+                <p>받은편지함을 확인해보세요</p>
+              </div>
             </div>
           </div>
           <div className="a9p">
@@ -113,39 +151,34 @@ export function LandingS9({ t }: { t: LandingTexts }) {
             <span className="a9btn">검사하고 한 번에 사기</span>
           </div>
           <div className="a9p">
-            <h4>매도 가이드</h4>
-            <div className="a9kv">
-              <span>남은 한도</span>
-              <b data-l="remainMan">
-                {t.l.remainMan}
-              </b>
+            <h4>뉴스 브리핑</h4>
+            <div className="a9c">
+              <small>내 보유 종목 뉴스</small>
+              <b>3분기 영업이익,<br />시장 예상 웃돌아</b>
+              <p>끼루 요약 3줄 · 원문 보기</p>
             </div>
-            <div className="a9kv">
-              <span>이번 구간 마감</span>
-              <b data-l="dday">
-                {t.l.dday}
-              </b>
+            <div className="ba">
+              주력 사업 매출이 예상보다 빠르게 회복됐어요. 비용 절감 효과도 함께 반영됐어요.
+              <small>기사 내용 기준</small>
             </div>
-            <p className="a9s">남은 한도 안에서 공제가 가장 커지는 조합</p>
-            <div className="a9r">
-              <span>해외주식 A · 차익률 52%</span>
-              <b data-l="R1">
-                {t.l.R1}
-              </b>
+          </div>
+          <div className="a9p">
+            <h4>끼루 AI 챗봇</h4>
+            <div className="bq">언제부터 인출할 수 있어요?</div>
+            <div className="ba">
+              원화 환전이 확정된 날부터 1년이 지나면 인출할 수 있어요. 지금 기준으로는
+              {' '}
+              <strong data-l="wd">
+                {t.l.wd}
+              </strong>
+              부터예요.
+              <small>근거 · RIA 상품 가이드라인</small>
             </div>
-            <div className="a9r">
-              <span>해외주식 B · 31%</span>
-              <b data-l="R2">
-                {t.l.R2}
-              </b>
+            <div className="bq">다른 증권사 계좌에서 해외주식을 사면 어떻게 돼요?</div>
+            <div className="ba">
+              RIA가 아닌 계좌에서 해외주식을 순매수하면, 그 금액만큼 세제혜택이 비례해서 줄어요.
+              <small>근거 · RIA 상품 가이드라인</small>
             </div>
-            <div className="a9r">
-              <span>해외주식 C · 28% · 한도까지만</span>
-              <b data-l="R3">
-                {t.l.R3}
-              </b>
-            </div>
-            <span className="a9btn">이 안으로 채우기</span>
           </div>
           <div className="a9p">
             <h4>커뮤니티</h4>
@@ -207,39 +240,6 @@ export function LandingS9({ t }: { t: LandingTexts }) {
                 <div style={{ fontSize: '12px', color: 'var(--color-sub)', display: 'flex', gap: '10px' }}>
                   <span>좋아요 2</span><span>답글</span><span>공유</span>
                 </div>
-              </div>
-            </div>
-          </div>
-          <div className="a9p">
-            <h4>끼루 AI 챗봇</h4>
-            <div className="bq">언제부터 인출할 수 있어요?</div>
-            <div className="ba">
-              원화 환전이 확정된 날부터 1년이 지나면 인출할 수 있어요. 지금 기준으로는
-              {' '}
-              <strong data-l="wd">
-                {t.l.wd}
-              </strong>
-              부터예요.
-              <small>근거 · RIA 상품 가이드라인</small>
-            </div>
-            <div className="bq">다른 증권사 계좌에서 해외주식을 사면 어떻게 돼요?</div>
-            <div className="ba">
-              RIA가 아닌 계좌에서 해외주식을 순매수하면, 그 금액만큼 세제혜택이 비례해서 줄어요.
-              <small>근거 · RIA 상품 가이드라인</small>
-            </div>
-          </div>
-          <div className="a9p lock">
-            <div className="lk">
-              <b id="lkT">
-                {t.lkT}
-              </b>
-              <small>잠금 화면</small>
-            </div>
-            <div className="nt">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-              <div>
-                <b>정산 완료 안내 메일을 보냈어요</b>
-                <p>받은편지함을 확인해보세요</p>
               </div>
             </div>
           </div>
