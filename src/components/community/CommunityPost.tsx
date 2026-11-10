@@ -115,7 +115,14 @@ export function CommunityPost({ p, pf, q, multi, liked, likes, expanded, menuOpe
             <span className={styles.meta}>{plOf(pf)}</span>
             <span className={styles.meta}>{p.time}</span>
             <span data-menu="1" className={styles.menuWrap}>
-              <button type="button" className={styles.menuBtn} aria-label="더 보기 메뉴" aria-expanded={menuOpen} onClick={() => onMenu(p.id)}>…</button>
+              <button type="button" className={styles.menuBtn} aria-label={p.mine ? '게시글 수정·삭제 메뉴' : '게시글 신고 메뉴'} aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => onMenu(p.id)}>
+                {p.mine ? '…' : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+                    <path d="M7 18v-6a5 5 0 0 1 10 0v6M5 18h14v3H5z" />
+                    <path d="M12 2v2M4.93 4.93l1.42 1.42M2 12h2M20 12h2M17.65 6.35l1.42-1.42" />
+                  </svg>
+                )}
+              </button>
               {menuOpen && (
                 <div role="menu" className={styles.menu}>
                   {!p.mine && <button type="button" role="menuitem" className={styles.menuItem} onClick={onReport}>신고하기</button>}

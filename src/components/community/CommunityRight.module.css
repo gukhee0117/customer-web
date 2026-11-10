@@ -113,12 +113,6 @@
   left: 16px;
 }
 
-.pubHint {
-  margin-top: -6px;
-  font-size: var(--font-size-11);
-  color: var(--color-sub);
-  text-align: right;
-}
 
 /* ===== 관심 / 최근 본 종목 ===== */
 .watch {
