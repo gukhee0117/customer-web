@@ -91,6 +91,10 @@ async function send<T>(method: 'post' | 'put' | 'delete', path: string, body?: o
   return res.data.data
 }
 
+export const getWatchlist = () => get<string[]>('/watchlist')
+export const addWatchlist = (ticker: string) => send<void>('put', `/watchlist/${encodeURIComponent(ticker)}`)
+export const removeWatchlist = (ticker: string) => send<void>('delete', `/watchlist/${encodeURIComponent(ticker)}`)
+
 export const getTickers = () => get<TickerInfo[]>('/tickers')
 export const getTickerRanking = (size = 12) => get<TickerRank[]>('/tickers/ranking', { size })
 

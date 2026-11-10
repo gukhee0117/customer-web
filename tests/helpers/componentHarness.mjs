@@ -31,6 +31,12 @@ export function componentHarness(file, name, props, imports) {
         if (!Object.is(value, slots[i].value)) { slots[i].value = value; dirty = true }
       }]
     },
+    useMemo(factory, deps) {
+      const i = cursor++; const previous = slots[i]
+      if (!previous || deps.some((dep, index) => !Object.is(dep, previous.deps[index]))) slots[i] = { deps, value: factory() }
+      return slots[i].value
+    },
+    useCallback(callback, deps) { return react.useMemo(() => callback, deps) },
     useRef(initial) { const i = cursor++; return slots[i] ??= { current: initial } },
     useEffect(run, deps) {
       const i = cursor++; const previous = slots[i]
