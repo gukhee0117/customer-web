@@ -5,13 +5,14 @@ import { CommunityTop10 } from '../components/community/CommunityTop10'
 import { BAR_H_FALLBACK, FIXED_MIN_HEIGHT, MID_MIN, RECENT_KEY, TOAST_MS, WIDE_MIN, rowHeight, stockFromUrl } from '../components/community/communityData'
 import { loadRecent, pushRecent } from '../components/community/communityLogic'
 import { useMyCommunity } from '../components/community/useMyCommunity'
-import { StocksContext, stockName } from '../components/community/stocksContext'
+import { StocksContext } from '../components/community/stocksContext'
 import { useStocksData } from '../components/community/useStocksData'
 import { Toast } from '../components/common/Toast'
 import { useToast } from '../components/common/useToast'
 import { cx } from '../components/common/cx'
 import styles from '../components/community/CommunityLayout.module.css'
-import { RETURNS_DATA as RD } from '../data/returns'
+import { useAuth } from '../contexts/authState'
+import { useCommunityWatchlist } from '../components/community/useCommunityWatchlist'
 import { useAppShell } from '../layouts/appShell'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
 
@@ -35,10 +36,12 @@ function CommunityBody() {
   const [tab, setTab] = useState<FeedTab>(() => (!params.get('thread') && params.get('tab') === 'mine' ? 'mine' : 'live'))
   const [scope, setScope] = useState<HotScope>('stock')
   const [recent, setRecent] = useState(() => loadRecent(stockFromUrl(params.get('stock'))))
-  // [현행 유지] 관심 종목은 서버 API가 없어 공용 예시 데이터(RD.WATCH)를 쓴다
-  const [watch, setWatch] = useState(() => RD.WATCH.filter((c) => /^[0-9A-Z]{6}$/.test(c)))
-  const stocks = useStocksData([code, ...watch, ...recent])
   const { message: toast, showToast } = useToast()
+  const { auth } = useAuth()
+  const customerId = auth.status === 'authenticated' ? auth.me.customerId : null
+  const watchlist = useCommunityWatchlist({ customerId, onToast: text => showToast(text, TOAST_MS) })
+  const watch = watchlist.watch
+  const stocks = useStocksData([code, ...watch, ...recent])
   // 내 닉네임·성향·공개 여부·글/답글 수(서버)
   const my = useMyCommunity((t) => showToast(t, TOAST_MS))
   const pubOn = my.me?.pub ?? false
@@ -97,24 +100,15 @@ function CommunityBody() {
     setTab(t)
     if (!keepUrl) replaceUrl(code, t)
   }
-  const addWatch = (c: string) => {
-    setWatch((w) => (w.includes(c) ? w : w.concat(c)))
-    showToast(stockName(stocks, c) + ' 관심 종목에 추가했어요', TOAST_MS)
-  }
-  const removeWatch = (c: string) => {
-    setWatch((w) => w.filter((x) => x !== c))
-    showToast(stockName(stocks, c) + ' 관심 종목에서 뺐어요', TOAST_MS)
-  }
+  const addWatch = (ticker: string) => { void watchlist.add(ticker) }
+  const removeWatch = (ticker: string) => { void watchlist.remove(ticker) }
   const removeRecent = (c: string) => setRecent((r) => r.filter((x) => x !== c))
-  const toggleStar = () => {
-    const on = watch.includes(code)
-    setWatch((w) => (on ? w.filter((c) => c !== code) : w.concat(code)))
-    showToast(stockName(stocks, code) + (on ? ' 관심 종목에서 뺐어요' : ' 관심 종목에 추가했어요'), TOAST_MS)
-  }
+  const toggleStar = () => { void watchlist.toggle(code) }
 
   return (
     <StocksContext.Provider value={stocks}>
       <h1 className={styles.srOnly}>커뮤니티</h1>
+      {watchlist.failed && <div role="status">관심종목을 불러오지 못했어요. <button type="button" onClick={watchlist.retry}>다시 시도</button></div>}
       <div
         ref={gridRef}
         data-grid3="1"
