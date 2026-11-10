@@ -6,7 +6,7 @@ import { F } from '../../lib/calc'
 import { cx } from '../common/cx'
 import { StockLabel } from '../common/StockLabel'
 import { ModalFrame } from './ModalFrame'
-import { IN_NEXT, IN_SUBMIT_NOTE, LIMIT_MAX, SUBMIT_NOTE, applyConfig, outNext, parseInt0 } from './accountApplyData'
+import { LIMIT_MAX, applyConfig, parseInt0 } from './accountApplyData'
 import type { ApplyKind } from './accountApplyData'
 import type { HistTab } from './accountHistData'
 import styles from './ApplyModal.module.css'
@@ -318,10 +318,6 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
   // ---- 인출 계산 ----
   const oAmt = parseInt0(outAmt)
   const avail = availability
-  const earnings = avail ? avail.earningsAmount : 0
-  const maturedPrincipal = avail
-    ? avail.leftAmounts.filter((la) => la.matured).reduce((s, la) => s + la.curAmount, 0)
-    : 0
   const noDest = destAccounts.length === 0
   const oRisky = !!avail && oAmt > avail.withdrawableWithoutPenalty
   const oTooMuch = !!avail && oAmt > avail.requestableAmount
@@ -451,7 +447,7 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
           destinationGeneralAccountId: destId,
           earlyWithdrawalAgreed: outAgree,
         })
-        setDone({ sum: '₩' + F.won(oAmt) + ' → ' + destLabel, next: outNext(oRisky) })
+        setDone({ sum: '₩' + F.won(oAmt) + ' → ' + destLabel, next: [] })
         onSubmitOut(oAmt)
         setStep(2)
       } catch (e) {
@@ -632,7 +628,6 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
           )
         })}
         {submitError && <div className={styles.fetchErr}>{submitError}</div>}
-        <p className={styles.submitNote}>{IN_SUBMIT_NOTE}</p>
       </div>
     )
   } else if (kind === 'in' && step === 2 && inDoneResults) {
@@ -676,15 +671,6 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
             로그인이 만료됐어요. {inDoneSkipped}개 종목은 신청되지 않았어요. 다시 로그인 후 시도해 주세요.
           </div>
         )}
-        <div>
-          <div className={styles.nextHead}>다음에 일어날 일</div>
-          {IN_NEXT.map((text, i) => (
-            <div key={i} className={styles.nextRow}>
-              <span className={styles.nextNo}>{i + 1}</span>
-              <span className={styles.nextTxt}>{text}</span>
-            </div>
-          ))}
-        </div>
       </>
     )
 
@@ -704,7 +690,6 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
             <div>
               <div className={styles.outLabel}>지금 바로 인출할 수 있는 금액</div>
               <div className={styles.outNow}>₩{F.won(avail.withdrawableWithoutPenalty)}</div>
-              <div className={styles.outLabel2}>1년이 지난 납입금 {F.won(maturedPrincipal)}원 + 수익 초과분 {F.won(earnings)}원</div>
             </div>
             <div>
               <div className={cx(styles.payCols, styles.payHead)}>
@@ -729,7 +714,6 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
                   </div>
                 )
               })}
-              <div className={styles.fifo}>먼저 들어온 돈부터 인출돼요</div>
             </div>
             <div>
               <div className={styles.amtTitle}>목적지 계좌</div>
@@ -792,10 +776,6 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
             {oRisky && (
               <div className={styles.risk}>
                 <div className={styles.riskTxt}>1년이 지나지 않은 납입금이 포함돼요. 지금 인출하면 이 계좌의 세제 혜택이 모두 취소돼요.</div>
-                <div className={styles.riskCut}>
-                  <span>1년 미경과 원금</span>
-                  <b className={styles.riskAmt}>₩{F.won(avail.immaturePrincipalAmount)}</b>
-                </div>
                 <button type="button" className={styles.agree} aria-pressed={outAgree} onClick={() => setOutAgree(!outAgree)}>
                   <Box on={outAgree} />위 내용을 이해했어요
                 </button>
@@ -824,7 +804,6 @@ export function ApplyModal({ kind, linkedText, riaAccountNo, onClose, onGoHist, 
           </b>
         </div>
         {submitError && <div className={styles.fetchErr}>{submitError}</div>}
-        <p className={styles.submitNote}>{SUBMIT_NOTE}</p>
       </div>
     )
 

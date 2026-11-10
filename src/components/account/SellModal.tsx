@@ -10,7 +10,7 @@ import { cx } from '../common/cx'
 import { StockIcon } from '../common/StockIcon'
 import { parseInt0 } from './accountApplyData'
 import { AskClose } from './ApplyModal'
-import { SELL_CONFIRM_NOTE, SELL_FOOT_NOTE, SELL_NEXT, SELL_STEPS, clampQty, planView, sellRowsView, sellSum } from './accountSellData'
+import { SELL_CONFIRM_NOTE, SELL_STEPS, clampQty, planView, sellRowsView, sellSum } from './accountSellData'
 import type { SellSubmitResult } from './accountSellData'
 import type { ServerState } from './useServerData'
 import styles from './SellModal.module.css'
@@ -147,7 +147,6 @@ export function SellModal({ guide, onRetryGuide, remainingLimit, onClose, onGoHi
                   </span>
                 ))}
               </span>
-              <span className={styles.headSum}>{sum.head}</span>
               <button type="button" className={styles.close} onClick={reqClose} aria-label="닫기">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 6 6 18" />
@@ -218,13 +217,11 @@ export function SellModal({ guide, onRetryGuide, remainingLimit, onClose, onGoHi
                         <span className={cx(styles.right, styles.up)}>{r.rate}</span>
                       </div>
                     ))}
-                    <div className={styles.tableNote}>매도 금액은 전일 종가 기준 예상이에요 · 추천 종목 먼저</div>
                   </div>
 
                   <div className={styles.right2}>
                     <div className={styles.planHead}>
                       <b className={styles.planTitle}>한도를 꽉 채운 안</b>
-                      <span className={styles.secSub0}>주 단위로 남은 한도 안에서 공제가 가장 커지는 조합이에요</span>
                     </div>
                     <div className={cx(styles.pCols, styles.pHead)}>
                       <span />
@@ -268,7 +265,6 @@ export function SellModal({ guide, onRetryGuide, remainingLimit, onClose, onGoHi
                         이 안으로 채우기
                       </button>
                     </div>
-                    <p className={styles.planFoot}>공제액은 양도차익에 공제율을 곱해 정해져서, 같은 한도라면 차익률이 높은 종목부터 팔 때 공제가 커요. 매도 여부와 시점은 고객님이 결정해요.</p>
                   </div>
                 </div>
 
@@ -352,17 +348,6 @@ export function SellModal({ guide, onRetryGuide, remainingLimit, onClose, onGoHi
                       ))}
                     </div>
                   </div>
-                  {results.some((r) => r.status === 'EXECUTED') && (
-                    <div>
-                      <div className={styles.nextHead}>다음에 일어날 일</div>
-                      {SELL_NEXT.map((text, i) => (
-                        <div key={i} className={styles.nextRow}>
-                          <span className={styles.nextNo}>{i + 1}</span>
-                          <span className={styles.nextTxt}>{text}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -379,7 +364,6 @@ export function SellModal({ guide, onRetryGuide, remainingLimit, onClose, onGoHi
                 </div>
               </div>
             )}
-            <div className={styles.note}>{SELL_FOOT_NOTE}</div>
           </div>
         </div>,
         document.body

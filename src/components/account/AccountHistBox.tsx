@@ -279,7 +279,6 @@ function Settle() {
           <b className={cx(styles.right, styles.strong)}>{r.amt}</b>
         </div>
       ))}
-      <div className={styles.settleFoot}>원화 확정일 = 1년 유지 시작일이에요. 확정된 금액부터 1년이 지나면 인출할 수 있어요.</div>
     </div>
   )
 }
@@ -293,7 +292,6 @@ function Domestic({ more, onMore }: { more: boolean; onMore: () => void }) {
 
   return (
     <div>
-      <div className={styles.domGuide}>주식 패키지에서 산 것과 따로 산 것을 모두 보여드려요</div>
       <div className={styles.scroll}>
         <div className={styles.table680}>
           <div className={cx(styles.row, styles.domCols, styles.thead)}>

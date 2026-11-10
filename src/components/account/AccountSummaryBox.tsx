@@ -3,7 +3,6 @@ import { ACCOUNT_STATUS_LABEL, formatAccountNo } from '../../api/profile'
 import type { ProfileAccount } from '../../api/profile'
 import type { CustomerAssetBriefing } from '../../api/briefing'
 import type { GeneralAccount } from '../../api/withdrawal'
-import { linkedAccountText } from './linkedAccount'
 import { F } from '../../lib/calc'
 import { Box } from '../common/Box'
 import { cx } from '../common/cx'
@@ -61,7 +60,6 @@ export function AccountSummaryBox({ className, onCopy, account, assets, linked, 
           <b className={styles.status}>{account ? ACCOUNT_STATUS_LABEL[account.status] : '-'}</b>
         </>
       }
-      actions={<span className={styles.asOf}>{F.short(F.today())} 기준</span>}
     >
       <div className={styles.totalBlock}>
         <div className={styles.totalLabel}>총자산</div>
@@ -92,15 +90,11 @@ export function AccountSummaryBox({ className, onCopy, account, assets, linked, 
           </span>
         </div>
       </div>
-      <div className={styles.meta}>
-        개설 {account?.openedAt ? F.dot(account.openedAt.slice(0, 10)) : '-'} · 연결 일반계좌 {linkedAccountText(linked)}
-        {(assets.status === 'error' || linked.status === 'error') && (
-          <>
-            {' '}
-            <button type="button" className={styles.retry} onClick={onRetry}>다시 시도</button>
-          </>
-        )}
-      </div>
+      {(assets.status === 'error' || linked.status === 'error') && (
+        <div className={styles.meta}>
+          <button type="button" className={styles.retry} onClick={onRetry}>다시 시도</button>
+        </div>
+      )}
       <div className={styles.actions}>
         <button type="button" className={cx(styles.btn, styles.outline)} onClick={() => onApply('in')}>
           입고 신청

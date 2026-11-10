@@ -489,7 +489,7 @@ export function cutVsInvest(live?: { summary?: FundFlowSummary | null; relief?: 
       invest: F.won(buy),
       ratioLabel: '감면 1원당 국내 매수 약',
       ratio: cut > 0 ? (buy / cut).toFixed(1) : '-',
-      note: relief.statusLabel + ' · ' + relief.notice
+      note: relief.statusLabel
     }
   }
   const cut = F.tax(0, RD.C.BUSINESS_DATE, 1).cut
