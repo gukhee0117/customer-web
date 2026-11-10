@@ -92,9 +92,9 @@ export const EXT_STOCK: Record<string, [string, string, string]> = {
   '018880': ['자동차', '#E2231A', 'H']
 }
 
-// 목록 행의 겹친 종목 아이콘 3개 [대표색, 이니셜] — 종목 이름의 첫 글자를 쓴다(종목별 대표색은 서버에 없다)
-export function iconsOf(v: PkgView): [string, string][] {
-  return v.items.slice(0, 3).map((it): [string, string] => ['var(--color-navy)', String(it.name || it.code)[0]])
+// 목록 행의 겹친 종목 아이콘 3개 [대표색, 이니셜, 종목코드] — 종목 이름의 첫 글자를 쓴다(종목별 대표색은 서버에 없다). 코드는 로고 파일을 찾는 데 쓴다
+export function iconsOf(v: PkgView): [string, string, string][] {
+  return v.items.slice(0, 3).map((it): [string, string, string] => ['var(--color-navy)', String(it.name || it.code)[0], it.code])
 }
 
 // 패키지 상세 윗부분(P-2) 표시용 값

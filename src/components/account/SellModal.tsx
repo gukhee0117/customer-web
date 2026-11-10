@@ -43,7 +43,7 @@ const stockColor = (t: string): string => 'var(--stock-' + t.toLowerCase() + ', 
 function StockCell({ t, name }: { t: string; name: string }) {
   return (
     <span className={styles.stack}>
-      <StockIcon color={stockColor(t)} initial={t[0]} size={20} />
+      <StockIcon color={stockColor(t)} initial={t[0]} size={20} code={t} />
       <span className={styles.stackTxt}>
         <b className={styles.stackTicker}>{t}</b>
         <span className={styles.stackName}>{name}</span>
