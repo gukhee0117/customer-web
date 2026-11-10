@@ -42,7 +42,7 @@ function StockCellView({ s, plain = false }: { s: StockCell; plain?: boolean }) 
   if (s.labeled && !plain) return <StockLabel sym={s.t} size="sm" />
   return (
     <span className={styles.plainStock}>
-      <StockIcon color={s.color} initial={s.ini} size={20} />
+      <StockIcon color={s.color} initial={s.ini} size={20} code={s.t} />
       <b className={styles.plainTicker}>{s.t}</b>
       <span className={styles.plainName}>{s.name}</span>
     </span>

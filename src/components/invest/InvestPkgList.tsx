@@ -53,9 +53,9 @@ export function InvestPkgList({ className, rows, sort, onSort, selected, onSelec
             <span className={styles.name}>{v.name}</span>
             <span className={styles.sub}>
               <span className={styles.icons}>
-                {iconsOf(v).map(([color, ini], i) => (
+                {iconsOf(v).map(([color, ini, code], i) => (
                   <span key={i} className={styles.icon}>
-                    <StockIcon color={color} initial={ini} size={18} />
+                    <StockIcon color={color} initial={ini} size={18} code={code} />
                   </span>
                 ))}
               </span>
