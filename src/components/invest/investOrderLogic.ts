@@ -59,10 +59,20 @@ function maxBuyOf(cash: number, price: number, fees: OrderFees): number {
 }
 
 // 목표 비중 한도 안에서 더 살 수 있는 주 수: (패키지 총액 × 목표 비중 − 이미 담은 원금) ÷ 현재가. 총액이 없으면 한도를 걸지 않는다(서버도 같다)
+// 총액(pkg.total)은 만들 때 입력한 총 투자금액이고, 평가액이 아닌 매입 원금(it.cost) 기준으로 여유를 계산한다. 서버(maria) 한도 검사와 같은 기준이다
 function weightMaxOf(pkg: PkgView, it: PkgView['items'][number] | null, price: number): number {
   if (!it || pkg.total == null || !price) return Infinity
   const room = Math.floor((pkg.total * it.target) / 100) - it.cost
   return room > 0 ? Math.floor(room / price) : 0
+}
+
+// 매수 입력 오류 문구(없으면 빈 문자열). 예수금 한도 → 목표 비중 도달 → 목표 비중 초과 순으로 본다
+function buyErrOf(qty: number, amount: number, fee: number, cash: number, cashMax: number, weightMax: number, target: number): string {
+  if (amount + fee > cash) return '주문 가능 금액을 넘었어요 · 최대 ' + Math.min(cashMax, weightMax) + '주까지 살 수 있어요'
+  if (qty > weightMax) {
+    return weightMax === 0 ? '목표 비중(' + target + '%)에 이미 도달했어요' : '목표 비중(' + target + '%)을 넘어요 · 최대 ' + weightMax + '주까지 살 수 있어요'
+  }
+  return ''
 }
 
 export function tradeCalc(t: TradeState, pkg: PkgView, cash: number, fees: OrderFees): TradeCalc {
@@ -85,7 +95,7 @@ export function tradeCalc(t: TradeState, pkg: PkgView, cash: number, fees: Order
   const noPrice = !price && qty > 0 ? '현재가를 받지 못해 지금은 주문할 수 없어요' : ''
   const err =
     noPrice ||
-    (!qty ? '' : buy ? (amount + fee > cash ? '주문 가능 금액을 넘었어요 · 최대 ' + maxBuy + '주까지 살 수 있어요' : qty > weightMax ? '목표 비중(' + (it?.target ?? 0) + '%)을 넘어요 · 최대 ' + weightMax + '주까지 살 수 있어요' : '') : qty > sellable ? '매도 가능 수량을 넘었어요 · 최대 ' + sellable + '주까지 팔 수 있어요' : '')
+    (!qty ? '' : buy ? buyErrOf(qty, amount, fee, cash, cashMax, weightMax, it?.target ?? 0) : qty > sellable ? '매도 가능 수량을 넘었어요 · 최대 ' + sellable + '주까지 팔 수 있어요' : '')
   // 주문 후 이 종목 비중
   const dv = qty * price * (buy ? 1 : -1)
   const after = items.map((i) => (i.code === t.code ? Math.max(0, i.val + dv) : i.val))
