@@ -58,27 +58,20 @@
   color: var(--color-ink);
 }
 
-.defn {
-  font-size: var(--font-size-12);
-  line-height: 1.5;
-  color: var(--color-sub);
-}
 
-.defn summary {
-  cursor: pointer;
-  color: var(--color-navy);
-}
 
 /* 말로 조건 찾기 */
 .kkForm {
   display: flex;
-  gap: var(--space-8);
+  gap: var(--space-12);
+  flex-wrap: wrap;
   margin: 0;
 }
 
 .kkInput {
   flex: 1;
-  min-width: 0;
+  min-width: min(100%, 240px);
+  box-sizing: border-box;
   height: 40px;
   border: 1px solid var(--color-line-strong);
   border-radius: var(--radius-6);

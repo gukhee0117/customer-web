@@ -228,10 +228,8 @@ export function InvestNewPkg({ nm, cash, fees, onPatch, onClose, onMake, onDialo
                 <button type="button" className={cx(styles.ckBtn, can && styles.ckOn)} disabled={!can} onClick={runCheck}>
                   {busy ? '검사 중…' : '검사하기'}
                 </button>
-                {!ckOn && <span className={styles.ckHint}>비중을 100%로 맞추면 검사할 수 있어요</span>}
               </div>
               <div className={styles.ck}>
-                {ph === 'before' && <div className={styles.ckBefore}>검사하기를 누르면 이 구성을 확인해 드려요</div>}
                 {busy && (
                   <div className={styles.cards}>
                     {[1, 2, 3, 4, 5].map((i) => (
@@ -259,13 +257,6 @@ export function InvestNewPkg({ nm, cash, fees, onPatch, onClose, onMake, onDialo
                   </div>
                 )}
                 {shown && (ph === 'full' || ph === 'stale') && <InvestCheckResult result={shown} stale={ph === 'stale'} />}
-                <div className={styles.note}>
-                  위험등급은 금투협 가이드라인 VaR 방식을 참고한 리턴증권 자체 산정이에요.
-                  <br />
-                  과거 3년 데이터 기준이며 미래 수익 예측이 아니에요.
-                  <br />
-                  교육용 프로젝트의 자체 분석 결과예요. 수익을 보장하지 않으며, 실제 금융상품 판매·권유 절차를 대체하지 않아요.
-                </div>
               </div>
               {!empty && sum !== 100 && <div className={styles.sumErr}>합계를 100%로 맞춰야 다음으로 갈 수 있어요</div>}
             </>
