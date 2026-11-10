@@ -50,7 +50,9 @@ export function InvestPkgDetail({ className, pkg, risk, onRecheck, onBuy, onAdd,
   const noItems = pkg.items.length === 0
   // 종목별 수익률(%) = (현재가 - 평균 매입가) / 평균 매입가. 보유하고 현재가가 있는 종목만, 막대 길이는 가장 큰 절댓값 기준
   const retRows = useMemo(() => {
-    const held = pkg.items.filter((i) => i.qty > 0 && i.priced && i.cost > 0).map((i) => ({ code: i.code, name: i.name, ret: ((i.val - i.cost) / i.cost) * 100 }))
+    const held = pkg.items
+      .filter((i) => i.qty > 0 && i.priced && i.cost > 0)
+      .map((i) => ({ code: i.code, name: i.name, ret: ((i.val - i.cost) / i.cost) * 100 }))
     const retMax = Math.max(1, ...held.map((r) => Math.abs(r.ret)))
     return held.map((r) => ({ ...r, width: Math.max(2, (Math.abs(r.ret) / retMax) * 100) }))
   }, [pkg])
