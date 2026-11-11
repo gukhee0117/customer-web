@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "test:news": "node --test tests/news-*.test.mjs",
     "test": "npm run test:account && npm run test:notifications && npm run test:auth",
-    "test:auth": "node --test tests/login-email.test.mjs tests/signup-email.test.mjs",
+    "test:auth": "node --test tests/login-email.test.mjs tests/signup-email.test.mjs tests/auth-context.test.mjs",
     "test:account": "node --test tests/account-*.test.mjs",
     "test:notifications": "node --test tests/notification-*.test.mjs"
   },

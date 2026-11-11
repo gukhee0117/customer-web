@@ -4,6 +4,7 @@ import type { CommunityPage, CommunityPost } from '../../api/community'
 import type { ChatProfile } from '../../data/returns'
 import { GEN, FEED_LIMIT } from '../community/communityData'
 import { profileKeyOf, timeLabel } from '../community/communityPosts'
+import { useBusinessDateVersion } from '../../lib/clock'
 import { usePollTick } from '../common/usePollTick'
 import { useDebounced } from '../invest/useNewPkgData'
 import { HOT_LIMIT, LIVE_POLL_MS, type HotScope } from './homeChatData'
@@ -27,6 +28,7 @@ const itemOf = (p: CommunityPost): ChatItem => ({
 export function useHomeChat(code: string, view: ChatView, q: string, scope: HotScope): HomeChat {
   const dq = useDebounced(q, 300)
   const tick = usePollTick(LIVE_POLL_MS, view === 'live')
+  const bizVer = useBusinessDateVersion()
   const key = [code, view, view === 'search' ? dq : '', view === 'hot' ? scope : ''].join('|')
   const [res, setRes] = useState<{ key: string; status: 'live' | 'error'; items: ChatItem[] } | null>(null)
 
@@ -45,9 +47,9 @@ export function useHomeChat(code: string, view: ChatView, q: string, scope: HotS
     return () => {
       alive = false
     }
-    // tick은 실시간 탭의 주기 갱신용
+    // tick은 실시간 탭의 주기 갱신용, bizVer는 업무일 변경 시 재조회용
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, tick])
+  }, [key, tick, bizVer])
 
   if (view === 'search' && !dq) return { status: 'live', items: [] }
   return res?.key === key ? res : { status: 'loading', items: [] }

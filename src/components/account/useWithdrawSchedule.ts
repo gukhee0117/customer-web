@@ -4,6 +4,7 @@ import { fetchFundFlowWithdrawalSchedule } from '../../api/fundFlow'
 import type { FundFlowWithdrawalSchedule } from '../../api/fundFlow'
 import { getWithdrawalAvailability } from '../../api/withdrawal'
 import type { WithdrawalAvailability } from '../../api/withdrawal'
+import { useBusinessDateVersion } from '../../lib/clock'
 
 // live: 서버 값 / notOpened: 계좌가 개설되지 않아 availability가 오류 / demo: 로그인 전(401)이거나 계좌 없음 / error: 그 밖의 서버 오류 / loading: 받아오는 중
 export type WithdrawScheduleSource = 'loading' | 'live' | 'notOpened' | 'demo' | 'error'
@@ -25,6 +26,7 @@ const NOT_OPENED_CODES = ['ACCOUNT_NOT_FOUND', 'ACCOUNT_STATUS_NOT_WITHDRAWABLE'
 export function useWithdrawSchedule(enabled: boolean): WithdrawScheduleState & { retry: () => void } {
   const [state, setState] = useState<WithdrawScheduleState | null>(null)
   const [tries, setTries] = useState(0)
+  const bizVer = useBusinessDateVersion()
   const retry = () => {
     setState(null)
     setTries((n) => n + 1)
@@ -57,7 +59,7 @@ export function useWithdrawSchedule(enabled: boolean): WithdrawScheduleState & {
     return () => {
       alive = false
     }
-  }, [enabled, tries])
+  }, [enabled, tries, bizVer])
 
   if (!enabled) return { source: 'loading', schedule: null, availability: null, retry }
   return { ...(state ?? { source: 'loading', schedule: null, availability: null }), retry }

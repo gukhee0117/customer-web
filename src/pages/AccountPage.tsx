@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useBusinessDateVersion } from '../lib/clock'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ApplyModal } from '../components/account/ApplyModal'
 import { SellModal } from '../components/account/SellModal'
@@ -71,7 +72,7 @@ export function AccountPage() {
   const { state: sellLimit, retry: retrySellLimit, refresh: refreshSellLimit } = useSellLimit()
   const { state: sellGuide, retry: retrySellGuide, refresh: refreshSellGuide } = useSellGuide()
   // 서버 값: 계좌(프로필)·세액·자산·인출 가능 금액. 박스마다 따로 받아 느린 것이 다른 박스를 막지 않는다
-  const { state: profileState, retry: retryProfile } = useServerData(getProfile)
+  const { state: profileState, retry: retryProfile, refresh: refreshProfile } = useServerData(getProfile)
   const { state: taxState, retry: retryTax, refresh: refreshTax } = useServerData(getCustomerTaxBriefing, NO_DATA_CODES)
   const { state: reliefState, refresh: refreshRelief } = useServerData(fetchFundFlowRelief) // 서버 혜택 상태(취소 여부)
   const { state: assetState, retry: retryAssets, refresh: refreshAssets } = useServerData(getCustomerAssetBriefing, NO_DATA_CODES)
@@ -269,7 +270,7 @@ export function AccountPage() {
     if (hash === '#open') navigate({ pathname, hash: '' }, { replace: true })
   }
   const accountChanged = () => {
-    retryProfile()
+    refreshProfile()
     refreshSellLimit()
     refreshSellGuide()
     refreshTax()
@@ -279,6 +280,15 @@ export function AccountPage() {
     refreshLinked()
     refreshRelief()
   }
+
+  // 업무일이 바뀌면(탭 복귀 등) 날짜에 민감한 서버 값을 조용히 다시 받는다.
+  // reload() 없이 각 훅이 개별 재조회하므로 세션이 풀리지 않는다.
+  // bizVer === 0은 마운트 시 초기값 — 이미 각 useServerData가 첫 조회를 시작했으므로 건너뛴다.
+  const bizVer = useBusinessDateVersion()
+  useEffect(() => {
+    if (bizVer) accountChanged()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bizVer])
 
   // PDF 받기 — 서버에서 발급(이미 있으면 그 발급본)해 내려받고, 발급 기록은 서버 목록을 다시 받는다
   const pdfBusy = useRef(false) // 연타로 발급 요청이 겹치지 않게

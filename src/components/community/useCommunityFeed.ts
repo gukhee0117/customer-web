@@ -4,6 +4,7 @@ import { deleteComment, deletePost, editPost, getComments, getCommentsThrough, g
 import type { CommunityPage, CommunityPost, ReportReason } from '../../api/community'
 import { FEED_LIMIT, FRESH_MS, GEN, POST_MAX, REPLY_MAX } from './communityData'
 import { fromServerComment, fromServerPost, type FeedView, type MyReply, type Post, type Reply } from './communityPosts'
+import { useBusinessDateVersion } from '../../lib/clock'
 
 export type FeedTab = 'live' | 'hot' | 'mine'
 export type HotScope = 'stock' | 'all'
@@ -73,6 +74,7 @@ export function useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listR
     },
     [view, scope, ticker, qt]
   )
+  const bizVer = useBusinessDateVersion()
   useEffect(() => {
     let alive = true
     const key = listKey
@@ -89,7 +91,7 @@ export function useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listR
       clearTimeout(t)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listKey])
+  }, [listKey, bizVer])
   const cur = srv && srv.key === listKey ? srv : null
   const status: 'loading' | 'live' | 'error' = !cur ? 'loading' : cur.failed ? 'error' : 'live'
   const retryList = () => setTries((n) => n + 1)

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { isAxiosError } from 'axios'
 import type { ReactNode } from 'react'
 import * as apiAuth from '../api/auth'
 import { syncAssessState } from '../api/investor'
@@ -14,18 +15,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 앱 시작 시 1회 — 서버 세션 확인
   useEffect(() => {
+    let active = true
+    const ok = (me: MeData) => {
+      if (!active) return
+      setLoginSession({ name: me.name, expiresAt: me.expiresAt })
+      setAuth({ status: 'authenticated', me })
+      void syncAssessState() // 새로고침으로 세션이 복원돼도 진단 상태는 서버 값으로
+    }
+    const fail = () => {
+      if (!active) return
+      resetNewsSession()
+      clearLoginSession()
+      setAuth({ status: 'unauthenticated' })
+    }
+
+    let timerId: ReturnType<typeof setTimeout> | undefined
     apiAuth
       .getMe()
-      .then((me) => {
-        setLoginSession({ name: me.name, expiresAt: me.expiresAt })
-        setAuth({ status: 'authenticated', me })
-        void syncAssessState() // 새로고침으로 세션이 복원돼도 진단 상태는 서버 값으로
+      .then(ok)
+      .catch((e: unknown) => {
+        if (!isAxiosError(e) || e.response?.status === 401) { fail(); return }
+        // 네트워크 단절·5xx 등 일시 오류 — 2초 후 1회 재시도한다.
+        // 재시도 성공 시 세션 복원, 실패 시 로그인 화면으로 이동(checking에 갇히지 않게)
+        timerId = setTimeout(() => { apiAuth.getMe().then(ok).catch(fail) }, 2000)
       })
-      .catch(() => {
-        resetNewsSession()
-        clearLoginSession()
-        setAuth({ status: 'unauthenticated' })
-      })
+    // active=false가 먼저 설정되면 ok/fail이 아무것도 하지 않아 StrictMode 이중 실행에서도 안전하다
+    return () => { active = false; clearTimeout(timerId) }
   }, [])
 
   const login = useCallback(async (loginId: string, password: string) => {
