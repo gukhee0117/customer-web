@@ -283,17 +283,10 @@ export function AccountPage() {
 
   // 업무일이 바뀌면(탭 복귀 등) 날짜에 민감한 서버 값을 조용히 다시 받는다.
   // reload() 없이 각 훅이 개별 재조회하므로 세션이 풀리지 않는다.
+  // bizVer === 0은 마운트 시 초기값 — 이미 각 useServerData가 첫 조회를 시작했으므로 건너뛴다.
   const bizVer = useBusinessDateVersion()
   useEffect(() => {
-    retryProfile()
-    refreshSellLimit()
-    refreshSellGuide()
-    refreshTax()
-    refreshAssets()
-    refreshAvail()
-    refreshHoldings()
-    refreshLinked()
-    refreshRelief()
+    if (bizVer) accountChanged()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bizVer])
 

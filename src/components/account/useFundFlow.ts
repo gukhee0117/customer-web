@@ -37,7 +37,6 @@ export function useFundFlow(enabled: boolean): FundFlowState {
 
   useEffect(() => {
     if (!enabled) return
-    setState(null)
     let alive = true
     Promise.all([settle(fetchFundFlowSummary()), settle(fetchFundFlowMonthly()), settle(fetchFundFlowRelief()), settle(fetchFundFlowAllocation()), settle(fetchFundFlowTransactions())]).then(
       ([summary, monthly, relief, allocation, transactions]) => {

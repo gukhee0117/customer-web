@@ -34,7 +34,6 @@ export function useWithdrawSchedule(enabled: boolean): WithdrawScheduleState & {
 
   useEffect(() => {
     if (!enabled) return
-    setState(null)
     let alive = true
     Promise.allSettled([fetchFundFlowWithdrawalSchedule(), getWithdrawalAvailability()]).then(([sch, av]) => {
       if (!alive) return
