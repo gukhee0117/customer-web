@@ -53,6 +53,7 @@
 
 /* 넓은 화면 60 : 40, 760px 미만은 한 열 */
 .cols {
+  --news-panel-height: 520px;
   display: grid;
   grid-template-columns: minmax(0, 60fr) minmax(0, 40fr);
 }
@@ -64,6 +65,17 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-10);
+}
+
+.cols > .main,
+.cols > .welcome,
+.cols > .list {
+  height: var(--news-panel-height);
+  box-sizing: border-box;
+}
+
+.main > .articleText {
+  flex: none;
 }
 
 .article {
@@ -119,7 +131,8 @@
 }
 
 .conv {
-  height: 300px;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   display: flex;
   flex-direction: column;
@@ -296,6 +309,7 @@
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--color-line-soft);
+  overflow-y: auto;
 }
 
 /* 묶음 상자는 풀어서 라벨·기사 줄이 목록 높이를 나눠 갖게 한다 */
@@ -317,7 +331,7 @@
 .item {
   all: unset;
   cursor: pointer;
-  flex: 1 1 0;
+  flex: 0 0 calc(var(--news-panel-height) / 8);
   min-height: 50px;
   display: flex;
   flex-direction: column;

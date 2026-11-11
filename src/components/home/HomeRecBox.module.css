@@ -396,7 +396,9 @@
 }
 
 .conv {
-  max-height: 200px;
+  height: 240px;
+  flex: none;
+  box-sizing: border-box;
   overflow: auto;
   padding: var(--space-4) var(--space-16);
   display: flex;

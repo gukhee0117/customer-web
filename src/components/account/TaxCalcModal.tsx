@@ -30,7 +30,6 @@ function TaxCalcBody({ onClose }: { onClose: () => void }) {
       footClassName={styles.foot}
       footer={
         <>
-          <span className={styles.footText}>참고용 정보이며 실제 세액은 신고 시 확정돼요 · 근거: RIA 상품 가이드라인</span>
           <button type="button" className={styles.ok} onClick={onClose}>닫기</button>
         </>
       }

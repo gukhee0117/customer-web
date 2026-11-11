@@ -29,7 +29,7 @@ export function InvestHoldings({ pkg, hov, onHov, onAdd, onBuy, onSell }: Props)
     <div className={styles.wrap}>
       <div className={styles.inner}>
         <div className={cx(styles.grid, styles.head)}>
-          <span>종목</span>
+          <span className={styles.c}>종목</span>
           <span className={styles.r}>보유 주 수</span>
           <span className={styles.r}>평균 매입가</span>
           <span className={styles.r}>현재가</span>

@@ -22,7 +22,7 @@ export function MyInfoProfileBox({ className, hist, name, status, onOpenAssess }
       id="assess"
       data-box="profile"
       className={className}
-      title="내 프로필 · 투자성향"
+      title="내 프로필"
       actions={
         <button type="button" className={styles.link} onClick={onOpenAssess}>
           다시 진단하기 ›
@@ -34,6 +34,8 @@ export function MyInfoProfileBox({ className, hist, name, status, onOpenAssess }
         <div className={styles.info}>
           <div className={styles.nameRow}>
             <span className={styles.name}>{name ?? '-'} 님</span>
+          </div>
+          <div className={styles.statusRow}>
             <span className={styles.label}>{pf.label}</span>
             {pf.warnOn && <span className={cx(pf.warnRed ? styles.warnRed : styles.warn)}>{pf.warn}</span>}
           </div>
@@ -51,7 +53,6 @@ export function MyInfoProfileBox({ className, hist, name, status, onOpenAssess }
               <div className={styles.line}>
                 추천받을 수 있는 상품 <b>{pf.allowed}</b>
               </div>
-              <div className={styles.grade}>1등급 매우 높은 위험 ~ 6등급 매우 낮은 위험 · 리턴증권 자체 산정</div>
             </>
           )}
         </div>

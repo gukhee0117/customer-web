@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import { invalidateNewsPersonalization } from '../components/home/newsPrefetch'
 
 // 주식 패키지 API (maria: /api/customer/stock-packages/**)
 // 로그인 세션(쿠키)이 필요하다. 설명 문장은 서버가 사전에 검수한 문장에 계산한 값만 끼워 만든 것이라 화면에서 고쳐 쓰지 않고 그대로 보여준다.
@@ -272,7 +273,11 @@ export const fetchAllHoldings = () => unwrap(apiClient.get<ApiResponse<PackageHo
 export const fetchAllOrders = () => unwrap(apiClient.get<ApiResponse<OrderResult[]>>(BASE + '/orders'))
 export const fetchOrderFees = () => unwrap(apiClient.get<ApiResponse<OrderFees>>(BASE + '/order-fees'))
 export const fetchQuotes = (tickers: string[], signal?: AbortSignal) => unwrap(apiClient.get<ApiResponse<Quote[]>>(BASE + '/quotes', { params: { tickers: tickers.join(',') }, signal, timeout: 30000 }))
-export const placeOrder = (packageId: number, req: OrderRequest) => unwrap(apiClient.post<ApiResponse<OrderResponse>>(BASE + '/' + packageId + '/orders', req, { timeout: 60000 }))
+export async function placeOrder(packageId: number, req: OrderRequest): Promise<OrderResponse> {
+  const result = await unwrap(apiClient.post<ApiResponse<OrderResponse>>(BASE + '/' + packageId + '/orders', req, { timeout: 60000 }))
+  if (result.orders.some(order => order.status === 'EXECUTED')) invalidateNewsPersonalization()
+  return result
+}
 export const createPackage = (req: SavePackageRequest) => unwrap(apiClient.post<ApiResponse<PackageDetail>>(BASE, req))
 export const updatePackage = (id: number, req: SavePackageRequest) => unwrap(apiClient.put<ApiResponse<PackageDetail>>(BASE + '/' + id, req))
 export const deletePackage = (id: number) => apiClient.delete(BASE + '/' + id).then(() => undefined)

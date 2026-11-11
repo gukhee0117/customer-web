@@ -43,6 +43,7 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
   const [input, setInput] = useState('')
   const asking = useRef(false)
   const askRef = useRef<HTMLDivElement>(null)
+  const detailRef = useRef<HTMLDivElement>(null)
 
   const rec = useRecommendations('ALL', HOME_REC_COUNT, basis)
   const tendency = useTendency()
@@ -61,7 +62,7 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
   const recEmpty = ready && !off && recs.length === 0
   const recEmptyT1 = trading ? '내 거래 경향에 맞는 상품이 지금은 없어요.' : label + '은 ' + allow + ' 상품을 추천받을 수 있어요.'
 
-  // 상세 카드: 바깥 클릭·Esc·스크롤하면 닫힘
+  // 상세 카드: 바깥 클릭·Esc로 닫고, 펼친 내용이 화면에 보이도록 스크롤한다.
   useEffect(() => {
     if (open === null) return
     const onDown = (e: MouseEvent) => {
@@ -71,14 +72,12 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(null)
     }
-    const onScroll = () => setOpen(null)
     document.addEventListener('mousedown', onDown)
     document.addEventListener('keydown', onKey)
-    window.addEventListener('scroll', onScroll, { passive: true })
+    detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     return () => {
       document.removeEventListener('mousedown', onDown)
       document.removeEventListener('keydown', onKey)
-      window.removeEventListener('scroll', onScroll)
     }
   }, [open])
 
@@ -128,7 +127,6 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
 
   return (
     <Box shadow className={className} title="오늘의 종목" actions={headRight} style={{ zIndex: open !== null ? 20 : undefined }}>
-      <div className={styles.gradeLine}>위험등급: 리턴증권 자체 산정 · 1 매우 높은 위험 ~ 6 매우 낮은 위험</div>
 
       <div className={styles.basisRow} role="group" aria-label="추천 기준">
         {BASES.map(([k, name]) => (
@@ -198,7 +196,7 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
                   </button>
 
                   {isOpen && (
-                    <div role="dialog" aria-label={r.name + ' 추천 상세'} data-rec-pop="1" className={styles.pop}>
+                    <div ref={detailRef} role="dialog" aria-label={r.name + ' 추천 상세'} data-rec-pop="1" className={styles.pop}>
                       <div className={styles.popTop}>
                         <img className={styles.face} src={assetUrl('assets/kkiru-ai-face.png')} alt="끼루" />
                         <div className={styles.minw}>

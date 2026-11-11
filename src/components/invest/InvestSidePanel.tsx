@@ -7,16 +7,17 @@ interface Props {
   label: string // 창 이름(읽어 주는 제목)
   onClose: () => void
   children: ReactNode
+  wide?: boolean
 }
 
 // 오른쪽에서 열리는 창의 바깥틀 — 주문·패키지 한 번에 사기·종목 추가가 함께 씀. 어두운 막을 누르면 닫힘
-export function InvestSidePanel({ label, onClose, children }: Props) {
+export function InvestSidePanel({ label, onClose, children, wide = false }: Props) {
   const onBackdrop = (e: MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) onClose()
   }
   return createPortal(
     <div className={styles.backdrop} onClick={onBackdrop}>
-      <aside role="dialog" aria-modal="true" aria-label={label} className={styles.panel}>
+      <aside role="dialog" aria-modal="true" aria-label={label} className={wide ? `${styles.panel} ${styles.wide}` : styles.panel}>
         {children}
       </aside>
     </div>,

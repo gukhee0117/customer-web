@@ -4,7 +4,7 @@ import type { ApiResponse } from './client'
 export interface Profile {
   name: string
   birthDate: string // YYYY-MM-DD
-  phone: string // 010-1234-5678 (원문, 마스킹은 화면에서)
+  phone: string // 010-1234-5678 (본인 기본 정보에서 전체 표시)
   email: string | null
   nickname: string | null // 조회만 한다(서버가 가입 때 붙임, 시드 고객 중엔 없을 수 있음)
   investorType: string // 미진단이면 UNASSIGNED

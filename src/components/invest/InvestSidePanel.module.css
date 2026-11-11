@@ -20,6 +20,10 @@
   flex-direction: column;
 }
 
+.wide {
+  width: min(600px, 100%);
+}
+
 .up {
   color: var(--color-up);
 }

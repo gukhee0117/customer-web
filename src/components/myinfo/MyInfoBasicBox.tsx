@@ -9,6 +9,7 @@ import styles from './MyInfoBasicBox.module.css'
 
 interface Props {
   className?: string
+  loginId?: string
   onToast: (msg: string) => void
   prof: Profile | null // 서버 값(페이지가 받아서 내려 줌, 못 받았으면 null)
   loadErr: boolean
@@ -29,14 +30,6 @@ interface Edit {
 
 const CODE_SECONDS = 180
 
-const maskPhone = (v: string) => {
-  const d = v.replace(/\D/g, '')
-  return d.length >= 10 ? d.slice(0, 3) + '-****-' + d.slice(-4) : v
-}
-const maskEmail = (v: string) => {
-  const [a, b] = v.split('@')
-  return (a.length <= 2 ? a[0] + '*' : a.slice(0, 2) + '***') + '@' + b
-}
 const fmtPhone = (raw: string) => {
   const d = raw.replace(/\D/g, '').slice(0, 11)
   return d.length < 4 ? d : d.length < 8 ? d.slice(0, 3) + '-' + d.slice(3) : d.slice(0, 3) + '-' + d.slice(3, d.length - 4) + '-' + d.slice(-4)
@@ -44,7 +37,7 @@ const fmtPhone = (raw: string) => {
 
 // 기본 정보 — 보기 / 수정(휴대폰 인증번호 · 이메일). 값은 서버(GET·PATCH /api/customer/profile)에서 받고 저장한다. 이름·생년월일은 고칠 수 없다
 // 휴대폰 인증번호는 시연이라 화면에서 6자리만 확인한다(서버는 인증 없이 받는다)
-export function MyInfoBasicBox({ className, onToast, prof, loadErr, onProfile, onRetry }: Props) {
+export function MyInfoBasicBox({ className, loginId, onToast, prof, loadErr, onProfile, onRetry }: Props) {
   const [saving, setSaving] = useState(false)
   const [ed, setEd] = useState<Edit | null>(null)
   // 남은 시간 표시용 현재 시각 — 실제 시간(Date.now)으로 셈(로그인 30분 타이머와 같은 예외)
@@ -54,9 +47,9 @@ export function MyInfoBasicBox({ className, onToast, prof, loadErr, onProfile, o
   useEffect(() => () => clearInterval(timer.current), [])
 
   const curName = prof?.name ?? '-'
-  const curBirth = prof ? prof.birthDate.slice(0, 4) + '.**.**' : '-'
-  const curPhone = prof ? maskPhone(prof.phone) : '-'
-  const curEmail = prof?.email ? maskEmail(prof.email) : '' // 없으면 빈 칸
+  const curBirth = prof ? prof.birthDate.replaceAll('-', '.') : '-'
+  const curPhone = prof ? fmtPhone(prof.phone) : '-'
+  const curEmail = prof?.email ?? '' // 없으면 빈 칸
 
   const editing = ed != null
   const e = ed ?? { phone: '', phone0: '', email: '', email0: '', code: '', sentAt: null, verified: false, emailTouched: false }
@@ -138,6 +131,9 @@ export function MyInfoBasicBox({ className, onToast, prof, loadErr, onProfile, o
       }
     >
       <div className={rows.grid}>
+        <span className={rows.label}>아이디</span>
+        <span className={rows.value}>{loginId || '-'}</span>
+        <span className={rows.aux} />
         <span className={rows.label}>이름</span>
         <span className={rows.value}>{curName}</span>
         <span className={rows.aux}>{fixedNote}</span>

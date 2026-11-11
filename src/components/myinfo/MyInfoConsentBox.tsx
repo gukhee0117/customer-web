@@ -63,7 +63,6 @@ export function MyInfoConsentBox({ className, onToast }: Props) {
           </span>
           <MyInfoSwitch on={inv.on} labelId="cs-inv" onToggle={toggleInv} />
         </div>
-        <div className={styles.note}>거래·세금처럼 꼭 필요한 안내는 수신 동의와 관계없이 보내드려요.</div>
       </div>
       {ask && <MyInfoConfirm title="마케팅 정보 수신 동의를 철회할까요?" okLabel="철회" onCancel={() => setAsk(false)} onOk={revokeMkt} />}
     </Box>

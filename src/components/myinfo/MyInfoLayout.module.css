@@ -10,7 +10,7 @@
   white-space: nowrap;
 }
 
-/* 1280px 이하: 한 줄로 쌓기 — 두 열·짝(수신 동의|테마) 묶음이 사라지고(contents) 박스들이 각자의 order 순서로 한 줄에 선다 */
+/* 1280px 이하: 수신 동의와 커뮤니티도 순서대로 한 줄에 쌓는다 */
 .page {
   display: flex;
   flex-direction: column;
@@ -59,7 +59,8 @@
   order: 4;
 }
 .community {
-  order: 5;
+  order: 8;
+  min-width: 0;
 }
 .notify {
   order: 6;
@@ -70,9 +71,6 @@
 .consent {
   order: 7;
 }
-.theme {
-  order: 8;
-}
 .security {
   order: 9;
 }
@@ -80,7 +78,7 @@
   order: 10;
 }
 
-/* 주소 해시(#assess·#notify·#theme)로 들어오면 80px 아래로 스크롤하고 테두리가 잠깐 네이비로 바뀜 */
+/* 주소 해시(#assess·#notify)로 들어오면 80px 아래로 스크롤하고 테두리가 잠깐 네이비로 바뀜 */
 .flashable {
   transition: border-color 0.4s;
   scroll-margin-top: 80px;
