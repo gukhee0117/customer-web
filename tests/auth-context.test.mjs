@@ -157,15 +157,33 @@ test('503 → 재시도 중 401 → unauthenticated', async () => {
 // ── cleanup ───────────────────────────────────────────────────────────────────
 
 test('unmount 시 타이머 취소(checking 무한 대기 없음)', async () => {
-  let resolved = false
-  const h = harness(async () => {
-    throw axiosError(503)
-  })
+  const h = harness(async () => { throw axiosError(503) })
   h.render()
   await h.flush()
   assert.equal(h.timerCount(), 1)
   h.unmount()
   assert.equal(h.timerCount(), 0, '언마운트 시 clearTimeout이 호출돼야 함')
-  resolved = true
-  assert.ok(resolved)
+})
+
+// ── auth.ts 단위 ──────────────────────────────────────────────────────────────
+
+test('getMe는 timeout 5000으로 apiClient.get을 호출한다', async () => {
+  const source = readFileSync(new URL('../src/api/auth.ts', import.meta.url), 'utf8')
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText
+  const mod = { exports: {} }
+  let captured = null
+  vm.runInNewContext(compiled, {
+    module: mod, exports: mod.exports,
+    require(name) {
+      if (name === './client') return {
+        apiClient: { get: async (url, config) => { captured = { url, config }; return { data: { data: { customerId: 1, loginId: 'u', name: 'n', expiresAt: 'e' } } } } },
+      }
+      throw new Error(name)
+    },
+  })
+  await mod.exports.getMe()
+  assert.equal(captured.url, '/api/customer/auth/me')
+  assert.equal(captured.config?.timeout, 5000)
 })
