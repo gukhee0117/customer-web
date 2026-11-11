@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { subscribeAssetEvents, type AssetConnection } from '../../api/assetEvents'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useBusinessDateVersion } from '../../lib/clock'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/authState'
 import '../../styles/tokens.css'
@@ -49,6 +50,7 @@ async function load<T>(request: () => Promise<T>): Promise<RequestState<T>> {
 function useBriefingRequest<T>(request: () => Promise<T>, onSessionExpired: () => void) {
   const [state, setState] = useState<RequestState<T>>({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
+  const bizVer = useBusinessDateVersion()
   const running = useRef(false)
   const pending = useRef(false)
   const retry = useCallback(() => {
@@ -64,6 +66,9 @@ function useBriefingRequest<T>(request: () => Promise<T>, onSessionExpired: () =
     setAttempt((value) => value + 1)
   }, [])
 
+  // bizVer가 바뀌어도(업무일 변경) 로딩 상태로 초기화하지 않는다.
+  // 브리핑은 저장된 세액·자산 계산값을 표시하므로, 이전 데이터를 그대로 보여주면서
+  // 조용히 재조회하는 silent refresh로 충분하다.
   useEffect(() => {
     let active = true
     running.current = true
@@ -80,7 +85,7 @@ function useBriefingRequest<T>(request: () => Promise<T>, onSessionExpired: () =
       }
     })
     return () => { active = false; running.current = false }
-  }, [request, attempt, onSessionExpired])
+  }, [request, attempt, onSessionExpired, bizVer])
 
   return [state, retry, refresh] as const
 }
