@@ -72,7 +72,7 @@ export function AccountPage() {
   const { state: sellLimit, retry: retrySellLimit, refresh: refreshSellLimit } = useSellLimit()
   const { state: sellGuide, retry: retrySellGuide, refresh: refreshSellGuide } = useSellGuide()
   // 서버 값: 계좌(프로필)·세액·자산·인출 가능 금액. 박스마다 따로 받아 느린 것이 다른 박스를 막지 않는다
-  const { state: profileState, retry: retryProfile } = useServerData(getProfile)
+  const { state: profileState, retry: retryProfile, refresh: refreshProfile } = useServerData(getProfile)
   const { state: taxState, retry: retryTax, refresh: refreshTax } = useServerData(getCustomerTaxBriefing, NO_DATA_CODES)
   const { state: reliefState, refresh: refreshRelief } = useServerData(fetchFundFlowRelief) // 서버 혜택 상태(취소 여부)
   const { state: assetState, retry: retryAssets, refresh: refreshAssets } = useServerData(getCustomerAssetBriefing, NO_DATA_CODES)
@@ -270,7 +270,7 @@ export function AccountPage() {
     if (hash === '#open') navigate({ pathname, hash: '' }, { replace: true })
   }
   const accountChanged = () => {
-    retryProfile()
+    refreshProfile()
     refreshSellLimit()
     refreshSellGuide()
     refreshTax()

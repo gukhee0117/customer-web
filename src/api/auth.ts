@@ -70,6 +70,6 @@ export async function extendSession(): Promise<MeData> {
 }
 
 export async function getMe(): Promise<MeData> {
-  const res = await apiClient.get<ApiResponse<MeData>>('/api/customer/auth/me')
+  const res = await apiClient.get<ApiResponse<MeData>>('/api/customer/auth/me', { timeout: 5000 })
   return res.data.data
 }
