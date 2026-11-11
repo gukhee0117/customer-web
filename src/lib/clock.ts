@@ -38,15 +38,12 @@ export function useBusinessDateVersion(): number {
   return v
 }
 
-// 다른 창에서 관리자가 업무시계를 옮기면, 이 창으로 돌아올 때 다시 받아 메모리 값만 갱신한다.
-// 새로고침은 하지 않는다 — JSESSIONID 쿠키는 같은 도메인·경로의 탭 사이에서 공유되므로
-// reload 시 getMe() 타이밍 실패로 로그아웃될 수 있다.
-// 업무일 표시는 TopBar의 1초 타이머 리렌더로 자동 반영되고,
-// 날짜 의존 데이터는 BUSINESS_DATE_CHANGED 이벤트를 구독한 훅이 재조회한다.
-export function reloadOnBusinessDateChange(): void {
+// 탭이 visible 상태로 돌아올 때마다 서버 업무일을 동기화한다.
+// 날짜가 바뀌면 BUSINESS_DATE_CHANGED 이벤트를 발행하고, 구독 중인 훅들이 각자 재조회한다.
+// 업무일 표시는 TopBar의 1초 타이머 리렌더로 자동 반영된다.
+export function syncOnVisible(): void {
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState !== 'visible') return
-    if (window.location.pathname === '/login' || document.querySelector('[role=dialog]')) return
     await syncBusinessToday()
   })
 }
