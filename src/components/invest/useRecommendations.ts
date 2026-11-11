@@ -59,7 +59,7 @@ export function useRecommendations(filter: RecommendFilter, limit: number, basis
   return { state: res.state, data: res.data, quotes: q.key === tkey ? q.quotes : {} }
 }
 
-// 추천 종목을 패키지에 담는 흐름(InvestPage의 pickPackage)이 받는 CandidateItem 모양으로 바꾼다. 설문 기준은 성향 범위 안 상품만 오고, 거래 기준은 범위 밖(outOfProfile)이 섞일 수 있어 담을 때 확인을 거친다
+// 추천 종목을 패키지에 담는 흐름(InvestPage의 pickPackage)이 받는 CandidateItem 모양으로 바꾼다. 설문·거래 두 기준 모두 성향 범위 안 상품만 온다(outOfProfile은 항상 false). 담을 때의 범위 밖 확인 단계는 후보 목록에서 담는 경우를 위한 것이다
 // { ...r }로 RecommendItem 전용 필드(reasons·sectorMatched·themeMatched·matchedTheme)도 함께 붙지만, 담기 흐름이 객체의 키를 순회하지 않아 동작에는 영향이 없다. 담기 흐름이 바뀌면 다시 확인할 것
 export const recToCandidate = (r: RecommendItem): CandidateItem => ({ ...r, selectable: true, unselectableReason: null })
 

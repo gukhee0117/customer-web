@@ -13,7 +13,8 @@ export interface FilterState {
   direction: SortDirectionKey
 }
 
-export const EMPTY_FILTER: FilterState = { types: [], themes: [], minGrade: null, maxGrade: null, keyword: '', includeOut: false, sort: 'NAME', direction: 'ASC' }
+// 처음에는 성향으로 거르지 않고 전체 종목을 후보로 보여 준다. 범위 밖 상품은 빼지 않고 "내 성향 밖" 표시만 붙이며, 서버가 범위 안 상품을 먼저 둔다
+export const EMPTY_FILTER: FilterState = { types: [], themes: [], minGrade: null, maxGrade: null, keyword: '', includeOut: true, sort: 'NAME', direction: 'ASC' }
 
 // keyword는 입력이 멈춘 뒤의 값을 따로 받는다(글자를 칠 때마다 서버를 부르지 않게)
 export function requestOf(f: FilterState, keyword: string): CandidateRequest {

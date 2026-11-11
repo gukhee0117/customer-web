@@ -303,7 +303,7 @@ export interface RecommendItem {
   themes: string[]
   riskGrade: number
   volatilityPercent: number | null
-  outOfProfile: boolean // 내 설문 투자성향 허용 범위보다 위험한 상품. 서버가 범위 밖 상품을 추천에서 빼므로 지금은 항상 false
+  outOfProfile: boolean // 내 설문 투자성향 허용 범위보다 위험한 상품. 서버가 범위 안 상품만 추천하므로(테마 질문 포함) 지금은 항상 false
   reasons: string[]
   sectorMatched: boolean // 내가 가장 많이 산 업종과 같은 업종(거래 데이터가 없으면 false)
   themeMatched: boolean // 내가 가장 많이 산 테마에 속함(거래 데이터가 없으면 false)
