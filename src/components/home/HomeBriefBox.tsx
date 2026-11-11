@@ -66,6 +66,9 @@ function useBriefingRequest<T>(request: () => Promise<T>, onSessionExpired: () =
     setAttempt((value) => value + 1)
   }, [])
 
+  // bizVer가 바뀌어도(업무일 변경) 로딩 상태로 초기화하지 않는다.
+  // 브리핑은 저장된 세액·자산 계산값을 표시하므로, 이전 데이터를 그대로 보여주면서
+  // 조용히 재조회하는 silent refresh로 충분하다.
   useEffect(() => {
     let active = true
     running.current = true
