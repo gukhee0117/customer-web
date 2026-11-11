@@ -165,6 +165,27 @@ test('unmount 시 타이머 취소(checking 무한 대기 없음)', async () => 
   assert.equal(h.timerCount(), 0, '언마운트 시 clearTimeout이 호출돼야 함')
 })
 
+test('cleanup 후 늦게 도착한 성공 응답은 auth를 바꾸지 않는다 (active 플래그)', async () => {
+  // StrictMode는 effect를 mount→cleanup→re-mount 순으로 두 번 실행한다.
+  // cleanup 이후에도 첫 번째 getMe 프라미스가 나중에 resolve될 수 있으므로
+  // active 플래그로 ok/fail 호출을 막아야 한다.
+  let resolveMe
+  const pending = new Promise(r => { resolveMe = r })
+  const me = { customerId: 4, loginId: 'u4', name: '박지수', expiresAt: '2026-11-11T23:59:59' }
+
+  const h = harness(() => pending)
+  h.render()
+  assert.equal(h.auth().status, 'checking')
+
+  // cleanup 실행 → active = false
+  h.unmount()
+
+  // 그 뒤에 getMe가 성공해도 auth는 checking으로 유지돼야 한다
+  resolveMe(me)
+  await tick()
+  assert.equal(h.auth().status, 'checking', 'cleanup 후 도착한 성공 응답은 무시돼야 함')
+})
+
 // ── auth.ts 단위 ──────────────────────────────────────────────────────────────
 
 test('getMe는 timeout 5000으로 apiClient.get을 호출한다', async () => {

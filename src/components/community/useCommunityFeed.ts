@@ -4,6 +4,7 @@ import { deleteComment, deletePost, editPost, getComments, getCommentsThrough, g
 import type { CommunityPage, CommunityPost, ReportReason } from '../../api/community'
 import { FEED_LIMIT, FRESH_MS, GEN, POST_MAX, REPLY_MAX } from './communityData'
 import { fromServerComment, fromServerPost, type FeedView, type MyReply, type Post, type Reply } from './communityPosts'
+import { useBusinessDateVersion } from '../../lib/clock'
 
 export type FeedTab = 'live' | 'hot' | 'mine'
 export type HotScope = 'stock' | 'all'
@@ -93,6 +94,9 @@ export function useCommunityFeed({ code, tab, scope, searchOpen, q, fixed, listR
   const cur = srv && srv.key === listKey ? srv : null
   const status: 'loading' | 'live' | 'error' = !cur ? 'loading' : cur.failed ? 'error' : 'live'
   const retryList = () => setTries((n) => n + 1)
+  const bizVer = useBusinessDateVersion()
+  // 업무일이 바뀌면 목록을 다시 받아 timeLabel이 새 날짜 기준으로 표시되게 한다
+  useEffect(() => { if (bizVer) setTries((n) => n + 1) }, [bizVer])
 
   // ?thread= 로 들어온 글: 목록에 없을 수 있어 한 건을 따로 받아 맨 위에 붙인다
   const [pin, setPin] = useState<Post | null>(null)
