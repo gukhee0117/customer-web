@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useBusinessDateVersion } from '../lib/clock'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ApplyModal } from '../components/account/ApplyModal'
 import { SellModal } from '../components/account/SellModal'
@@ -279,6 +280,22 @@ export function AccountPage() {
     refreshLinked()
     refreshRelief()
   }
+
+  // 업무일이 바뀌면(탭 복귀 등) 날짜에 민감한 서버 값을 조용히 다시 받는다.
+  // reload() 없이 각 훅이 개별 재조회하므로 세션이 풀리지 않는다.
+  const bizVer = useBusinessDateVersion()
+  useEffect(() => {
+    retryProfile()
+    refreshSellLimit()
+    refreshSellGuide()
+    refreshTax()
+    refreshAssets()
+    refreshAvail()
+    refreshHoldings()
+    refreshLinked()
+    refreshRelief()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bizVer])
 
   // PDF 받기 — 서버에서 발급(이미 있으면 그 발급본)해 내려받고, 발급 기록은 서버 목록을 다시 받는다
   const pdfBusy = useRef(false) // 연타로 발급 요청이 겹치지 않게
