@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { subscribeAssetEvents, type AssetConnection } from '../../api/assetEvents'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useBusinessDateVersion } from '../../lib/clock'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/authState'
 import '../../styles/tokens.css'
@@ -49,6 +50,7 @@ async function load<T>(request: () => Promise<T>): Promise<RequestState<T>> {
 function useBriefingRequest<T>(request: () => Promise<T>, onSessionExpired: () => void) {
   const [state, setState] = useState<RequestState<T>>({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
+  const bizVer = useBusinessDateVersion()
   const running = useRef(false)
   const pending = useRef(false)
   const retry = useCallback(() => {
@@ -80,7 +82,7 @@ function useBriefingRequest<T>(request: () => Promise<T>, onSessionExpired: () =
       }
     })
     return () => { active = false; running.current = false }
-  }, [request, attempt, onSessionExpired])
+  }, [request, attempt, onSessionExpired, bizVer])
 
   return [state, retry, refresh] as const
 }
