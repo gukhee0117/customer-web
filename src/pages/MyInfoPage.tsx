@@ -14,7 +14,6 @@ import { MyInfoBasicBox } from '../components/myinfo/MyInfoBasicBox'
 import { MyInfoCommunityBox } from '../components/myinfo/MyInfoCommunityBox'
 import { MyInfoConsentBox } from '../components/myinfo/MyInfoConsentBox'
 import { MyInfoNotifyBox } from '../components/myinfo/MyInfoNotifyBox'
-import { MyInfoThemeBox } from '../components/myinfo/MyInfoThemeBox'
 import { MyInfoProfileBox } from '../components/myinfo/MyInfoProfileBox'
 import { MyInfoRiskyNotice } from '../components/myinfo/MyInfoRiskyNotice'
 import { MyInfoLoginsBox } from '../components/myinfo/MyInfoLoginsBox'
@@ -26,13 +25,15 @@ import { isRiskySnoozed, snoozeRisky } from '../components/myinfo/riskySnooze'
 import { useTendency } from '../components/invest/useNewPkgData'
 import type { AssessHistItem } from '../components/myinfo/myinfoProfile'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
+import { useAuth } from '../contexts/authState'
 
-const HASH_BOXES = ['assess', 'notify', 'theme']
+const HASH_BOXES = ['assess', 'notify']
 const INPUTS = ['wheel', 'touchstart', 'keydown', 'pointerdown'] // 사용자가 직접 움직였다는 신호
 
 // 내 정보 — 틀(박스 10개 자리) + 박스들 + 주소 해시 이동
 export function MyInfoPage() {
   useDocumentTitle('Returns 내 정보')
+  const { auth } = useAuth()
   const { hash } = useLocation()
   const { message: toast, showToast } = useToast()
   const [, refresh] = useReducer((n: number) => n + 1, 0)
@@ -147,15 +148,14 @@ export function MyInfoPage() {
             />
           )}
           {assessState() !== 'none' && <MyInfoTradeBox className={styles.trade} onOpenAssess={openAssess} />}
-          <MyInfoBasicBox className={styles.basic} onToast={showToast} prof={prof} loadErr={profErr} onProfile={setProf} onRetry={() => { setProfErr(false); setProfTries((n) => n + 1) }} />
+          <MyInfoBasicBox className={styles.basic} loginId={auth.status === 'authenticated' ? auth.me.loginId : undefined} onToast={showToast} prof={prof} loadErr={profErr} onProfile={setProf} onRetry={() => { setProfErr(false); setProfTries((n) => n + 1) }} />
           <MyInfoAccountBox className={styles.account} onToast={showToast} account={prof?.account} loaded={prof != null} />
-          <MyInfoCommunityBox className={styles.community} onToast={showToast} nickname={prof ? prof.nickname ?? '아직 없어요' : '-'} pub={prof?.investorTypePublic} />
         </div>
         <div className={styles.col}>
           <MyInfoNotifyBox id="notify" className={cx(styles.notify, styles.flashable, flash === 'notify' && styles.flashOn)} onToast={showToast} email={prof?.email} />
           <div className={styles.pair}>
             <MyInfoConsentBox className={styles.consent} onToast={showToast} />
-            <MyInfoThemeBox id="theme" className={cx(styles.theme, styles.flashable, flash === 'theme' && styles.flashOn)} onToast={showToast} />
+            <MyInfoCommunityBox className={styles.community} onToast={showToast} nickname={prof ? prof.nickname ?? '아직 없어요' : '-'} pub={prof?.investorTypePublic} />
           </div>
           <MyInfoSecurityBox className={styles.security} onToast={showToast} onOpenPw={() => setPwOpen(true)} />
           <MyInfoLoginsBox className={styles.logins} />

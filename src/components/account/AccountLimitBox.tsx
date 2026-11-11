@@ -21,7 +21,6 @@ export function AccountLimitBox({ className, onApply, limit, onRetryLimit }: Acc
       data-box="limit"
       className={className}
       title="매도 한도"
-      head={<span className={styles.scope}>전 증권사 합산</span>}
       actions={
         <button type="button" className={styles.link} onClick={onApply}>
           매도 신청 ›
@@ -60,7 +59,6 @@ export function AccountLimitBox({ className, onApply, limit, onRetryLimit }: Acc
           </span>
         </div>
         <div className={styles.guide}>
-          <span className={styles.guideText}>남은 한도 안에서 공제가 가장 커지는 조합을 보여드려요</span>
           <button type="button" className={styles.guideLink} onClick={onApply}>
             매도 신청에서 보기 ›
           </button>

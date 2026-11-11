@@ -27,7 +27,6 @@ export function MyInfoLoginsBox({ className }: Props) {
       head={
         <>
           <span className={styles.note}>최근 5건</span>
-          <span className={styles.warn}>내가 아닌 접속이 있으면 비밀번호를 바꿔 주세요</span>
         </>
       }
     >

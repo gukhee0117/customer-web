@@ -95,10 +95,9 @@ export const tradeViewOf = (t: Tendency): TradeView | null => {
   if (tr.ordersPerMonth != null) rows.push(['월 평균 주문', tr.ordersPerMonth + '건'])
   const label = labelOf(range, '')
   const min = RD.ALLOWED_GRADE[range].min
-  const survey = t.survey.available ? ' 설문 성향(' + t.survey.label + ')은 ' + t.survey.allowedMinGrade + '등급까지 허용해요.' : ''
   return {
     head: '평균 매수 등급은 ' + label + ' 범위(' + min + '등급부터)에 해당해요',
     rows: rows.map(([k, v]) => ({ k, v })),
-    desc: '거래로 본 경향은 참고 정보이고 공식 투자성향이 아니에요.' + survey + ' 추천은 설문 투자성향 범위 안에서 해요. 거래 경향 기준도 함께 볼 수 있어요.'
+    desc: '거래로 본 경향은 참고 정보이고 공식 투자성향이 아니에요.'
   }
 }

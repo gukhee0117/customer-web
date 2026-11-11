@@ -235,7 +235,6 @@ export function InvestPkgDetail({ className, pkg, risk, onRecheck, onBuy, onAdd,
               ))}
               {retRows.length === 0 && <p className={styles.chartNoteBody}>보유하고 현재가를 받은 종목이 없어서 수익률을 계산할 수 없어요.</p>}
             </div>
-            <p className={styles.chartNoteBody}>종목별 수익률은 평균 매입가 대비 현재가예요. 기간별 추이는 평가 이력이 쌓이면 보여드려요.</p>
           </div>
         </div>
       )}

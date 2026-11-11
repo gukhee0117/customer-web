@@ -17,11 +17,11 @@ interface Props {
 
 type Key = keyof NotificationSettings
 
-const DEFAULTS: NotificationSettings = { push: true, sms: false, email: false, settle: true, band: true }
+const DEFAULTS: NotificationSettings = { push: true, sms: false, email: true, settle: true, band: true }
 const CHANNELS: [Key, string][] = [['push', '앱 푸시'], ['sms', '문자'], ['email', '이메일']]
-const KINDS: [Key, string, string][] = [
-  ['settle', '정산 완료', '매도 대금이 원화로 확정·정산되면 알려드려요'],
-  ['band', '공제율 구간 마감 안내', '12/31 마감 7일 전과 1일 전에 알려드려요']
+const KINDS: [Key, string][] = [
+  ['settle', '정산 완료'],
+  ['band', '공제율 구간 마감 안내']
 ]
 
 export function MyInfoNotifyBox({ className, id, onToast, email }: Props) {
@@ -143,11 +143,10 @@ export function MyInfoNotifyBox({ className, id, onToast, email }: Props) {
         </div>
         <div className={cx(styles.col, styles.kinds)}>
           <div className={styles.colHead}>알림 종류</div>
-          {KINDS.map(([key, label, desc]) => (
+          {KINDS.map(([key, label]) => (
             <div key={key} className={styles.kind}>
               <span className={row.label}>
                 <span id={'nt-' + key} className={row.name}>{label}</span>
-                <span className={row.desc}>{desc}</span>
               </span>
               <MyInfoSwitch on={nt[key]} labelId={'nt-' + key} onToggle={() => void toggle(key)} disabled={disabled} />
             </div>

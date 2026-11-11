@@ -37,6 +37,14 @@
   flex-wrap: wrap;
 }
 
+.statusRow {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-top: var(--space-8);
+}
+
 .name {
   font-size: var(--font-size-16);
   font-weight: var(--font-weight-semibold);
@@ -87,11 +95,6 @@
 }
 
 .of {
-  color: var(--color-sub);
-}
-
-.grade {
-  font-size: var(--font-size-12);
   color: var(--color-sub);
 }
 

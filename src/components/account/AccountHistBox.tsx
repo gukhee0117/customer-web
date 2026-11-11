@@ -68,7 +68,7 @@ export function AccountHistBox({ className, tab, onTab, onApplyIn, onApplyOut, i
       {tab === 'deposits' && <Deposits state={inbounds} retry={onRetryInbounds} more={more.ins} onMore={() => showMore('ins')} onApplyIn={onApplyIn} />}
       {tab === 'sells' && <Sells more={more.sells} onMore={() => showMore('sells')} />}
       {tab === 'settle' && <Settle />}
-      {tab === 'domestic' && <Domestic more={more.dom} onMore={() => showMore('dom')} />}
+      {tab === 'domestic' && <Domestic more={more.dom} onMore={() => setMore((m) => ({ ...m, dom: !m.dom }))} />}
       {tab === 'withdraw' && <Withdraw state={withdrawals} retry={onRetryWithdrawals} avail={avail} onRetryAvail={onRetryAvail} onApplyOut={onApplyOut} />}
     </Box>
   )
@@ -315,9 +315,9 @@ function Domestic({ more, onMore }: { more: boolean; onMore: () => void }) {
               <b className={cx(styles.right, styles.strong)}>{r.amt}</b>
             </div>
           ))}
-          {!more && moreN > 0 && (
-            <button type="button" className={cx(styles.moreBtn, styles.moreBottom)} onClick={onMore}>
-              더보기 ({moreN}건)
+          {moreN > 0 && (
+            <button type="button" className={cx(styles.moreBtn, styles.moreBottom)} aria-expanded={more} onClick={onMore}>
+              {more ? '간략히 보기' : `더보기 (${moreN}건)`}
             </button>
           )}
           <div className={styles.domSum}>

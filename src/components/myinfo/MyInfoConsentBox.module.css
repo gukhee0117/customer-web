@@ -19,10 +19,3 @@
   gap: var(--space-12);
   border-bottom: 1px solid var(--color-line-soft);
 }
-
-.note {
-  padding: var(--space-8) 0 var(--space-10);
-  font-size: var(--font-size-12);
-  line-height: 18px;
-  color: var(--color-sub);
-}

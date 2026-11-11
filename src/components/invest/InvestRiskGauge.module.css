@@ -31,12 +31,19 @@
 
 /* 설문 허용 범위 */
 .allowed {
-  background: var(--color-donut-4);
+  background: var(--grade-color);
 }
+
+.grade1 { --grade-color: #d97b6c; }
+.grade2 { --grade-color: #e6a06a; }
+.grade3 { --grade-color: #e8c97a; }
+.grade4 { --grade-color: #c9a54a; }
+.grade5 { --grade-color: #8ea6c9; }
+.grade6 { --grade-color: #6f86a8; }
 
 /* 거래 기준의 실제 추천 범위: 허용 범위 위에 진한 색 */
 .rec {
-  background: var(--color-navy);
+  box-shadow: inset 0 0 0 2px var(--color-ink);
 }
 
 .ticks {
@@ -91,11 +98,18 @@
 }
 
 .swAllowed {
-  background: var(--color-donut-4);
+  display: flex;
+  gap: 1px;
+  width: 36px;
+  height: 10px;
+}
+
+.swAllowed > span {
+  flex: 1;
 }
 
 .swRec {
-  background: var(--color-navy);
+  box-shadow: inset 0 0 0 2px var(--color-ink);
 }
 
 .swArrow {

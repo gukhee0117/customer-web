@@ -4,20 +4,22 @@
 }
 
 .inner {
-  min-width: 980px;
+  min-width: 900px;
 }
 
-/* 열 폭은 원본 그대로: 종목 · 주 수 · 평균 매입가 · 현재가 · 평가금액 · 평가손익 · 수익률 · 위험 · 비중/목표 · 주문 */
+/* 금액 네 열은 같은 폭으로 배치하고, 위험·비중·주문은 필요한 폭만 사용한다. */
 .grid {
   display: grid;
-  grid-template-columns: minmax(190px, 1.6fr) 0.55fr 0.95fr 0.95fr 1fr 0.95fr 0.7fr minmax(116px, 0.9fr) 0.95fr 64px;
-  gap: var(--space-10);
+  grid-template-columns: minmax(132px, 1.4fr) 60px repeat(4, minmax(0, 1fr)) 64px 84px 82px 52px;
+  gap: var(--space-8);
   align-items: center;
-  padding: 0 var(--space-16);
+  padding: 0 var(--space-12);
+  font-variant-numeric: tabular-nums;
 }
 
 .r {
   text-align: right;
+  white-space: nowrap;
 }
 
 .c {
@@ -41,12 +43,14 @@
   border-bottom: 1px solid var(--color-line-soft);
   font-size: var(--font-size-12);
   color: var(--color-sub);
+  white-space: nowrap;
 }
 
 .riskHead {
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-3);
   white-space: nowrap;
 }
@@ -117,8 +121,8 @@
 }
 
 .row {
-  height: 48px;
-  font-size: var(--font-size-14);
+  min-height: 48px;
+  font-size: var(--font-size-13);
   cursor: pointer;
   background: var(--color-surface);
 }
@@ -130,6 +134,8 @@
 .stock {
   min-width: 0;
   overflow: hidden;
+  display: flex;
+  justify-content: center;
 }
 
 .px {
@@ -137,6 +143,7 @@
   flex-direction: column;
   align-items: flex-end;
   line-height: 1.25;
+  white-space: nowrap;
 }
 
 .chg {
@@ -146,11 +153,14 @@
 .val {
   text-align: right;
   font-weight: var(--font-weight-bold);
+  white-space: nowrap;
 }
 
 .risk {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
   line-height: 1.3;
   min-width: 0;
 }
@@ -158,7 +168,7 @@
 .riskText {
   font-size: var(--font-size-12);
   color: var(--color-gray-600);
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .warn {

@@ -37,7 +37,7 @@ export function InvestRiskGauge({ className, allowedMin, avgBuyGrade, minBuyCoun
         {arrowAt != null && <span className={styles.arrow} style={{ left: ((arrowAt - 0.5) / 6) * 100 + '%' }} />}
         <div className={styles.cells}>
           {GRADES.map((g) => (
-            <span key={g} className={cx(styles.cell, inAllowed(g) && styles.allowed, inRec(g) && styles.rec)} />
+            <span key={g} className={cx(styles.cell, styles['grade' + g], inAllowed(g) && styles.allowed, inRec(g) && styles.rec)} />
           ))}
         </div>
         <div className={styles.ticks} aria-hidden="true">
@@ -54,7 +54,9 @@ export function InvestRiskGauge({ className, allowedMin, avgBuyGrade, minBuyCoun
       <div className={styles.legend}>
         {allowedMin != null && (
           <span className={styles.item}>
-            <i className={cx(styles.swatch, styles.swAllowed)} />
+            <i className={styles.swAllowed} aria-hidden="true">
+              {GRADES.filter(inAllowed).map((g) => <span key={g} className={cx(styles.cell, styles['grade' + g], styles.allowed)} />)}
+            </i>
             허용 범위
           </span>
         )}

@@ -46,7 +46,7 @@ export function InvestAddPanel({ pkg, add, names, onChange, onClose, onPick, onA
   }
 
   return (
-    <InvestSidePanel label="종목 추가" onClose={onClose}>
+    <InvestSidePanel label="종목 추가" onClose={onClose} wide>
       <div className={panel.planHead}>
         <h2 className={panel.planTitle}>종목 추가</h2>
         <span className={panel.planName}>{pkg.name}</span>
