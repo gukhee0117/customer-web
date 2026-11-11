@@ -22,12 +22,13 @@ export async function syncBusinessToday(): Promise<boolean> {
   }
 }
 
-// 다른 창에서 관리자가 업무시계를 옮기면, 이 창으로 돌아올 때 다시 받아 날짜가 달라졌으면 새로고침한다.
-// 가입 중(/login)이거나 창(설문 등)이 열려 있으면 입력이 날아가지 않게 확인 자체를 미룬다(다음에 돌아올 때 다시 확인)
+// 다른 창에서 관리자가 업무시계를 옮기면, 이 창으로 돌아올 때 다시 받아 메모리 값만 갱신한다.
+// 새로고침은 하지 않는다 — 고객 세션(JSESSIONID)은 탭 단위이므로 reload 시 getMe() 타이밍 실패로
+// 로그아웃될 수 있다. 업무일 표시는 TopBar의 1초 타이머 리렌더로 자동 반영된다.
 export function reloadOnBusinessDateChange(): void {
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState !== 'visible') return
     if (window.location.pathname === '/login' || document.querySelector('[role=dialog]')) return
-    if (await syncBusinessToday()) window.location.reload()
+    await syncBusinessToday()
   })
 }
