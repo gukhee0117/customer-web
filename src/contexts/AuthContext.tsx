@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { isAxiosError } from 'axios'
 import type { ReactNode } from 'react'
 import * as apiAuth from '../api/auth'
 import { syncAssessState } from '../api/investor'
@@ -21,7 +22,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuth({ status: 'authenticated', me })
         void syncAssessState() // 새로고침으로 세션이 복원돼도 진단 상태는 서버 값으로
       })
-      .catch(() => {
+      .catch((e: unknown) => {
+        // 401은 세션 만료·미인증 → 로그인 화면으로 이동
+        // 그 외(네트워크 단절·5xx 등)는 세션을 유지한다 — 서버가 잠깐 흔들려도 로그아웃되지 않게
+        if (isAxiosError(e) && e.response?.status !== 401) return
         resetNewsSession()
         clearLoginSession()
         setAuth({ status: 'unauthenticated' })
