@@ -15,14 +15,9 @@ import { MyInfoCommunityBox } from '../components/myinfo/MyInfoCommunityBox'
 import { MyInfoConsentBox } from '../components/myinfo/MyInfoConsentBox'
 import { MyInfoNotifyBox } from '../components/myinfo/MyInfoNotifyBox'
 import { MyInfoProfileBox } from '../components/myinfo/MyInfoProfileBox'
-import { MyInfoRiskyNotice } from '../components/myinfo/MyInfoRiskyNotice'
 import { MyInfoLoginsBox } from '../components/myinfo/MyInfoLoginsBox'
 import { MyInfoPwDialog } from '../components/myinfo/MyInfoPwDialog'
 import { MyInfoSecurityBox } from '../components/myinfo/MyInfoSecurityBox'
-import { MyInfoTradeBox } from '../components/myinfo/MyInfoTradeBox'
-import { assessState, isTradeRisky } from '../components/myinfo/myinfoProfile'
-import { isRiskySnoozed, snoozeRisky } from '../components/myinfo/riskySnooze'
-import { useTendency } from '../components/invest/useNewPkgData'
 import type { AssessHistItem } from '../components/myinfo/myinfoProfile'
 import { useDocumentTitle } from '../components/common/useDocumentTitle'
 import { useAuth } from '../contexts/authState'
@@ -69,8 +64,6 @@ export function MyInfoPage() {
     }
   }, [profTries])
 
-  const tendency = useTendency()
-  const [riskyHide, setRiskyHide] = useState(false) // 이번에 '보지 않기'를 누르면 바로 숨김(저장은 riskySnooze)
   // 서버 진단 상태·성향이 바뀌면(로그인·세션 복원 동기화, 재진단) 다시 그림
   useEffect(() => {
     window.addEventListener('returns-state', refresh)
@@ -136,18 +129,6 @@ export function MyInfoPage() {
       <div className={styles.page}>
         <div className={styles.col}>
           <MyInfoProfileBox className={cx(styles.profile, styles.flashable, flash === 'assess' && styles.flashOn)} hist={hist} name={prof?.name} status={assessStatus} onOpenAssess={openAssess} />
-          {isTradeRisky(tendency.data) && !riskyHide && !isRiskySnoozed() && (
-            <MyInfoRiskyNotice
-              className={styles.trade}
-              onOpenAssess={openAssess}
-              onSnooze={() => {
-                snoozeRisky()
-                setRiskyHide(true)
-                showToast('30일 동안 이 안내를 보지 않아요')
-              }}
-            />
-          )}
-          {assessState() !== 'none' && <MyInfoTradeBox className={styles.trade} onOpenAssess={openAssess} />}
           <MyInfoBasicBox className={styles.basic} loginId={auth.status === 'authenticated' ? auth.me.loginId : undefined} onToast={showToast} prof={prof} loadErr={profErr} onProfile={setProf} onRetry={() => { setProfErr(false); setProfTries((n) => n + 1) }} />
           <MyInfoAccountBox className={styles.account} onToast={showToast} account={prof?.account} loaded={prof != null} />
         </div>

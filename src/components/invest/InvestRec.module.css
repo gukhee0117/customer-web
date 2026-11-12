@@ -97,10 +97,10 @@
   outline-offset: 1px;
 }
 
-/* 종목 · 현재가 · 20일 추이(72px) · 위험 · 연 변동성 · 업종 · 추천 이유(태그 2개 폭) · 화살표 — 남는 폭은 종목·업종 열이 나눠 가진다 */
+/* 종목 · 현재가 · 20일 추이(72px) · 위험 · 연 변동성 · 업종 · 화살표 — 남는 폭은 종목·업종 열이 나눠 가진다 */
 .grid {
   display: grid;
-  grid-template-columns: minmax(132px, 1.5fr) 96px 72px 84px 60px minmax(72px, 1fr) minmax(0, 216px) 28px;
+  grid-template-columns: minmax(132px, 1.5fr) 96px 72px 84px 60px minmax(96px, 1fr) 28px;
   gap: var(--space-12);
   align-items: center;
   padding: 0 var(--space-16);
@@ -139,19 +139,13 @@
   box-sizing: border-box;
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(132px, 1.5fr) 96px 72px 84px 60px minmax(72px, 1fr) minmax(0, 216px) 28px;
+  grid-template-columns: minmax(132px, 1.5fr) 96px 72px 84px 60px minmax(96px, 1fr) 28px;
   gap: var(--space-12);
   height: 48px;
   align-items: center;
   padding: 0 var(--space-16);
   font-size: var(--font-size-14);
   background: var(--color-surface);
-}
-
-/* 어느 행에도 태그가 없을 때: 추천 이유 열을 빼고 그 폭을 종목·업종 열이 나눠 갖는다(.grid·.row보다 뒤에 두어 우선 적용) */
-.grid.noReason,
-.row.noReason {
-  grid-template-columns: minmax(132px, 1.5fr) 96px 72px 84px 60px minmax(96px, 1fr) 28px;
 }
 
 /* 1100px 이하: 20일 미니 차트 열을 숨긴다(펼침 영역의 30일 차트는 그대로). 열이 빠지므로 템플릿에서도 그 칸(72px)을 뺀다 */
@@ -162,11 +156,6 @@
 
   .grid,
   .row {
-    grid-template-columns: minmax(132px, 1.5fr) 96px 84px 60px minmax(72px, 1fr) minmax(0, 216px) 28px;
-  }
-
-  .grid.noReason,
-  .row.noReason {
     grid-template-columns: minmax(132px, 1.5fr) 96px 84px 60px minmax(96px, 1fr) 28px;
   }
 }
@@ -268,46 +257,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* 추천 이유 태그: 성향 범위 안 · 업종 · 테마 1개. 칸이 좁으면 뒤쪽이 잘린다(전체 이유는 펼침 영역) */
-.tags {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  overflow: hidden;
-}
-
-.tag {
-  flex: none;
-  box-sizing: border-box;
-  height: 22px;
-  padding: 0 var(--space-8);
-  display: block;
-  line-height: 20px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  border: 1px solid transparent;
-  border-radius: var(--radius-10);
-  background: var(--color-chip);
-  color: var(--color-gray-600);
-  font-size: var(--font-size-12);
-  white-space: nowrap;
-}
-
-/* 길이가 정해지지 않은 테마 태그만 칸이 모자라면 줄어들고 말줄임(짧은 태그는 그대로 둔다) */
-.tagShrink {
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-/* 많이 산 업종·테마와 같은 태그 */
-.tagOn {
-  background: var(--color-chip-navy-strong);
-  border-color: var(--color-navy);
-  color: var(--color-navy);
-  font-weight: var(--font-weight-bold);
 }
 
 .chev {
@@ -664,64 +613,4 @@
 
 .again {
   padding: var(--space-8) var(--space-16) var(--space-14);
-}
-
-/* 추천 기준 선택: 설문으로 본 성향 / 거래로 본 경향 */
-.basisRow {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-8);
-  padding: var(--space-10) var(--space-16);
-  border-bottom: 1px solid var(--color-line-soft);
-}
-
-.basisBtn {
-  all: unset;
-  cursor: pointer;
-  box-sizing: border-box;
-  height: 28px;
-  padding: 0 var(--space-12);
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--color-line-strong);
-  border-radius: var(--radius-6);
-  font-size: var(--font-size-12);
-  color: var(--color-ink);
-}
-
-.basisBtnOn {
-  background: var(--color-navy);
-  border-color: var(--color-navy);
-  color: var(--color-surface);
-  font-weight: var(--font-weight-extrabold);
-}
-
-.basisBtn:focus-visible {
-  outline: 2px solid var(--color-navy);
-  outline-offset: 1px;
-}
-
-/* 거래 경향 설명은 한 줄로 두고 길면 말줄임. 좁아서 줄이 바뀌어도 이 줄 안에서는 한 줄이다 */
-.basisNote {
-  flex: 1 1 160px;
-  min-width: 0;
-  font-size: var(--font-size-12);
-  color: var(--color-sub);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.basisLink {
-  flex: none;
-  font-size: var(--font-size-12);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-navy);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.basisLink:hover {
-  text-decoration: underline;
 }

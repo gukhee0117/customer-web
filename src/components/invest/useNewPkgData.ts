@@ -34,7 +34,7 @@ export function useThemes(): string[] {
   return themes
 }
 
-// 설문 투자성향과 거래에서 본 경향(서버 값)
+// 설문 투자성향(서버 값)
 export function useTendency(): { state: LoadState; data: Tendency | null } {
   const [res, setRes] = useState<{ state: LoadState; data: Tendency | null }>({ state: 'loading', data: null })
   useEffect(() => {

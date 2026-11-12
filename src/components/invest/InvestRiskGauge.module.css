@@ -41,10 +41,6 @@
 .grade5 { --grade-color: #8ea6c9; }
 .grade6 { --grade-color: #6f86a8; }
 
-/* 거래 기준의 실제 추천 범위: 허용 범위 위에 진한 색 */
-.rec {
-  box-shadow: inset 0 0 0 2px var(--color-ink);
-}
 
 .ticks {
   display: grid;
@@ -63,17 +59,6 @@
   color: var(--color-muted);
 }
 
-/* 내 평균 매수 등급: 막대 위에서 아래를 가리키는 화살표 */
-.arrow {
-  position: absolute;
-  top: calc(-1 * var(--space-12));
-  width: 0;
-  height: 0;
-  transform: translateX(-50%);
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 9px solid var(--color-gold-dark);
-}
 
 .legend {
   display: flex;
@@ -91,11 +76,6 @@
   white-space: nowrap;
 }
 
-.swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: var(--radius-2);
-}
 
 .swAllowed {
   display: flex;
@@ -108,43 +88,9 @@
   flex: 1;
 }
 
-.swRec {
-  box-shadow: inset 0 0 0 2px var(--color-ink);
-}
-
-.swArrow {
-  width: 0;
-  height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 8px solid var(--color-gold-dark);
-}
 
 .note {
   margin-top: var(--space-6);
   font-size: var(--font-size-12);
   color: var(--color-sub);
-}
-
-/* 범위 보정 안내(거래 기준, targetAdjusted) */
-.adjust {
-  margin-top: var(--space-10);
-  padding: var(--space-8) var(--space-10);
-  border: 1px solid var(--color-gold-border);
-  border-radius: var(--radius-6);
-  background: var(--color-gold-pale);
-  color: var(--color-gold-brown);
-  font-size: var(--font-size-12);
-  line-height: 1.5;
-}
-
-.adjustLink {
-  font-weight: var(--font-weight-bold);
-  color: var(--color-navy);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.adjustLink:hover {
-  text-decoration: underline;
 }
