@@ -1,5 +1,5 @@
 import { useEffect, useId } from 'react'
-import type { MouseEvent, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import '../../styles/tokens.css'
 import { cx } from './cx'
@@ -37,11 +37,6 @@ export function Modal({ open, onClose, title, variant = 'form', children, cancel
 
   if (!open) return null
 
-  // 어두운 막을 눌렀을 때만 닫음(창 안쪽 클릭은 닫지 않음)
-  const onBackdrop = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose()
-  }
-
   const actions = (
     <div className={cx(styles.actions, variant === 'form' && styles.actionsForm)}>
       <button type="button" className={cx(styles.cancel, variant === 'alert' && styles.cancelHover)} onClick={onCancel ?? onClose}>
@@ -54,7 +49,7 @@ export function Modal({ open, onClose, title, variant = 'form', children, cancel
   )
 
   return createPortal(
-    <div className={cx(styles.backdrop, styles[variant + 'Backdrop'])} onClick={onBackdrop}>
+    <div className={cx(styles.backdrop, styles[variant + 'Backdrop'])}>
       {variant === 'form' ? (
         <div className={cx(styles.panel, styles.formPanel)} role="dialog" aria-modal="true" aria-labelledby={titleId}>
           <div className={styles.formHead}>

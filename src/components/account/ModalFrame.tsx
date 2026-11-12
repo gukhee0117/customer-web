@@ -1,5 +1,5 @@
 import { useEffect, useId } from 'react'
-import type { MouseEvent, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import '../../styles/tokens.css'
 import { cx } from '../common/cx'
@@ -8,7 +8,7 @@ import styles from './ModalFrame.module.css'
 interface ModalFrameProps {
   title: string
   sub?: string // 제목 옆 작은 안내(세액 계산 근거 창)
-  onClose: () => void // 닫기 버튼 · 어두운 막 · Esc
+  onClose: () => void // 닫기 버튼 · Esc
   escape?: boolean // false면 Esc로 닫지 않음(위에 확인 창이 떠 있을 때)
   steps?: ReactNode // 머리줄 아래 단계 표시줄
   bodyClassName?: string
@@ -31,13 +31,8 @@ export function ModalFrame({ title, sub, onClose, escape = true, steps, bodyClas
     return () => document.removeEventListener('keydown', onKey)
   }, [escape, onClose])
 
-  // 어두운 막을 눌렀을 때만 닫음(창 안쪽 클릭은 닫지 않음)
-  const onBackdrop = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose()
-  }
-
   return createPortal(
-    <div className={styles.backdrop} onClick={onBackdrop}>
+    <div className={styles.backdrop}>
       <div className={styles.panel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className={styles.head}>
           <h2 id={titleId} className={styles.title}>{title}</h2>

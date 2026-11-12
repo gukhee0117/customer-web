@@ -17,4 +17,4 @@ export const LIVE_POLL_MS = 5000 // 실시간 탭이 새 글을 확인하는 주
 export const CHAT_EMPTY = '조건에 맞는 글이 없어요.'
 export const CHAT_LOADING = '글을 불러오는 중이에요'
 export const CHAT_ERROR = '글을 불러오지 못했어요. 잠시 후 다시 확인해 주세요'
-export const DISCLAIMER = '끼루 AI는 정보를 안내하며 투자 판단은 고객님께 있어요 · 금액은 다른 계좌의 해외주식 순매수가 없다고 가정한 예시예요'
+export const DISCLAIMER = '끼루 AI는 정보를 안내하며 투자 판단은 고객님께 있어요'

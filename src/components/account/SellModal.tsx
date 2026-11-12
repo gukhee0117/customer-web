@@ -1,5 +1,4 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import type { MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import '../../styles/tokens.css'
 import { apiErrorMessage } from '../../api/client'
@@ -125,14 +124,10 @@ export function SellModal({ guide, onRetryGuide, remainingLimit, onClose, onGoHi
   }
   const onBack = () => (step === 1 ? setStep(0) : onGoHist())
 
-  const onBackdrop = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) reqClose()
-  }
-
   return (
     <>
       {createPortal(
-        <div className={styles.backdrop} onClick={onBackdrop}>
+        <div className={styles.backdrop}>
           <div className={styles.panel} role="dialog" aria-modal="true" aria-label="매도 신청">
             <div className={styles.head}>
               <h2 className={styles.title}>매도 신청</h2>

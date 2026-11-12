@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import type { MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { apiErrorMessage } from '../../api/client'
 import { profileKeyOf, submitAssessment } from '../../api/investor'
@@ -42,10 +41,6 @@ export function MyInfoAssessDialog({ onClose, onSave }: Props) {
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const onBackdrop = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose()
-  }
-
   const loaded = !!survey.questions
   const isRes = result !== null
   const score = result?.totalScore ?? 0
@@ -69,7 +64,7 @@ export function MyInfoAssessDialog({ onClose, onSave }: Props) {
   }
 
   return createPortal(
-    <div className={styles.backdrop} onClick={onBackdrop}>
+    <div className={styles.backdrop}>
       <div className={styles.panel} role="dialog" aria-modal="true" aria-label="투자성향 다시 진단">
         <div className={styles.head}>
           <h2>투자성향 다시 진단</h2>

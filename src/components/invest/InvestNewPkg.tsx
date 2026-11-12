@@ -1,4 +1,3 @@
-import type { MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import '../../styles/tokens.css'
 import { checkPackage } from '../../api/stockPackage'
@@ -130,12 +129,8 @@ export function InvestNewPkg({ nm, cash, fees, onPatch, onClose, onMake, onDialo
   const nextDis = st === 2 ? !wOk && !empty : !nextOn
   const nextActive = st === 2 ? wOk : nextOn
 
-  const onBackdrop = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose()
-  }
-
   return createPortal(
-    <div className={styles.backdrop} onClick={onBackdrop}>
+    <div className={styles.backdrop}>
       <div role="dialog" aria-modal="true" aria-label="새 패키지" className={styles.dialog}>
         <div className={styles.head}>
           <h2 className={styles.title}>새 패키지</h2>

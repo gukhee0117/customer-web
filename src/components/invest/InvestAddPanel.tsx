@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import '../../styles/tokens.css'
 import type { CandidateItem } from '../../api/stockPackage'
 import { StockIcon } from '../common/StockIcon'
@@ -26,6 +27,13 @@ interface Props {
 // "종목 추가" 창 — 종목을 검색해 골라 목표 비중을 정해 패키지에 담는다(사지는 않음)
 // 목록은 이름·코드 검색 결과(없으면 가나다순)이고 추천·순위는 없다. 내 성향 밖 상품은 표시해서 보여 준다
 export function InvestAddPanel({ pkg, add, names, onChange, onClose, onPick, onAdd }: Props) {
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const adjusting = !!add.adj
+
+  useEffect(() => {
+    if (adjusting) bodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [adjusting])
+
   const keyword = useDebounced(add.q.trim(), 300)
   const list = useCandidateList({ keyword, includeOutOfProfile: true, sort: 'NAME', direction: 'ASC' }, true)
   const items = (list.data?.items ?? []).slice(0, SHOW_MAX)
@@ -61,7 +69,7 @@ export function InvestAddPanel({ pkg, add, names, onChange, onClose, onPick, onA
           <input className={styles.searchInput} value={add.q} onChange={(e) => onChange({ q: e.target.value.slice(0, 30) })} placeholder="종목명 또는 코드" aria-label="종목 검색" />
         </label>
       </div>
-      <div className={styles.addBody}>
+      <div ref={bodyRef} className={styles.addBody}>
         {add.adj && (
           <div className={styles.adj}>
             <div className={styles.adjTitle}>종목별 목표 비중을 조정해 합계를 100%로 맞춰 주세요</div>

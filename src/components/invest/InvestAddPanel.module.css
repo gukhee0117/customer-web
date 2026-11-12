@@ -166,6 +166,7 @@
 }
 
 .blkName {
+  color: var(--color-ink);
   font-weight: var(--font-weight-bold);
   font-size: var(--font-size-13);
   overflow: hidden;
