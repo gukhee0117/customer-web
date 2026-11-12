@@ -12,10 +12,7 @@ import { BOT_CHIPS, DEPOSIT_QUESTION, WELCOME_MS } from '../components/home/home
 import type { FullAskMsg } from '../components/home/homeBotLogic'
 import { DISCLAIMER } from '../components/home/homeChatData'
 import styles from '../components/home/HomeLayout.module.css'
-import { RETURNS_DATA as RD, serverState } from '../data/returns'
-import { useTendency } from '../components/invest/useNewPkgData'
-import { isTradeRisky } from '../components/myinfo/myinfoProfile'
-import { isRiskySnoozed } from '../components/myinfo/riskySnooze'
+import { serverState } from '../data/returns'
 import { useAppShell } from '../layouts/appShell'
 import { getProfile } from '../api/profile'
 import type { Profile } from '../api/profile'
@@ -42,7 +39,7 @@ export function HomePage() {
         streamRef.current.addMessages([{ kk: true, text: 'RIA 계좌·세액·인출 일정에 대해 물어보세요.' }])
     }
   }, []) // intentional: mount only
-  const [aClosed, setAClosed] = useState<string | null>(null)
+  const [aClosed, setAClosed] = useState(false)
   const [welcome, setWelcome] = useState(hash === '#new')
   const { state: limit, retry: retryLimit } = useSellLimit()
   const [prof, setProf] = useState<Profile | null>(null) // 서버 프로필(이름·계좌). 못 받으면 null → 이름 '-'·계좌는 목업
@@ -56,11 +53,7 @@ export function HomePage() {
     return () => window.removeEventListener('returns-state', refresh)
   }, [])
   const assess = serverState().assess || 'ok'
-  const tendency = useTendency()
-  const risky = isTradeRisky(tendency.data) && !isRiskySnoozed()
-  const profLabel = RD.PROFILES[serverState().profile ?? 'private']?.label ?? ''
-  const kind = assess === 'expired' ? 'expired' : risky ? 'risky' : null
-  const modalKind = kind && aClosed !== kind ? kind : null
+  const showAssessModal = assess === 'expired' && !aClosed
 
   useEffect(() => {
     if (!welcome) return
@@ -121,7 +114,7 @@ export function HomePage() {
         </div>
       </div>
       <p className={styles.note}>{DISCLAIMER}</p>
-      {modalKind && <HomeAssessModal kind={modalKind} profLabel={profLabel} onClose={() => setAClosed(modalKind)} />}
+      {showAssessModal && <HomeAssessModal onClose={() => setAClosed(true)} />}
     </>
   )
 }

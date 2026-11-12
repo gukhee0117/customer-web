@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchQuotes, fetchRecommendations } from '../../api/stockPackage'
-import type { CandidateItem, RecommendBasis, RecommendFilter, RecommendItem, RecommendList } from '../../api/stockPackage'
+import type { CandidateItem, RecommendFilter, RecommendItem, RecommendList } from '../../api/stockPackage'
 import { failState } from './useNewPkgData'
 import type { LoadState } from './useNewPkgData'
 
@@ -17,21 +17,21 @@ export interface RecommendationsRes {
 }
 
 // 성향별 추천(서버)과 그 종목들의 현재가. 필터·개수가 바뀌면 다시 받는다
-export function useRecommendations(filter: RecommendFilter, limit: number, basis: RecommendBasis): RecommendationsRes {
-  const key = filter + ':' + limit + ':' + basis
+export function useRecommendations(filter: RecommendFilter, limit: number): RecommendationsRes {
+  const key = filter + ':' + limit
   const [res, setRes] = useState<{ key: string; state: LoadState; data: RecommendList | null }>({ key: '', state: 'loading', data: null })
   const [q, setQ] = useState<{ key: string; quotes: Record<string, RecQuote | null> }>({ key: '', quotes: {} })
 
   useEffect(() => {
     let alive = true
-    fetchRecommendations(filter, limit, basis).then(
+    fetchRecommendations(filter, limit).then(
       (data) => alive && setRes({ key, state: 'ready', data }),
       (err: unknown) => alive && setRes({ key, state: failState(err), data: null })
     )
     return () => {
       alive = false
     }
-  }, [key, filter, limit, basis])
+  }, [key, filter, limit])
 
   const tickers = res.key === key && res.data ? res.data.items.map((i) => i.ticker) : []
   const tkey = tickers.join(',')
@@ -59,8 +59,8 @@ export function useRecommendations(filter: RecommendFilter, limit: number, basis
   return { state: res.state, data: res.data, quotes: q.key === tkey ? q.quotes : {} }
 }
 
-// 추천 종목을 패키지에 담는 흐름(InvestPage의 pickPackage)이 받는 CandidateItem 모양으로 바꾼다. 설문·거래 두 기준 모두 성향 범위 안 상품만 온다(outOfProfile은 항상 false). 담을 때의 범위 밖 확인 단계는 후보 목록에서 담는 경우를 위한 것이다
-// { ...r }로 RecommendItem 전용 필드(reasons·sectorMatched·themeMatched·matchedTheme)도 함께 붙지만, 담기 흐름이 객체의 키를 순회하지 않아 동작에는 영향이 없다. 담기 흐름이 바뀌면 다시 확인할 것
+// 추천 종목을 패키지에 담는 흐름(InvestPage의 pickPackage)이 받는 CandidateItem 모양으로 바꾼다. 성향 범위 안 상품만 온다(outOfProfile은 항상 false). 담을 때의 범위 밖 확인 단계는 후보 목록에서 담는 경우를 위한 것이다
+// { ...r }로 RecommendItem 전용 필드(reasons)도 함께 붙지만, 담기 흐름이 객체의 키를 순회하지 않아 동작에는 영향이 없다. 담기 흐름이 바뀌면 다시 확인할 것
 export const recToCandidate = (r: RecommendItem): CandidateItem => ({ ...r, selectable: true, unselectableReason: null })
 
 // 설문 허용 등급 문구: 6등급이면 "6등급", 아니면 "5~6등급"처럼. 허용 등급이 없으면 빈 문구. 홈·오늘의 종목 화면이 함께 쓴다

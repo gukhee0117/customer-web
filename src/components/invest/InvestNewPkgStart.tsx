@@ -89,7 +89,7 @@ export function InvestNewPkgStart({ tendency, addedCodes, ask, onPick }: Props) 
     <>
       <div className={styles.label}>어떤 패키지를 만들까요</div>
 
-      {/* 내 투자성향 · 거래에서 본 경향 */}
+      {/* 내 투자성향 */}
       <div className={styles.box}>
         <div className={styles.boxTitle}>내 투자성향 살펴보기</div>
         {tendency.state === 'loading' && <p className={styles.plain}>불러오는 중이에요…</p>}

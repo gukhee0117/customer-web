@@ -118,15 +118,15 @@ export function LandingS9({ t }: { t: LandingTexts }) {
             </div>
             <div className="a9e">
               <b>국내 주식 A</b>
-              <small>위험 2등급 · 20일 +4.2% · 많이 산 업종</small>
+              <small>위험 2등급 · 20일 +4.2%</small>
             </div>
             <div className="a9e">
               <b>국내 ETF B</b>
-              <small>위험 3등급 · 20일 -1.8% · 많이 산 테마</small>
+              <small>위험 3등급 · 20일 -1.8%</small>
             </div>
             <div className="a9e">
               <b>국내 주식 C</b>
-              <small>위험 2등급 · 20일 +2.7% · 많이 산 업종</small>
+              <small>위험 2등급 · 20일 +2.7%</small>
             </div>
             <span className="a9btn">패키지에 담기</span>
           </div>
