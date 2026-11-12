@@ -135,7 +135,7 @@
   min-width: 0;
   overflow: hidden;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .px {
