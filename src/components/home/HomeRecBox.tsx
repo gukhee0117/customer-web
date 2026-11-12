@@ -53,7 +53,7 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
   const none = !survey?.available && !survey?.expired
   const ready = rec.state === 'ready'
   const recEmpty = ready && !off && recs.length === 0
-  const recEmptyT1 = label + '은 ' + allow + ' 상품을 추천받을 수 있어요.'
+  const recEmptyT1 = label + '은 ' + allow + ' 상품을 확인할 수 있어요.'
 
   // 상세 카드: 바깥 클릭·Esc로 닫고, 펼친 내용이 화면에 보이도록 스크롤한다.
   useEffect(() => {
@@ -108,7 +108,7 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
   }
 
   const msgs: AskMsg[] =
-    ask.length === 0 && ready && !off ? [{ text: (recEmpty ? recEmptyT1 : '추천 종목에 대해') + ' 궁금한 걸 물어보세요.' }] : ask
+    ask.length === 0 && ready && !off ? [{ text: (recEmpty ? recEmptyT1 : '오늘의 종목에 대해') + ' 궁금한 걸 물어보세요.' }] : ask
   const chips = recEmpty ? ASK_CHIPS_EMPTY : askChips(recs.length)
 
   const headRight = (
@@ -292,7 +292,7 @@ export function HomeRecBox({ className, onOpenFullAsk, onAskDeposit }: HomeRecBo
               maxLength={100}
               onChange={(e) => setInput(e.target.value)}
               placeholder="오늘의 종목에 대해 끼루에게 물어보세요"
-              aria-label="추천 종목에 대해 끼루에게 질문"
+              aria-label="오늘의 종목에 대해 끼루에게 질문"
             />
             <button type="submit" className={styles.send}>
               전송

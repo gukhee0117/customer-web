@@ -329,7 +329,7 @@
 /* 끼루에게 물어보기 */
 .askHead {
   height: 36px;
-  margin-top: var(--space-4);
+  margin-top: var(--space-16);
   padding: 0 var(--space-16);
   display: flex;
   align-items: center;
@@ -470,7 +470,7 @@
 }
 
 .form {
-  padding: var(--space-8) var(--space-16) 0;
+  padding: var(--space-12) var(--space-16) var(--space-16);
   display: flex;
   gap: var(--space-6);
 }

@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import '../../styles/tokens.css'
 import type { FundFlowAllocation, FundFlowRelief, FundFlowSummary } from '../../api/fundFlow'
 import { Box } from '../common/Box'
@@ -153,6 +153,17 @@ function FlowScheduleBox() {
 const BADGE: Record<string, string> = { KRW_CONFIRMED: styles.badgeKrw, DOMESTIC_BUY: styles.badgeBuy, DOMESTIC_SELL: styles.badgeSell, WITHDRAWAL: styles.badgeOut }
 
 function TxMonthBlock({ month, open, onToggle }: { month: TxMonth; open: string[]; onToggle: (key: string) => void }) {
+  const detailRefs = useRef(new Map<string, HTMLUListElement>())
+  const scrollToKey = useRef<string | null>(null)
+
+  useEffect(() => {
+    const key = scrollToKey.current
+    scrollToKey.current = null
+    if (key && open.includes(key)) {
+      detailRefs.current.get(key)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }, [open])
+
   return (
     <>
       <div className={styles.txMonth}>
@@ -181,14 +192,20 @@ function TxMonthBlock({ month, open, onToggle }: { month: TxMonth; open: string[
         return (
           <div key={t.key} className={styles.txItem}>
             {expandable ? (
-              <button type="button" className={cx(styles.txRow, styles.txCols)} aria-expanded={isOpen} onClick={() => onToggle(t.key)}>
+              <button type="button" className={cx(styles.txRow, styles.txCols)} aria-expanded={isOpen} onClick={() => {
+                if (!isOpen) scrollToKey.current = t.key
+                onToggle(t.key)
+              }}>
                 {cells}
               </button>
             ) : (
               <div className={cx(styles.txRow, styles.txCols)}>{cells}</div>
             )}
             {isOpen && (
-              <ul className={styles.txDetail}>
+              <ul className={styles.txDetail} ref={(node) => {
+                if (node) detailRefs.current.set(t.key, node)
+                else detailRefs.current.delete(t.key)
+              }}>
                 {t.details.map((d) => (
                   <li key={d.name} className={styles.txDetailRow}>
                     <span className={styles.txDetailName}>{d.name}</span>

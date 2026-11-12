@@ -80,6 +80,7 @@ function PersonalNews({ customerId }: { customerId: number }) {
     <div className={styles.cols}>
       {selected ? <ArticleConversation key={`${customerId}:${selected.article.id}:${selected.article.version}`} customerId={customerId} article={selected.article} summaries={summaries} />
         : <div className={styles.welcome}>
+          <img className={styles.welcomeKkiru} src="/assets/kkiru-news.png" alt="뉴스를 소개하는 끼루" width="1254" height="1254" decoding="async" />
           <h3>기사를 누르면 끼루가 요약해 드려요</h3>
           <p>보유 종목의 테마와 관련된 뉴스를 골라 보세요.</p>
         </div>}

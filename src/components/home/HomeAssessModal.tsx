@@ -21,7 +21,7 @@ export function HomeAssessModal({ onClose }: HomeAssessModalProps) {
   }, [onClose])
 
   return (
-    <div className={styles.backdrop} onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className={styles.backdrop}>
       <div className={styles.dialog} role="alertdialog" aria-modal="true" aria-labelledby="aModalT">
         <h3 id="aModalT" className={styles.title}>
           투자성향 진단 유효기간이 지났어요
